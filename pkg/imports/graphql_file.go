@@ -2,7 +2,7 @@ package imports
 
 import (
 	"bufio"
-	"github.com/jensneuse/graphql-go-tools/pkg/lexer/literal"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/lexer/literal"
 	"io"
 	"os"
 )

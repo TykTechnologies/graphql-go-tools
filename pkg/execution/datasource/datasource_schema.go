@@ -3,8 +3,8 @@ package datasource
 import (
 	"context"
 	"encoding/json"
-	"github.com/jensneuse/graphql-go-tools/pkg/introspection"
-	"github.com/jensneuse/graphql-go-tools/pkg/operationreport"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/introspection"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/operationreport"
 	"io"
 )
 

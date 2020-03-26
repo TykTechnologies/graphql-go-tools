@@ -4,9 +4,9 @@ package execution
 import (
 	"bytes"
 	"fmt"
-	"github.com/jensneuse/graphql-go-tools/internal/pkg/unsafebytes"
-	"github.com/jensneuse/graphql-go-tools/pkg/escape"
-	"github.com/jensneuse/graphql-go-tools/pkg/lexer/literal"
+	"github.com/TykTechnologies/graphql-go-tools/internal/pkg/unsafebytes"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/escape"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/lexer/literal"
 	"io"
 )
 

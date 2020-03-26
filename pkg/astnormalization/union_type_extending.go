@@ -2,8 +2,8 @@ package astnormalization
 
 import (
 	"github.com/cespare/xxhash"
-	"github.com/jensneuse/graphql-go-tools/pkg/ast"
-	"github.com/jensneuse/graphql-go-tools/pkg/astvisitor"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/ast"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/astvisitor"
 )
 
 func extendUnionTypeDefinition(walker *astvisitor.Walker) {

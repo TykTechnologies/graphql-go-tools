@@ -4,14 +4,14 @@ package astparser
 import (
 	"fmt"
 	"github.com/cespare/xxhash"
-	"github.com/jensneuse/graphql-go-tools/internal/pkg/unsafebytes"
-	"github.com/jensneuse/graphql-go-tools/pkg/ast"
-	"github.com/jensneuse/graphql-go-tools/pkg/lexer"
-	"github.com/jensneuse/graphql-go-tools/pkg/lexer/identkeyword"
-	"github.com/jensneuse/graphql-go-tools/pkg/lexer/keyword"
-	"github.com/jensneuse/graphql-go-tools/pkg/lexer/position"
-	"github.com/jensneuse/graphql-go-tools/pkg/lexer/token"
-	"github.com/jensneuse/graphql-go-tools/pkg/operationreport"
+	"github.com/TykTechnologies/graphql-go-tools/internal/pkg/unsafebytes"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/ast"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/lexer"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/lexer/identkeyword"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/lexer/keyword"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/lexer/position"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/lexer/token"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/operationreport"
 	"runtime"
 )
 

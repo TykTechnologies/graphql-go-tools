@@ -3,7 +3,7 @@ package introspection
 import (
 	"encoding/json"
 	"github.com/jensneuse/diffview"
-	"github.com/jensneuse/graphql-go-tools/pkg/astparser"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/astparser"
 	"github.com/sebdah/goldie"
 	"io/ioutil"
 	"testing"

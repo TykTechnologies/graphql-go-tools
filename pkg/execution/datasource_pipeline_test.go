@@ -3,8 +3,8 @@ package execution
 import (
 	"bytes"
 	log "github.com/jensneuse/abstractlogger"
-	"github.com/jensneuse/graphql-go-tools/pkg/execution/datasource"
-	"github.com/jensneuse/graphql-go-tools/pkg/lexer/literal"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/execution/datasource"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/lexer/literal"
 	"github.com/jensneuse/pipeline/pkg/pipe"
 	"os"
 	"testing"

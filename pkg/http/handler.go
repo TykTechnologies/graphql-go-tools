@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"github.com/gobwas/ws"
 	log "github.com/jensneuse/abstractlogger"
-	"github.com/jensneuse/graphql-go-tools/pkg/execution"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/execution"
 	"io"
 	"net/http"
 )

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"github.com/cespare/xxhash"
 	log "github.com/jensneuse/abstractlogger"
-	"github.com/jensneuse/graphql-go-tools/pkg/execution/datasource"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/execution/datasource"
 	"testing"
 )
 
