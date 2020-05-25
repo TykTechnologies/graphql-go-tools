@@ -4,9 +4,11 @@ package execution
 
 import (
 	"encoding/json"
+
 	"github.com/buger/jsonparser"
 	"github.com/cespare/xxhash"
-	"github.com/jensneuse/byte-template"
+	byte_template "github.com/jensneuse/byte-template"
+
 	"github.com/jensneuse/graphql-go-tools/pkg/astnormalization"
 	"github.com/jensneuse/graphql-go-tools/pkg/astparser"
 	"github.com/jensneuse/graphql-go-tools/pkg/astvalidation"
@@ -45,7 +47,7 @@ func (h *Handler) Handle(requestData, extraVariables []byte) (executor *Executor
 		return
 	}
 
-	variables, extraArguments := h.VariablesFromJson(graphqlRequest.Variables, extraVariables)
+	variables, extraArguments := VariablesFromJson(graphqlRequest.Variables, extraVariables)
 
 	planner := NewPlanner(h.base)
 	if report.HasErrors() {
@@ -90,7 +92,7 @@ func (h *Handler) Handle(requestData, extraVariables []byte) (executor *Executor
 	return executor, plan, ctx, err
 }
 
-func (h *Handler) VariablesFromJson(requestVariables, extraVariables []byte) (variables Variables, extraArguments []datasource.Argument) {
+func VariablesFromJson(requestVariables, extraVariables []byte) (variables Variables, extraArguments []datasource.Argument) {
 	variables = map[uint64][]byte{}
 	_ = jsonparser.ObjectEach(requestVariables, func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
 		variables[xxhash.Sum64(key)] = value
