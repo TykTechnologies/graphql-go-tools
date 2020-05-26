@@ -104,8 +104,9 @@ type HttpJsonDataSourcePlanner struct {
 
 func (h *HttpJsonDataSourcePlanner) Plan(args []Argument) (DataSource, []Argument) {
 	return &HttpJsonDataSource{
-		Log:    h.Log,
-		Client: h.client,
+		Log:                h.Log,
+		Client:             h.client,
+		WhitelistedSchemes: h.whitelistedSchemes,
 	}, append(h.Args, args...)
 }
 
