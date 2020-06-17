@@ -57,8 +57,8 @@ func TestSchema_HasQueryType(t *testing.T) {
 		}
 	}
 
-	t.Run("should return false when there is no query type present", run(
-		`schema {
+	t.Run("should return false when there is no query type present", run(`
+				schema {
 					mutation: Mutation
 				}
 				type Mutation {
@@ -66,8 +66,8 @@ func TestSchema_HasQueryType(t *testing.T) {
 				}`, false),
 	)
 
-	t.Run("should return true when there is a query type present", run(
-		`schema {
+	t.Run("should return true when there is a query type present", run(`
+				schema {
 					query: Query
 				}
 				type Query {
@@ -87,8 +87,8 @@ func TestSchema_QueryTypeName(t *testing.T) {
 		}
 	}
 
-	t.Run("should return empty string when no query type is present", run(
-		`schema {
+	t.Run("should return empty string when no query type is present", run(`
+				schema {
 					mutation: Mutation
 				}
 				type Mutation {
@@ -96,8 +96,8 @@ func TestSchema_QueryTypeName(t *testing.T) {
 				}`, ""),
 	)
 
-	t.Run("should return 'Query' when there is a query type named 'Query'", run(
-		`schema {
+	t.Run("should return 'Query' when there is a query type named 'Query'", run(`
+				schema {
 					query: Query
 				}
 				type Query {
@@ -105,8 +105,8 @@ func TestSchema_QueryTypeName(t *testing.T) {
 				}`, "Query"),
 	)
 
-	t.Run("should return 'Other' when there is a query type named 'Other'", run(
-		`schema {
+	t.Run("should return 'Other' when there is a query type named 'Other'", run(`
+				schema {
 					query: Other
 				}
 				type Other {
@@ -126,8 +126,8 @@ func TestSchema_HasMutationType(t *testing.T) {
 		}
 	}
 
-	t.Run("should return false when there is no mutation type present", run(
-		`schema {
+	t.Run("should return false when there is no mutation type present", run(`
+				schema {
 					query: Query
 				}
 				type Query {
@@ -135,8 +135,8 @@ func TestSchema_HasMutationType(t *testing.T) {
 				}`, false),
 	)
 
-	t.Run("should return true when there is a mutation type present", run(
-		`schema {
+	t.Run("should return true when there is a mutation type present", run(`
+				schema {
 					mutation: Mutation
 				}
 				type Mutation {
@@ -156,8 +156,8 @@ func TestSchema_MutationTypeName(t *testing.T) {
 		}
 	}
 
-	t.Run("should return empty string when no mutation type is present", run(
-		`schema {
+	t.Run("should return empty string when no mutation type is present", run(`
+				schema {
 					query: Query
 				}
 				type Query {
@@ -165,8 +165,8 @@ func TestSchema_MutationTypeName(t *testing.T) {
 				}`, ""),
 	)
 
-	t.Run("should return 'Mutation' when there is a mutation type named 'Mutation'", run(
-		`schema {
+	t.Run("should return 'Mutation' when there is a mutation type named 'Mutation'", run(`
+				schema {
 					mutation: Mutation
 				}
 				type Mutation {
@@ -174,8 +174,8 @@ func TestSchema_MutationTypeName(t *testing.T) {
 				}`, "Mutation"),
 	)
 
-	t.Run("should return 'Other' when there is a mutation type named 'Other'", run(
-		`schema {
+	t.Run("should return 'Other' when there is a mutation type named 'Other'", run(`
+				schema {
 					mutation: Other
 				}
 				type Other {
@@ -195,8 +195,8 @@ func TestSchema_HasSubscriptionType(t *testing.T) {
 		}
 	}
 
-	t.Run("should return false when there is no subscription type present", run(
-		`schema {
+	t.Run("should return false when there is no subscription type present", run(`
+				schema {
 					query: Query
 				}
 				type Query {
@@ -204,8 +204,8 @@ func TestSchema_HasSubscriptionType(t *testing.T) {
 				}`, false),
 	)
 
-	t.Run("should return true when there is a subscription type present", run(
-		`schema {
+	t.Run("should return true when there is a subscription type present", run(`
+				schema {
 					subscription: Subscription
 				}
 				type Subscription {
@@ -225,8 +225,8 @@ func TestSchema_SubscriptionTypeName(t *testing.T) {
 		}
 	}
 
-	t.Run("should return empty string when no subscription type is present", run(
-		`schema {
+	t.Run("should return empty string when no subscription type is present", run(`
+				schema {
 					query: Query
 				}
 				type Query {
@@ -234,8 +234,8 @@ func TestSchema_SubscriptionTypeName(t *testing.T) {
 				}`, ""),
 	)
 
-	t.Run("should return 'Subscription' when there is a subscription type named 'Subscription'", run(
-		`schema {
+	t.Run("should return 'Subscription' when there is a subscription type named 'Subscription'", run(`
+				schema {
 					subscription: Subscription
 				}
 				type Subscription {
@@ -243,8 +243,8 @@ func TestSchema_SubscriptionTypeName(t *testing.T) {
 				}`, "Subscription"),
 	)
 
-	t.Run("should return 'Other' when there is a subscription type named 'Other'", run(
-		`schema {
+	t.Run("should return 'Other' when there is a subscription type named 'Other'", run(`
+				schema {
 					subscription: Other
 				}
 				type Other {
