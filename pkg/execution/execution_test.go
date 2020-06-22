@@ -1992,125 +1992,137 @@ func TestExecutor_ResolveArgsWithListArguments(t *testing.T) {
 }
 
 func TestExecutor_HTTPJSONDataSourceWithBody(t *testing.T) {
+	createRESTServer := func(wantString string) *httptest.Server {
+		return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-	wantUpstream := map[string]interface{}{
-		"key": "fooValue",
+			if r.Method != http.MethodPost {
+				t.Fatalf("wantUpstream: %s, got: %s\n", http.MethodPost, r.Method)
+				return
+			}
+
+			data, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				t.Fatal(err)
+				return
+			}
+			defer r.Body.Close()
+
+			strData := string(data)
+			_ = strData
+
+			gotString := prettyJSON(bytes.NewReader(data))
+
+			if wantString != gotString {
+				t.Fatalf("wantUpstream: %s\ngot: %s\n", wantString, gotString)
+				return
+			}
+
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("bar"))
+		}))
 	}
-	wantBytes, err := json.MarshalIndent(wantUpstream, "", "  ")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
 
-	wantString := string(wantBytes)
-
-	REST1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		if r.Method != http.MethodPost {
-			t.Fatalf("wantUpstream: %s, got: %s\n", http.MethodPost, r.Method)
-			return
-		}
-
-		data, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			t.Fatal(err)
-			return
-		}
-		defer r.Body.Close()
-
-		strData := string(data)
-		_ = strData
-
-		gotString := prettyJSON(bytes.NewReader(data))
-
-		if wantString != gotString {
-			t.Fatalf("wantUpstream: %s\ngot: %s\n", wantString, gotString)
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("bar"))
-	}))
-
-	plan := &Object{
-		operationType: ast.OperationTypeQuery,
-		Fields: []Field{
-			{
-				Name: []byte("data"),
-				Value: &Object{
-					Fetch: &SingleFetch{
-						BufferName: "withBody",
-						Source: &DataSourceInvocation{
-							DataSource: &datasource.HttpJsonDataSource{
-								Log:    log.NoopLogger,
-								Client: datasource.DefaultHttpClient(),
-							},
-							Args: []datasource.Argument{
-								&datasource.StaticVariableArgument{
-									Name:  []byte("url"),
-									Value: []byte(REST1.URL + "/"),
+	createPlanForRestServer := func(restServer *httptest.Server) *Object {
+		return &Object{
+			operationType: ast.OperationTypeQuery,
+			Fields: []Field{
+				{
+					Name: []byte("data"),
+					Value: &Object{
+						Fetch: &SingleFetch{
+							BufferName: "withBody",
+							Source: &DataSourceInvocation{
+								DataSource: &datasource.HttpJsonDataSource{
+									Log:    log.NoopLogger,
+									Client: datasource.DefaultHttpClient(),
 								},
-								&datasource.StaticVariableArgument{
-									Name:  []byte("method"),
-									Value: []byte("POST"),
-								},
-								&datasource.StaticVariableArgument{
-									Name:  []byte("body"),
-									Value: []byte("{\\\"key\\\":\\\"{{ .arguments.input.foo }}\\\"}"),
-								},
-								&datasource.ContextVariableArgument{
-									Name:         []byte(".arguments.input"),
-									VariableName: []byte("input"),
+								Args: []datasource.Argument{
+									&datasource.StaticVariableArgument{
+										Name:  []byte("url"),
+										Value: []byte(restServer.URL + "/"),
+									},
+									&datasource.StaticVariableArgument{
+										Name:  []byte("method"),
+										Value: []byte("POST"),
+									},
+									&datasource.StaticVariableArgument{
+										Name:  []byte("body"),
+										Value: []byte("{\\\"key\\\":\\\"{{ .arguments.input.foo }}\\\"}"),
+									},
+									&datasource.ContextVariableArgument{
+										Name:         []byte(".arguments.input"),
+										VariableName: []byte("input"),
+									},
 								},
 							},
 						},
-					},
-					Fields: []Field{
-						{
-							Name:            []byte("withBody"),
-							HasResolvedData: true,
-							Value: &Value{
-								ValueType: StringValueType,
+						Fields: []Field{
+							{
+								Name:            []byte("withBody"),
+								HasResolvedData: true,
+								Value: &Value{
+									ValueType: StringValueType,
+								},
 							},
 						},
 					},
 				},
 			},
-		},
+		}
 	}
 
-	out := &bytes.Buffer{}
-	ex := NewExecutor(nil)
-	ctx := Context{
-		Context: context.Background(),
-		Variables: map[uint64][]byte{
-			xxhash.Sum64String("input"): []byte(`{"foo": "fooValue"}`),
-		},
+	run := func(t *testing.T, testServer *httptest.Server, expectedResult map[string]interface{}) {
+		plan := createPlanForRestServer(testServer)
+
+		out := &bytes.Buffer{}
+		ex := NewExecutor(nil)
+		ctx := Context{
+			Context: context.Background(),
+			Variables: map[uint64][]byte{
+				xxhash.Sum64String("input"): []byte(`{"foo": "fooValue"}`),
+			},
+		}
+
+		err := ex.Execute(ctx, plan, out)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		wantResult, err := json.MarshalIndent(expectedResult, "", "  ")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		want := string(wantResult)
+		got := prettyJSON(out)
+
+		if want != got {
+			t.Fatalf("want: %s\ngot: %s\n", want, got)
+			return
+		}
 	}
 
-	err = ex.Execute(ctx, plan, out)
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Run("should successfully use data source with body", func(t *testing.T) {
+		wantUpstream := map[string]interface{}{
+			"key": "fooValue",
+		}
+		wantBytes, err := json.MarshalIndent(wantUpstream, "", "  ")
+		if err != nil {
+			t.Fatal(err)
+			return
+		}
 
-	expected := map[string]interface{}{
-		"data": map[string]interface{}{
-			"withBody": "bar",
-		},
-	}
+		expectedResult := map[string]interface{}{
+			"data": map[string]interface{}{
+				"withBody": "bar",
+			},
+		}
 
-	wantResult, err := json.MarshalIndent(expected, "", "  ")
-	if err != nil {
-		t.Fatal(err)
-	}
+		wantString := string(wantBytes)
+		restServer := createRESTServer(wantString)
+		run(t, restServer, expectedResult)
+	})
 
-	want := string(wantResult)
-	got := prettyJSON(out)
-
-	if want != got {
-		t.Fatalf("want: %s\ngot: %s\n", want, got)
-		return
-	}
 }
 
 func TestExecutor_Execute_WithUnions(t *testing.T) {
