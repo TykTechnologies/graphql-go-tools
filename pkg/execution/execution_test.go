@@ -2022,7 +2022,7 @@ func TestExecutor_HTTPJSONDataSourceWithBody(t *testing.T) {
 		}))
 	}
 
-	createPlanForRestServer := func(restServer *httptest.Server) *Object {
+	createPlanForRestServer := func(restServer *httptest.Server, bodyValue string) *Object {
 		return &Object{
 			operationType: ast.OperationTypeQuery,
 			Fields: []Field{
@@ -2047,7 +2047,7 @@ func TestExecutor_HTTPJSONDataSourceWithBody(t *testing.T) {
 									},
 									&datasource.StaticVariableArgument{
 										Name:  []byte("body"),
-										Value: []byte("{\\\"key\\\":\\\"{{ .arguments.input.foo }}\\\"}"),
+										Value: []byte(bodyValue),
 									},
 									&datasource.ContextVariableArgument{
 										Name:         []byte(".arguments.input"),
@@ -2071,15 +2071,15 @@ func TestExecutor_HTTPJSONDataSourceWithBody(t *testing.T) {
 		}
 	}
 
-	run := func(t *testing.T, testServer *httptest.Server, expectedResult map[string]interface{}) {
-		plan := createPlanForRestServer(testServer)
+	run := func(t *testing.T, testServer *httptest.Server, bodyValue string, argumentsInputString string, expectedResult map[string]interface{}) {
+		plan := createPlanForRestServer(testServer, bodyValue)
 
 		out := &bytes.Buffer{}
 		ex := NewExecutor(nil)
 		ctx := Context{
 			Context: context.Background(),
 			Variables: map[uint64][]byte{
-				xxhash.Sum64String("input"): []byte(`{"foo": "fooValue"}`),
+				xxhash.Sum64String("input"): []byte(argumentsInputString),
 			},
 		}
 
@@ -2120,7 +2120,28 @@ func TestExecutor_HTTPJSONDataSourceWithBody(t *testing.T) {
 
 		wantString := string(wantBytes)
 		restServer := createRESTServer(wantString)
-		run(t, restServer, expectedResult)
+		run(t, restServer, "{\\\"key\\\":\\\"{{ .arguments.input.foo }}\\\"}", `{"foo": "fooValue"}`, expectedResult)
+	})
+
+	t.Run("should successfully use data source with body including json object as value in json object argument", func(t *testing.T) {
+		wantUpstream := map[string]interface{}{
+			"key": `{ "obj_key": "obj_value" }`,
+		}
+		wantBytes, err := json.MarshalIndent(wantUpstream, "", "  ")
+		if err != nil {
+			t.Fatal(err)
+			return
+		}
+
+		expectedResult := map[string]interface{}{
+			"data": map[string]interface{}{
+				"withBody": "bar",
+			},
+		}
+
+		wantString := string(wantBytes)
+		restServer := createRESTServer(wantString)
+		run(t, restServer, `{ "key":"{{ .arguments.input.foo }}" }`, `{"foo": "{ \"obj_key\": \"obj_value\" }"}`, expectedResult)
 	})
 
 }
