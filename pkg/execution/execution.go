@@ -6,9 +6,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"strconv"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/buger/jsonparser"
 	"github.com/cespare/xxhash"
@@ -49,6 +51,7 @@ func (e *Executor) Execute(ctx Context, node RootNode, w io.Writer) error {
 	e.context = ctx
 	e.out = w
 	e.err = nil
+
 	var path string
 	switch node.OperationType() {
 	case ast.OperationTypeQuery:
@@ -276,7 +279,15 @@ func (e *Executor) ResolveArgs(args []datasource.Argument, data []byte) Resolved
 					return w.Write(resolved[j].Value)
 				}
 				key = bytes.TrimPrefix(key, literal.DOT)
+
 				result := gjson.GetBytes(resolved[j].Value, unsafebytes.BytesToString(key))
+				resultBytes := unsafebytes.StringToBytes(result.Raw)
+				trimmedValue := bytes.Trim(resultBytes, `"`)
+				if isJSONObjectAsBytes(trimmedValue) {
+					trimmedValue = bytes.ReplaceAll(trimmedValue, []byte(`\"`), []byte(`\\"`))
+					return w.Write(trimmedValue)
+				}
+
 				if result.Type == gjson.String {
 					return w.Write(unsafebytes.StringToBytes(result.Str))
 				}
@@ -586,4 +597,11 @@ func (_ ListFilterFirstN) Kind() ListFilterKind {
 type DataSourceInvocation struct {
 	Args       []datasource.Argument
 	DataSource datasource.DataSource
+}
+
+func isJSONObjectAsBytes(input []byte) bool {
+	trimmedInput := bytes.Trim(input, " ")
+	firstRune, _ := utf8.DecodeRune(trimmedInput)
+	lastRune, _ := utf8.DecodeLastRune(trimmedInput)
+	return fmt.Sprintf("%c", firstRune) == "{" && fmt.Sprintf("%c", lastRune) == "}"
 }

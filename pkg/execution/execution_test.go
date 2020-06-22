@@ -1921,7 +1921,7 @@ func TestExecutor_ResolveArgsComplexPayloadWithSelector(t *testing.T) {
 	}
 	want := `{"bal": "baz"}`
 	if !bytes.Equal(resolved.ByKey([]byte("body")), []byte(want)) {
-		t.Fatalf("want key 'body' with value: '%s'", want)
+		t.Fatalf("want key 'body' with value: '%s'\ngot: '%s'", want, resolved.ByKey([]byte("body")))
 	}
 }
 
@@ -2120,12 +2120,14 @@ func TestExecutor_HTTPJSONDataSourceWithBody(t *testing.T) {
 
 		wantString := string(wantBytes)
 		restServer := createRESTServer(wantString)
+		defer restServer.Close()
+
 		run(t, restServer, "{\\\"key\\\":\\\"{{ .arguments.input.foo }}\\\"}", `{"foo": "fooValue"}`, expectedResult)
 	})
 
 	t.Run("should successfully use data source with body including json object as value in json object argument", func(t *testing.T) {
 		wantUpstream := map[string]interface{}{
-			"key": `{ "obj_key": "obj_value" }`,
+			"key": "{ \"obj_key\": \"obj_value\" }",
 		}
 		wantBytes, err := json.MarshalIndent(wantUpstream, "", "  ")
 		if err != nil {
@@ -2141,7 +2143,9 @@ func TestExecutor_HTTPJSONDataSourceWithBody(t *testing.T) {
 
 		wantString := string(wantBytes)
 		restServer := createRESTServer(wantString)
-		run(t, restServer, `{ "key":"{{ .arguments.input.foo }}" }`, `{"foo": "{ \"obj_key\": \"obj_value\" }"}`, expectedResult)
+		defer restServer.Client()
+
+		run(t, restServer, `{ \"key\":\"{{ .arguments.input.foo }}\" }`, `{"foo": "{ \"obj_key\": \"obj_value\" }"}`, expectedResult)
 	})
 
 }
@@ -2989,4 +2993,25 @@ func TestExecutor_Introspection(t *testing.T) {
 
 		diffview.NewGoland().DiffViewBytes("execution", fixture, response)
 	}
+}
+
+func TestIsJSONObjectAsBytes(t *testing.T) {
+	run := func(inputString string, expectedResult bool) (string, func(t *testing.T)) {
+		return fmt.Sprintf("%s is %v", inputString, expectedResult), func(t *testing.T) {
+			inputBytes := []byte(inputString)
+			result := isJSONObjectAsBytes(inputBytes)
+			assert.Equal(t, expectedResult, result)
+		}
+	}
+
+	t.Run(run("hello", false))
+	t.Run(run("1", false))
+	t.Run(run("query { meow }", false))
+	t.Run(run(": - }", false))
+	t.Run(run("{ - )", false))
+	t.Run(run("{}", true))
+	t.Run(run("   {}", true))
+	t.Run(run("{}   ", true))
+	t.Run(run("{\"hello\": \"world\"}", true))
+	t.Run(run(`{"hello": "world"}`, true))
 }
