@@ -13,7 +13,7 @@ func Bytes(in, out []byte) []byte {
 			out = append(out, 92, 110) // \n
 		case 34:
 			if i > 0 && in[i-1] == 92 {
-				out = append(out, 34) // "
+				out = append(out, 92, 92, 34) // \\"
 			} else {
 				out = append(out, 92, 34) // \"
 			}

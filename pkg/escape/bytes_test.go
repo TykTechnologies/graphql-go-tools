@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/magiconair/properties/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBytes(t *testing.T) {
@@ -61,9 +61,10 @@ func TestBytes(t *testing.T) {
 	}
 
 	t.Run(run(t, `"foo"`, `\"foo\"`))
-	t.Run(run(t, `\"foo\"`, `\"foo\"`))
 	t.Run(run(t, `foo\n`, `foo\n`))
 	t.Run(run(t, `foo\t`, `foo\t`))
+	t.Run(run(t, `{"test": "{\"foo\": \"bar\"}"}`, `{\"test\": \"{\\\"foo\\\": \\\"bar\\\"}\"}`))
+	t.Run(run(t, `"Hello, 世界"`, `\"Hello, 世界\"`))
 
 }
 
