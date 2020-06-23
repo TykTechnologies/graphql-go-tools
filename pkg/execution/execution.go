@@ -285,18 +285,15 @@ func (e *Executor) ResolveArgs(args []datasource.Argument, data []byte) Resolved
 				if result.Type == gjson.String {
 					resultBytes := unsafebytes.StringToBytes(result.Str)
 					if isJSONObjectAsBytes(resultBytes) {
-						resultBytes = bytes.ReplaceAll(resultBytes, []byte(`"`), []byte(`\\"`))
+						resultBytes = bytes.ReplaceAll(resultBytes, []byte(`"`), []byte(`\"`))
 					} else if byteSliceContainsQuotes(resultBytes) {
-						resultBytes = bytes.ReplaceAll(resultBytes, []byte(`\"`), []byte(`\\"`))
+						resultBytes = bytes.ReplaceAll(resultBytes, []byte(`"`), []byte(`\"`))
 					}
 
 					return w.Write(resultBytes)
 				}
 
 				rawResultBytes := unsafebytes.StringToBytes(result.Raw)
-				if byteSliceContainsEscapedQuotes(rawResultBytes) {
-					rawResultBytes = bytes.ReplaceAll(rawResultBytes, []byte(`\"`), []byte(`\\"`))
-				}
 				return w.Write(rawResultBytes)
 			}
 			_, _ = w.Write(literal.LBRACE)

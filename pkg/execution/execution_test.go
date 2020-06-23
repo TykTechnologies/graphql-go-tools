@@ -2122,7 +2122,7 @@ func TestExecutor_HTTPJSONDataSourceWithBody(t *testing.T) {
 		restServer := createRESTServer(wantString)
 		defer restServer.Close()
 
-		run(t, restServer, "{\\\"key\\\":\\\"{{ .arguments.input.foo }}\\\"}", `{"foo": "fooValue"}`, expectedResult)
+		run(t, restServer, `{"key":"{{ .arguments.input.foo }}"}`, `{"foo": "fooValue"}`, expectedResult)
 	})
 
 	t.Run("should successfully use data source with body including json object as value in json object argument", func(t *testing.T) {
@@ -2150,10 +2150,8 @@ func TestExecutor_HTTPJSONDataSourceWithBody(t *testing.T) {
 
 	t.Run("should successfully use data source with body including complex json object with escaped strings", func(t *testing.T) {
 		wantUpstream := map[string]interface{}{
-			"key": map[string]interface{}{
-				"meta_data": map[string]interface{}{
-					"test": "{foo: \"bar\"}",
-				},
+			"meta_data": map[string]interface{}{
+				"test": "{foo: \"bar\"}",
 			},
 		}
 		wantBytes, err := json.MarshalIndent(wantUpstream, "", "  ")
@@ -2172,7 +2170,7 @@ func TestExecutor_HTTPJSONDataSourceWithBody(t *testing.T) {
 		restServer := createRESTServer(wantString)
 		defer restServer.Client()
 
-		run(t, restServer, `{ \"key\": {{ .arguments.input.query }} }`, `{"query": { "meta_data": { "test": "{foo: \"bar\"}" } }`, expectedResult)
+		run(t, restServer, `{{ .arguments.input.query }}`, `{"query": { "meta_data": { "test": "{foo: \"bar\"}" } }`, expectedResult)
 	})
 
 }
