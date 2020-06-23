@@ -2145,7 +2145,34 @@ func TestExecutor_HTTPJSONDataSourceWithBody(t *testing.T) {
 		restServer := createRESTServer(wantString)
 		defer restServer.Client()
 
-		run(t, restServer, `{ \"key\":\"{{ .arguments.input.foo }}\" }`, `{"foo": "{ \"obj_key\": \"obj_value\" }"}`, expectedResult)
+		run(t, restServer, `{ "key": "{{ .arguments.input.foo }}" }`, `{"foo": "{ \"obj_key\": \"obj_value\" }"}`, expectedResult)
+	})
+
+	t.Run("should successfully use data source with body including complex json object with escaped strings", func(t *testing.T) {
+		wantUpstream := map[string]interface{}{
+			"key": map[string]interface{}{
+				"meta_data": map[string]interface{}{
+					"test": "{foo: \"bar\"}",
+				},
+			},
+		}
+		wantBytes, err := json.MarshalIndent(wantUpstream, "", "  ")
+		if err != nil {
+			t.Fatal(err)
+			return
+		}
+
+		expectedResult := map[string]interface{}{
+			"data": map[string]interface{}{
+				"withBody": "bar",
+			},
+		}
+
+		wantString := string(wantBytes)
+		restServer := createRESTServer(wantString)
+		defer restServer.Client()
+
+		run(t, restServer, `{ \"key\": {{ .arguments.input.query }} }`, `{"query": { "meta_data": { "test": "{foo: \"bar\"}" } }`, expectedResult)
 	})
 
 }
@@ -3014,4 +3041,36 @@ func TestIsJSONObjectAsBytes(t *testing.T) {
 	t.Run(run("{}   ", true))
 	t.Run(run("{\"hello\": \"world\"}", true))
 	t.Run(run(`{"hello": "world"}`, true))
+}
+
+func Test_byteSliceContainsEscapedQuotes(t *testing.T) {
+	run := func(inputString string, expectedResult bool) (string, func(t *testing.T)) {
+		return fmt.Sprintf("%s is %v", inputString, expectedResult), func(t *testing.T) {
+			inputBytes := []byte(inputString)
+			result := byteSliceContainsEscapedQuotes(inputBytes)
+			assert.Equal(t, expectedResult, result)
+		}
+	}
+
+	t.Run(run(`"my dog is a string"`, false))
+	t.Run(run(`[1, 2, 3, 4]`, false))
+	t.Run(run(`{"key": "value"}`, false))
+
+	t.Run(run(`"the name of my dog is \"Hans\""`, true))
+	t.Run(run(`{"test": "{foo: \"bar\"}"}`, true))
+}
+
+func Test_byteSliceContainsQuotes(t *testing.T) {
+	run := func(inputString string, expectedResult bool) (string, func(t *testing.T)) {
+		return fmt.Sprintf("%s is %v", inputString, expectedResult), func(t *testing.T) {
+			inputBytes := []byte(inputString)
+			result := byteSliceContainsQuotes(inputBytes)
+			assert.Equal(t, expectedResult, result)
+		}
+	}
+
+	t.Run(run(`my dog is a string`, false))
+	t.Run(run(`[1, 2, 3, 4]`, false))
+
+	t.Run(run(`the name of my dog is "Hans"`, true))
 }

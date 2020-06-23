@@ -281,17 +281,23 @@ func (e *Executor) ResolveArgs(args []datasource.Argument, data []byte) Resolved
 				key = bytes.TrimPrefix(key, literal.DOT)
 
 				result := gjson.GetBytes(resolved[j].Value, unsafebytes.BytesToString(key))
-				resultBytes := unsafebytes.StringToBytes(result.Raw)
-				trimmedValue := bytes.Trim(resultBytes, `"`)
-				if isJSONObjectAsBytes(trimmedValue) {
-					trimmedValue = bytes.ReplaceAll(trimmedValue, []byte(`\"`), []byte(`\\"`))
-					return w.Write(trimmedValue)
-				}
 
 				if result.Type == gjson.String {
-					return w.Write(unsafebytes.StringToBytes(result.Str))
+					resultBytes := unsafebytes.StringToBytes(result.Str)
+					if isJSONObjectAsBytes(resultBytes) {
+						resultBytes = bytes.ReplaceAll(resultBytes, []byte(`"`), []byte(`\\"`))
+					} else if byteSliceContainsQuotes(resultBytes) {
+						resultBytes = bytes.ReplaceAll(resultBytes, []byte(`\"`), []byte(`\\"`))
+					}
+
+					return w.Write(resultBytes)
 				}
-				return w.Write(unsafebytes.StringToBytes(result.Raw))
+
+				rawResultBytes := unsafebytes.StringToBytes(result.Raw)
+				if byteSliceContainsEscapedQuotes(rawResultBytes) {
+					rawResultBytes = bytes.ReplaceAll(rawResultBytes, []byte(`\"`), []byte(`\\"`))
+				}
+				return w.Write(rawResultBytes)
 			}
 			_, _ = w.Write(literal.LBRACE)
 			_, _ = w.Write(literal.LBRACE)
@@ -604,4 +610,12 @@ func isJSONObjectAsBytes(input []byte) bool {
 	firstRune, _ := utf8.DecodeRune(trimmedInput)
 	lastRune, _ := utf8.DecodeLastRune(trimmedInput)
 	return fmt.Sprintf("%c", firstRune) == "{" && fmt.Sprintf("%c", lastRune) == "}"
+}
+
+func byteSliceContainsEscapedQuotes(input []byte) bool {
+	return bytes.Contains(input, []byte(`\"`))
+}
+
+func byteSliceContainsQuotes(input []byte) bool {
+	return bytes.Contains(input, []byte(`"`))
 }
