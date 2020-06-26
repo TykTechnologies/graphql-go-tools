@@ -243,3 +243,29 @@ func (d *Document) TypeDefinitionContainsImplementsInterface(typeName, interface
 	}
 	return d.ObjectTypeDefinitionImplementsInterface(typeDefinition.Ref, interfaceName)
 }
+
+func FilterIntSliceByWhitelist(intSlice []int, whitelistIntSlice []int) (filteredIntSlice []int) {
+	if len(intSlice) == 0 || len(whitelistIntSlice) == 0 {
+		return []int{}
+	}
+
+	keep := func(intVal int) bool {
+		for _, wVal := range whitelistIntSlice {
+			if wVal == intVal {
+				return true
+			}
+		}
+		return false
+	}
+
+	n := 0
+	for _, intValue := range intSlice {
+		if keep(intValue) {
+			intSlice[n] = intValue
+			n++
+		}
+	}
+
+	filteredIntSlice = intSlice[:n]
+	return filteredIntSlice
+}
