@@ -78,7 +78,7 @@ func TestGraphqlDataSource_WithPlanning(t *testing.T) {
 			plan := planner.Plan(&operationDocument, &definitionDocument, tc.operation.OperationName, &report)
 			require.False(t, report.HasErrors())
 
-			variables, extraArguments := VariablesFromJson(tc.operation.Variables, tc.operation.Variables)
+			variables, extraArguments := VariablesFromJson(tc.operation.Variables, nil)
 			executionContext := Context{
 				Context:        context.Background(),
 				Variables:      variables,

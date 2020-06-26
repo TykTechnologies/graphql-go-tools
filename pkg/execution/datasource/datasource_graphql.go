@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/buger/jsonparser"
+	"github.com/cespare/xxhash"
 	log "github.com/jensneuse/abstractlogger"
 
 	"github.com/jensneuse/graphql-go-tools/internal/pkg/unsafebytes"
@@ -39,13 +40,14 @@ type GraphQLDataSourceConfig struct {
 
 type GraphQLDataSourcePlanner struct {
 	BasePlanner
-	importer                *astimport.Importer
-	nodes                   []ast.Node
-	resolveDocument         *ast.Document
-	dataSourceConfiguration GraphQLDataSourceConfig
-	client                  *http.Client
-	whitelistedSchemes      []string
-	whitelistedVariableRefs []int
+	importer                     *astimport.Importer
+	nodes                        []ast.Node
+	resolveDocument              *ast.Document
+	dataSourceConfiguration      GraphQLDataSourceConfig
+	client                       *http.Client
+	whitelistedSchemes           []string
+	whitelistedVariableRefs      []int
+	whitelistedVariableNameHashs map[uint64]bool
 }
 
 type GraphQLDataSourcePlannerFactoryFactory struct {
@@ -79,13 +81,14 @@ type GraphQLDataSourcePlannerFactory struct {
 
 func (g *GraphQLDataSourcePlannerFactory) DataSourcePlanner() Planner {
 	return &GraphQLDataSourcePlanner{
-		BasePlanner:             g.base,
-		importer:                &astimport.Importer{},
-		dataSourceConfiguration: g.config,
-		resolveDocument:         &ast.Document{},
-		client:                  g.client,
-		whitelistedSchemes:      g.whitelistedSchemes,
-		whitelistedVariableRefs: []int{},
+		BasePlanner:                  g.base,
+		importer:                     &astimport.Importer{},
+		dataSourceConfiguration:      g.config,
+		resolveDocument:              &ast.Document{},
+		client:                       g.client,
+		whitelistedSchemes:           g.whitelistedSchemes,
+		whitelistedVariableRefs:      []int{},
+		whitelistedVariableNameHashs: map[uint64]bool{},
 	}
 }
 
@@ -248,6 +251,7 @@ func (g *GraphQLDataSourcePlanner) EnterArgument(ref int) {
 	}
 
 	g.whitelistedVariableRefs = append(g.whitelistedVariableRefs, definitionRef)
+	g.whitelistedVariableNameHashs[xxhash.Sum64(variableName)] = true
 }
 
 func (g *GraphQLDataSourcePlanner) LeaveField(ref int) {
@@ -303,7 +307,13 @@ func (g *GraphQLDataSourcePlanner) Plan(args []Argument) (DataSource, []Argument
 		if arg, ok := args[i].(*ContextVariableArgument); ok {
 			if bytes.HasPrefix(arg.Name, literal.DOT_ARGUMENTS_DOT) {
 				arg.Name = bytes.TrimPrefix(arg.Name, literal.DOT_ARGUMENTS_DOT)
-				g.Args = append(g.Args, arg)
+
+				if g.whitelistedVariableNameHashs[xxhash.Sum64(arg.Name)] {
+					g.Args = append(g.Args, arg)
+				} else if g.whitelistedVariableNameHashs[xxhash.Sum64(arg.VariableName)] {
+					arg.Name = arg.VariableName
+					g.Args = append(g.Args, arg)
+				}
 			}
 		}
 	}
