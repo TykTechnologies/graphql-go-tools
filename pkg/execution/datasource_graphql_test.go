@@ -156,6 +156,31 @@ func TestGraphqlDataSource_WithPlanning(t *testing.T) {
 			expectedResponseBody: `{ "data": { "country": { "code": "DE", "name": "Germany" }, "continents": [ { "code": "DE", "name": "Germany" } ] } }`,
 		}),
 	)
+
+	t.Run("should execute a multiple queries in a single query with same arguments", run(
+		testCase{
+			definition: countriesSchema,
+			operation: datasource.GraphqlRequest{
+				OperationName: "",
+				Variables:     nil,
+				Query:         `{ country(code: "DE") { code name } continent(code: "EU") { code name } }`,
+			},
+			typeFieldConfigs: []datasource.TypeFieldConfiguration{
+				typeFieldConfigCountry,
+				typeFieldConfigContinent,
+			},
+			assertRequestBody: true,
+			expectedRequestBodies: []string{
+				`{ "operationName": "o", "variables": {"a": "DE"}, "query": "query o($a: ID!){country(code: $a){code name}}" }`,
+				`{ "operationName": "o", "variables": {"b": "EU"}, "query": "query o($b: ID!){continent(code: $b){code name}}" }`,
+			},
+			upstreamResponses: []string{
+				`{ "data": { "country": { "code": "DE", "name": "Germany" } } }`,
+				`{ "data": { "continent": { "code": "EU", "name": "Europe" } } }`,
+			},
+			expectedResponseBody: `{ "data": { "country": { "code": "DE", "name": "Germany" }, "continent": { "code": "EU", "name": "Europe" } } }`,
+		}),
+	)
 }
 
 func upstreamGraphqlServer(t *testing.T, assertRequestBody bool, expectedRequestBody string, response string) *httptest.Server {
@@ -199,6 +224,18 @@ var typeFieldConfigContinents = datasource.TypeFieldConfiguration{
 	Mapping: &datasource.MappingConfiguration{
 		Disabled: false,
 		Path:     "continents",
+	},
+	DataSource: datasource.SourceConfig{
+		Name: graphqlDataSourceName,
+	},
+}
+
+var typeFieldConfigContinent = datasource.TypeFieldConfiguration{
+	TypeName:  "Query",
+	FieldName: "continent",
+	Mapping: &datasource.MappingConfiguration{
+		Disabled: false,
+		Path:     "continent",
 	},
 	DataSource: datasource.SourceConfig{
 		Name: graphqlDataSourceName,
