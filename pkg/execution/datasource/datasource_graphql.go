@@ -87,6 +87,10 @@ func (g *GraphQLDataSourcePlannerFactory) DataSourcePlanner() Planner {
 	}
 }
 
+func (g *GraphQLDataSourcePlanner) EnterDocument(operation, definition *ast.Document) {
+
+}
+
 func (g *GraphQLDataSourcePlanner) EnterInlineFragment(ref int) {
 	if len(g.nodes) == 0 {
 		return
@@ -236,6 +240,10 @@ func (g *GraphQLDataSourcePlanner) EnterField(ref int) {
 			Ref:  fieldRef,
 		})
 	}
+}
+
+func (_ GraphQLDataSourcePlanner) EnterArgument(ref int) {
+
 }
 
 func (g *GraphQLDataSourcePlanner) LeaveField(ref int) {
