@@ -88,6 +88,8 @@ func TestGraphqlDataSource_WithPlanning(t *testing.T) {
 			var buf bytes.Buffer
 			executor := NewExecutor(nil)
 			err = executor.Execute(executionContext, plan, &buf)
+			require.NoError(t, err)
+
 			assert.JSONEq(t, tc.expectedResponseBody, buf.String())
 		}
 	}
