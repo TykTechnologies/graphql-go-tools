@@ -25,5 +25,14 @@ func (d *DefinitionValidator) RegisterRule(rule Rule) {
 }
 
 func (d *DefinitionValidator) Validate(definition *ast.Document, report *operationreport.Report) ValidationState {
-	return Invalid
+	if report == nil {
+		report = &operationreport.Report{}
+	}
+
+	d.walker.Walk(definition, nil, report)
+
+	if report.HasErrors() {
+		return Invalid
+	}
+	return Valid
 }

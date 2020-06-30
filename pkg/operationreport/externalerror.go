@@ -192,3 +192,18 @@ func ErrDirectiveMustBeUniquePerLocation(directiveName ast.ByteSlice) (err Exter
 	err.Message = fmt.Sprintf("directive: %s must be unique per location", directiveName)
 	return err
 }
+
+func ErrOnlyOneQueryTypeAllowed() (err ExternalError) {
+	err.Message = "there can be only one query type in schema"
+	return err
+}
+
+func ErrOnlyOneMutationTypeAllowed() (err ExternalError) {
+	err.Message = "there can be only one mutation type in schema"
+	return err
+}
+
+func ErrOnlyOneSubscriptionTypeAllowed() (err ExternalError) {
+	err.Message = "there can be only one subscription type in schema"
+	return err
+}
