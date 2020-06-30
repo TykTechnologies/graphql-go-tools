@@ -3,6 +3,7 @@ package astvalidation
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/jensneuse/graphql-go-tools/pkg/astparser"
@@ -18,4 +19,5 @@ func runDefinitionValidation(t *testing.T, definitionInput string, expectation V
 	}
 
 	result := validator.Validate(&definition, &report)
+	assert.Equal(t, expectation, result)
 }
