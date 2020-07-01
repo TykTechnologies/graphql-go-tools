@@ -12,6 +12,7 @@ func DefaultDefinitionValidator() *DefinitionValidator {
 	}
 
 	validator.RegisterRule(UniqueOperationTypes())
+	validator.RegisterRule(UniqueTypeNames())
 
 	return validator
 }
@@ -29,7 +30,7 @@ func (d *DefinitionValidator) Validate(definition *ast.Document, report *operati
 		report = &operationreport.Report{}
 	}
 
-	d.walker.Walk(definition, nil, report)
+	d.walker.Walk(definition, definition, report)
 
 	if report.HasErrors() {
 		return Invalid

@@ -32,6 +32,11 @@ func ErrTypeUndefined(typeName ast.ByteSlice) (err ExternalError) {
 	return err
 }
 
+func ErrTypeNameMustBeUnique(typeName ast.ByteSlice) (err ExternalError) {
+	err.Message = fmt.Sprintf("there can only be only one type named '%s'", typeName)
+	return err
+}
+
 func ErrOperationNameMustBeUnique(operationName ast.ByteSlice) (err ExternalError) {
 	err.Message = fmt.Sprintf("operation name must be unique: %s", operationName)
 	return err
