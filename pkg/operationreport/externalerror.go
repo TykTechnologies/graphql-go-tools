@@ -27,6 +27,11 @@ func ErrFieldUndefinedOnType(fieldName, typeName ast.ByteSlice) (err ExternalErr
 	return err
 }
 
+func ErrFieldNameMustBeUniqueOnType(fieldName, typeName ast.ByteSlice) (err ExternalError) {
+	err.Message = fmt.Sprintf("field '%s.%s' can only be defined once", typeName, fieldName)
+	return err
+}
+
 func ErrTypeUndefined(typeName ast.ByteSlice) (err ExternalError) {
 	err.Message = fmt.Sprintf("type not defined: %s", typeName)
 	return err

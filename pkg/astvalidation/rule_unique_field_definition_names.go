@@ -1,0 +1,142 @@
+package astvalidation
+
+import (
+	"github.com/cespare/xxhash"
+
+	"github.com/jensneuse/graphql-go-tools/pkg/ast"
+	"github.com/jensneuse/graphql-go-tools/pkg/astvisitor"
+	"github.com/jensneuse/graphql-go-tools/pkg/operationreport"
+)
+
+type hashedFieldNames map[uint64]bool
+
+func UniqueFieldDefinitionNames() Rule {
+	return func(walker *astvisitor.Walker) {
+		visitor := &uniqueFieldDefinitionNamesVisitor{
+			Walker: walker,
+		}
+
+		walker.RegisterEnterDocumentVisitor(visitor)
+		walker.RegisterEnterFieldDefinitionVisitor(visitor)
+		walker.RegisterEnterInputValueDefinitionVisitor(visitor)
+		walker.RegisterObjectTypeDefinitionVisitor(visitor)
+		walker.RegisterObjectTypeExtensionVisitor(visitor)
+		walker.RegisterInterfaceTypeDefinitionVisitor(visitor)
+		walker.RegisterInterfaceTypeExtensionVisitor(visitor)
+		walker.RegisterInputObjectTypeDefinitionVisitor(visitor)
+		walker.RegisterInputObjectTypeExtensionVisitor(visitor)
+	}
+}
+
+type uniqueFieldDefinitionNamesVisitor struct {
+	*astvisitor.Walker
+	definition          *ast.Document
+	currentTypeName     ast.ByteSlice
+	currentTypeNameHash uint64
+	usedFieldNames      map[uint64]hashedFieldNames // map of hashed type names containing a map of hashed field names
+}
+
+func (u *uniqueFieldDefinitionNamesVisitor) EnterDocument(operation, definition *ast.Document) {
+	u.definition = operation
+	u.currentTypeName = u.currentTypeName[:0]
+	u.currentTypeNameHash = 0
+	u.usedFieldNames = make(map[uint64]hashedFieldNames)
+}
+
+func (u *uniqueFieldDefinitionNamesVisitor) EnterFieldDefinition(ref int) {
+	fieldName := u.definition.FieldDefinitionNameBytes(ref)
+	u.checkField(fieldName)
+}
+
+func (u *uniqueFieldDefinitionNamesVisitor) EnterInputValueDefinition(ref int) {
+	name := u.definition.InputValueDefinitionNameBytes(ref)
+	u.checkField(name)
+}
+
+func (u *uniqueFieldDefinitionNamesVisitor) EnterObjectTypeDefinition(ref int) {
+	typeName := u.definition.ObjectTypeDefinitionNameBytes(ref)
+	u.setCurrentTypeName(typeName)
+}
+
+func (u *uniqueFieldDefinitionNamesVisitor) LeaveObjectTypeDefinition(ref int) {
+	u.unsetCurrentTypeName()
+}
+
+func (u *uniqueFieldDefinitionNamesVisitor) EnterObjectTypeExtension(ref int) {
+	typeName := u.definition.ObjectTypeExtensionNameBytes(ref)
+	u.setCurrentTypeName(typeName)
+}
+
+func (u *uniqueFieldDefinitionNamesVisitor) LeaveObjectTypeExtension(ref int) {
+	u.unsetCurrentTypeName()
+}
+
+func (u *uniqueFieldDefinitionNamesVisitor) EnterInterfaceTypeDefinition(ref int) {
+	typeName := u.definition.InterfaceTypeDefinitionNameBytes(ref)
+	u.setCurrentTypeName(typeName)
+}
+
+func (u *uniqueFieldDefinitionNamesVisitor) LeaveInterfaceTypeDefinition(ref int) {
+	u.unsetCurrentTypeName()
+}
+
+func (u *uniqueFieldDefinitionNamesVisitor) EnterInterfaceTypeExtension(ref int) {
+	typeName := u.definition.InterfaceTypeExtensionNameBytes(ref)
+	u.setCurrentTypeName(typeName)
+}
+
+func (u *uniqueFieldDefinitionNamesVisitor) LeaveInterfaceTypeExtension(ref int) {
+	u.unsetCurrentTypeName()
+}
+
+func (u *uniqueFieldDefinitionNamesVisitor) EnterInputObjectTypeDefinition(ref int) {
+	typeName := u.definition.InputObjectTypeDefinitionNameBytes(ref)
+	u.setCurrentTypeName(typeName)
+}
+
+func (u *uniqueFieldDefinitionNamesVisitor) LeaveInputObjectTypeDefinition(ref int) {
+	u.unsetCurrentTypeName()
+}
+
+func (u *uniqueFieldDefinitionNamesVisitor) EnterInputObjectTypeExtension(ref int) {
+	typeName := u.definition.InputObjectTypeExtensionNameBytes(ref)
+	u.setCurrentTypeName(typeName)
+}
+
+func (u *uniqueFieldDefinitionNamesVisitor) LeaveInputObjectTypeExtension(ref int) {
+	u.unsetCurrentTypeName()
+}
+
+func (u *uniqueFieldDefinitionNamesVisitor) setCurrentTypeName(typeName ast.ByteSlice) {
+	u.currentTypeName = typeName
+	u.currentTypeNameHash = xxhash.Sum64(typeName)
+}
+
+func (u *uniqueFieldDefinitionNamesVisitor) unsetCurrentTypeName() {
+	u.currentTypeName = u.currentTypeName[:0]
+	u.currentTypeNameHash = 0
+}
+
+func (u *uniqueFieldDefinitionNamesVisitor) checkField(fieldName ast.ByteSlice) {
+	if len(u.currentTypeName) == 0 || u.currentTypeNameHash == 0 {
+		return
+	}
+
+	fieldNames, ok := u.usedFieldNames[u.currentTypeNameHash]
+	if !ok {
+		fieldNames := make(hashedFieldNames)
+		fieldNames[xxhash.Sum64(fieldName)] = true
+		u.usedFieldNames[u.currentTypeNameHash] = fieldNames
+	}
+
+	if fieldNames[xxhash.Sum64(fieldName)] {
+		u.StopWithExternalErr(operationreport.ErrFieldNameMustBeUniqueOnType(fieldName, u.currentTypeName))
+		return
+	}
+
+	if fieldNames == nil {
+		fieldNames = make(hashedFieldNames)
+	}
+
+	fieldNames[xxhash.Sum64(fieldName)] = true
+}
