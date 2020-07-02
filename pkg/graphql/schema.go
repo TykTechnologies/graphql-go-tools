@@ -69,9 +69,12 @@ func (s *Schema) SubscriptionTypeName() string {
 	return string(s.document.Index.SubscriptionTypeName)
 }
 
-func (s *Schema) Validate() (valid bool, errors SchemaValidationErrors) {
+func (s *Schema) Validate() (result ValidationResult, err error) {
 	// TODO: Needs to be implemented in the core of the library
-	return true, nil
+	return ValidationResult{
+		Valid:  true,
+		Errors: nil,
+	}, nil
 }
 
 func createSchema(schemaContent []byte) (*Schema, error) {
