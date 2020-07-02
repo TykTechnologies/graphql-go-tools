@@ -217,3 +217,8 @@ func ErrOnlyOneSubscriptionTypeAllowed() (err ExternalError) {
 	err.Message = "there can be only one subscription type in schema"
 	return err
 }
+
+func ErrEnumValueNameMustBeUnique(enumName, enumValueName ast.ByteSlice) (err ExternalError) {
+	err.Message = fmt.Sprintf("enum value '%s.%s' can only be defined once", enumName, enumValueName)
+	return err
+}
