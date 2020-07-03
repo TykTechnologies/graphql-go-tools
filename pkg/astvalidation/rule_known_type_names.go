@@ -44,7 +44,7 @@ func (u *knownTypeNamesVisitor) EnterDocument(operation, definition *ast.Documen
 func (u *knownTypeNamesVisitor) LeaveDocument(operation, definition *ast.Document) {
 	for referencedTypeNameHash, referencedTypeName := range u.referencedTypeNames {
 		if !u.definedTypeNameHashs[referencedTypeNameHash] {
-			u.StopWithExternalErr(operationreport.ErrTypeUndefined(referencedTypeName))
+			u.Report.AddExternalError(operationreport.ErrTypeUndefined(referencedTypeName))
 			continue
 		}
 	}

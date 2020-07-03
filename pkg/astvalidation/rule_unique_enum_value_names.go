@@ -86,7 +86,7 @@ func (u *uniqueEnumValueNamesVisitor) checkEnumValueName(enumValueName ast.ByteS
 	}
 
 	if enumValueNames[enumValueNameHash] {
-		u.StopWithExternalErr(operationreport.ErrEnumValueNameMustBeUnique(u.currentEnumName, enumValueName))
+		u.Report.AddExternalError(operationreport.ErrEnumValueNameMustBeUnique(u.currentEnumName, enumValueName))
 		return
 	}
 

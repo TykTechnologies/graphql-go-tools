@@ -68,7 +68,7 @@ func (u *uniqueTypeNamesVisitor) EnterInputObjectTypeDefinition(ref int) {
 func (u *uniqueTypeNamesVisitor) checkTypeName(typeName ast.ByteSlice) {
 	hashedTypeName := xxhash.Sum64(typeName)
 	if u.usedTypeNamesAsHash[hashedTypeName] {
-		u.StopWithExternalErr(operationreport.ErrTypeNameMustBeUnique(typeName))
+		u.Report.AddExternalError(operationreport.ErrTypeNameMustBeUnique(typeName))
 		return
 	}
 	u.usedTypeNamesAsHash[hashedTypeName] = true

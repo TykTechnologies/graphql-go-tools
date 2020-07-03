@@ -37,17 +37,17 @@ func (u *uniqueOperationTypesVisitor) EnterRootOperationTypeDefinition(ref int) 
 	switch operationType {
 	case ast.OperationTypeQuery:
 		if u.queryIsDefined {
-			u.StopWithExternalErr(operationreport.ErrOnlyOneQueryTypeAllowed())
+			u.Report.AddExternalError(operationreport.ErrOnlyOneQueryTypeAllowed())
 		}
 		u.queryIsDefined = true
 	case ast.OperationTypeMutation:
 		if u.mutationIsDefined {
-			u.StopWithExternalErr(operationreport.ErrOnlyOneMutationTypeAllowed())
+			u.Report.AddExternalError(operationreport.ErrOnlyOneMutationTypeAllowed())
 		}
 		u.mutationIsDefined = true
 	case ast.OperationTypeSubscription:
 		if u.subscriptionIsDefined {
-			u.StopWithExternalErr(operationreport.ErrOnlyOneSubscriptionTypeAllowed())
+			u.Report.AddExternalError(operationreport.ErrOnlyOneSubscriptionTypeAllowed())
 		}
 		u.subscriptionIsDefined = true
 	}

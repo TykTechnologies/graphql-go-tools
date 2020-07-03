@@ -148,7 +148,7 @@ func (u *uniqueFieldDefinitionNamesVisitor) checkField(fieldName ast.ByteSlice) 
 	}
 
 	if fieldNames[xxhash.Sum64(fieldName)] {
-		u.StopWithExternalErr(operationreport.ErrFieldNameMustBeUniqueOnType(fieldName, u.currentTypeName))
+		u.Report.AddExternalError(operationreport.ErrFieldNameMustBeUniqueOnType(fieldName, u.currentTypeName))
 		return
 	}
 
