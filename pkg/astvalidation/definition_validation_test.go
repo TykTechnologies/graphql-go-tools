@@ -7,11 +7,15 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/jensneuse/graphql-go-tools/pkg/astparser"
+	"github.com/jensneuse/graphql-go-tools/pkg/asttransform"
 )
 
 func runDefinitionValidation(t *testing.T, definitionInput string, expectation ValidationState, rules ...Rule) {
 	definition, report := astparser.ParseGraphqlDocumentString(definitionInput)
 	require.False(t, report.HasErrors())
+
+	err := asttransform.MergeDefinitionWithBaseSchema(&definition)
+	require.NoError(t, err)
 
 	validator := &DefinitionValidator{}
 	for _, rule := range rules {

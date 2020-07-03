@@ -15,6 +15,7 @@ func DefaultDefinitionValidator() *DefinitionValidator {
 	validator.RegisterRule(UniqueTypeNames())
 	validator.RegisterRule(UniqueFieldDefinitionNames())
 	validator.RegisterRule(UniqueEnumValueNames())
+	validator.RegisterRule(KnownTypeNames())
 
 	return validator
 }
