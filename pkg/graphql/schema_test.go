@@ -277,6 +277,18 @@ func TestValidateSchemaString(t *testing.T) {
 		1,
 	))
 
+	t.Run("should successfully validate schema with duplicate fields on query as invalid", run(
+		`type Mutation {
+					default: String
+				}
+				type Query {
+					default: String
+					default: String
+				}`,
+		false,
+		1,
+	))
+
 	t.Run("should successfully validate invalid schema schema as invalid", run(
 		invalidSchema,
 		false,
@@ -311,6 +323,18 @@ func TestSchema_Validate(t *testing.T) {
 
 	t.Run("should successfully validate invalid schema schema as invalid", run(
 		invalidSchema,
+		false,
+		1,
+	))
+
+	t.Run("should successfully validate schema with duplicate fields on query as invalid", run(
+		`type Mutation {
+					default: String
+				}
+				type Query {
+					default: String
+					default: String
+				}`,
 		false,
 		1,
 	))

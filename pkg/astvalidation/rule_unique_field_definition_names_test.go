@@ -116,6 +116,19 @@ func TestUniqueFieldDefinitionNames(t *testing.T) {
 			)
 		})
 
+		t.Run("duplicate fields on root definition types", func(t *testing.T) {
+			runDefinitionValidation(t, `
+					type Mutation {
+						default: String
+					}
+					type Query {
+						default: String
+						default: String
+					}
+				`, Invalid, UniqueFieldDefinitionNames(),
+			)
+		})
+
 		t.Run("extend type with duplicate field", func(t *testing.T) {
 			runDefinitionValidation(t, `
 					extend type SomeObject {
