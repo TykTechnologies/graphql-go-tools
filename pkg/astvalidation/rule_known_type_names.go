@@ -36,7 +36,7 @@ type knownTypeNamesVisitor struct {
 }
 
 func (u *knownTypeNamesVisitor) EnterDocument(operation, definition *ast.Document) {
-	u.definition = definition
+	u.definition = operation
 	u.definedTypeNameHashs = make(map[uint64]bool)
 	u.referencedTypeNames = make(map[uint64][]byte)
 }

@@ -33,7 +33,7 @@ func (d *DefinitionValidator) Validate(definition *ast.Document, report *operati
 		report = &operationreport.Report{}
 	}
 
-	d.walker.Walk(definition, definition, report)
+	d.walker.Walk(definition, nil, report)
 
 	if report.HasErrors() {
 		return Invalid

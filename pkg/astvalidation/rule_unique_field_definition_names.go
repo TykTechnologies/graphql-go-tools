@@ -40,7 +40,7 @@ type uniqueFieldDefinitionNamesVisitor struct {
 }
 
 func (u *uniqueFieldDefinitionNamesVisitor) EnterDocument(operation, definition *ast.Document) {
-	u.definition = definition
+	u.definition = operation
 	u.currentTypeName = u.currentTypeName[:0]
 	u.currentTypeNameHash = 0
 	u.currentTypeKind = ast.NodeKindUnknown

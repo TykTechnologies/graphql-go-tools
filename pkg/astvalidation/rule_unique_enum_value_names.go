@@ -32,7 +32,7 @@ type uniqueEnumValueNamesVisitor struct {
 }
 
 func (u *uniqueEnumValueNamesVisitor) EnterDocument(operation, definition *ast.Document) {
-	u.definition = definition
+	u.definition = operation
 	u.currentEnumName = u.currentEnumName[:0]
 	u.currentEnumHash = 0
 	u.usedEnumValues = make(map[uint64]hashedEnumValueNames)
