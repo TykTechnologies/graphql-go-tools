@@ -81,6 +81,20 @@ func TestUniqueFieldDefinitionNames(t *testing.T) {
 			)
 		})
 
+		t.Run("fields with arguments having the same name", func(t *testing.T) {
+			runDefinitionValidation(t, `
+					type Query {
+						continents(filter: String): String!
+						continent(code: ID!): String!
+						countries(filter: String): String!
+						country(code: ID!): String!
+						languages(filter: String): String!
+						language(code: ID!): String!
+					}
+				`, Valid, UniqueFieldDefinitionNames(),
+			)
+		})
+
 		t.Run("duplicate fields inside the same type definition", func(t *testing.T) {
 			runDefinitionValidation(t, `
 					type SomeObject {

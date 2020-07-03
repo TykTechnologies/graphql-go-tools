@@ -26,7 +26,7 @@ type uniqueOperationTypesVisitor struct {
 }
 
 func (u *uniqueOperationTypesVisitor) EnterDocument(operation, definition *ast.Document) {
-	u.definition = operation
+	u.definition = definition
 	u.queryIsDefined = false
 	u.mutationIsDefined = false
 	u.subscriptionIsDefined = false

@@ -7,6 +7,8 @@ import (
 	"github.com/jensneuse/graphql-go-tools/pkg/ast"
 	"github.com/jensneuse/graphql-go-tools/pkg/astparser"
 	"github.com/jensneuse/graphql-go-tools/pkg/asttransform"
+	"github.com/jensneuse/graphql-go-tools/pkg/astvalidation"
+	"github.com/jensneuse/graphql-go-tools/pkg/operationreport"
 )
 
 type Schema struct {
@@ -70,10 +72,18 @@ func (s *Schema) SubscriptionTypeName() string {
 }
 
 func (s *Schema) Validate() (result ValidationResult, err error) {
-	// TODO: Needs to be implemented in the core of the library
+	var report operationreport.Report
+	var isValid bool
+
+	validator := astvalidation.DefaultDefinitionValidator()
+	validationState := validator.Validate(&s.document, &report)
+	if validationState == astvalidation.Valid {
+		isValid = true
+	}
+
 	return ValidationResult{
-		Valid:  true,
-		Errors: nil,
+		Valid:  isValid,
+		Errors: schemaValidationErrorsFromOperationReport(report),
 	}, nil
 }
 
