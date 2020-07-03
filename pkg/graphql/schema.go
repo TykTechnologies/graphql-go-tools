@@ -31,6 +31,20 @@ func NewSchemaFromString(schema string) (*Schema, error) {
 	return createSchema(schemaContent)
 }
 
+func ValidateSchemaString(schema string) (result ValidationResult, err error) {
+	parsedSchema, err := NewSchemaFromString(schema)
+	if err != nil {
+		return ValidationResult{
+			Valid: false,
+			Errors: SchemaValidationErrors{
+				SchemaValidationError{Message: err.Error()},
+			},
+		}, nil
+	}
+
+	return parsedSchema.Validate()
+}
+
 func (s *Schema) Document() []byte {
 	return s.rawInput
 }

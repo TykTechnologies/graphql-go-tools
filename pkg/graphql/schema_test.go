@@ -261,6 +261,41 @@ func TestSchema_Document(t *testing.T) {
 	assert.Equal(t, schemaBytes, schema.Document())
 }
 
+func TestValidateSchemaString(t *testing.T) {
+	run := func(schema string, expectedValid bool, expectedValidationErrorCount int) func(t *testing.T) {
+		return func(t *testing.T) {
+			validationResult, err := ValidateSchemaString(schema)
+			assert.NoError(t, err)
+			assert.Equal(t, expectedValid, validationResult.Valid)
+			assert.Equal(t, expectedValidationErrorCount, validationResult.Errors.Count())
+		}
+	}
+
+	t.Run("should successfuly validate broken schema as invalid", run(
+		`type Query {`,
+		false,
+		1,
+	))
+
+	t.Run("should successfully validate invalid schema schema as invalid", run(
+		invalidSchema,
+		false,
+		1,
+	))
+
+	t.Run("should successfully validate countries schema as valid", run(
+		countriesSchema,
+		true,
+		0,
+	))
+
+	t.Run("should successfully validate swapi schema as valid", run(
+		swapiSchema,
+		true,
+		0,
+	))
+}
+
 func TestSchema_Validate(t *testing.T) {
 	run := func(schema string, expectedValid bool, expectedValidationErrorCount int) func(t *testing.T) {
 		return func(t *testing.T) {
