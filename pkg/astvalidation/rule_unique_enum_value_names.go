@@ -79,10 +79,7 @@ func (u *uniqueEnumValueNamesVisitor) checkEnumValueName(enumValueName ast.ByteS
 	enumValueNameHash := xxhash.Sum64(enumValueName)
 	enumValueNames, ok := u.usedEnumValues[u.currentEnumHash]
 	if !ok {
-		enumValueNames := make(hashedEnumValueNames)
-		enumValueNames[enumValueNameHash] = true
-		u.usedEnumValues[u.currentEnumHash] = enumValueNames
-		return
+		enumValueNames = make(hashedEnumValueNames)
 	}
 
 	if enumValueNames[enumValueNameHash] {
@@ -95,4 +92,5 @@ func (u *uniqueEnumValueNamesVisitor) checkEnumValueName(enumValueName ast.ByteS
 	}
 
 	enumValueNames[enumValueNameHash] = true
+	u.usedEnumValues[u.currentEnumHash] = enumValueNames
 }

@@ -142,9 +142,7 @@ func (u *uniqueFieldDefinitionNamesVisitor) checkField(fieldName ast.ByteSlice) 
 
 	fieldNames, ok := u.usedFieldNames[u.currentTypeNameHash]
 	if !ok {
-		fieldNames := make(hashedFieldNames)
-		fieldNames[xxhash.Sum64(fieldName)] = true
-		u.usedFieldNames[u.currentTypeNameHash] = fieldNames
+		fieldNames = make(hashedFieldNames)
 	}
 
 	if fieldNames[xxhash.Sum64(fieldName)] {
@@ -152,9 +150,6 @@ func (u *uniqueFieldDefinitionNamesVisitor) checkField(fieldName ast.ByteSlice) 
 		return
 	}
 
-	if fieldNames == nil {
-		fieldNames = make(hashedFieldNames)
-	}
-
 	fieldNames[xxhash.Sum64(fieldName)] = true
+	u.usedFieldNames[u.currentTypeNameHash] = fieldNames
 }
