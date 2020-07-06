@@ -87,10 +87,6 @@ func (u *uniqueEnumValueNamesVisitor) checkEnumValueName(enumValueName ast.ByteS
 		return
 	}
 
-	if enumValueNames == nil {
-		enumValueNames = make(hashedEnumValueNames)
-	}
-
 	enumValueNames[enumValueNameHash] = true
 	u.usedEnumValues[u.currentEnumHash] = enumValueNames
 }
