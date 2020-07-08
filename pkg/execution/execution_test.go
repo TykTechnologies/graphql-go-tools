@@ -15,7 +15,6 @@ import (
 
 	"github.com/cespare/xxhash"
 	log "github.com/jensneuse/abstractlogger"
-	"github.com/jensneuse/diffview"
 	"github.com/sebdah/goldie"
 	"github.com/stretchr/testify/assert"
 
@@ -588,7 +587,7 @@ func TestExecution(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		diffview.NewGoland().DiffViewBytes("execution", fixture, pretty)
+		assert.Equal(t, fixture, pretty)
 	}
 }
 
@@ -3010,13 +3009,12 @@ func TestExecutor_Introspection(t *testing.T) {
 
 	goldie.Assert(t, "introspection_execution", response)
 	if t.Failed() {
-
 		fixture, err := ioutil.ReadFile("./fixtures/introspection_execution.golden")
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		diffview.NewGoland().DiffViewBytes("execution", fixture, response)
+		assert.Equal(t, fixture, response)
 	}
 }
 
