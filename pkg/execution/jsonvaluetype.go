@@ -6,10 +6,8 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	_ "strings"
 
 	"github.com/jensneuse/graphql-go-tools/internal/pkg/unsafebytes"
-	_ "github.com/jensneuse/graphql-go-tools/pkg/escape"
 	"github.com/jensneuse/graphql-go-tools/pkg/lexer/literal"
 )
 
