@@ -244,28 +244,25 @@ func (d *Document) TypeDefinitionContainsImplementsInterface(typeName, interface
 	return d.ObjectTypeDefinitionImplementsInterface(typeDefinition.Ref, interfaceName)
 }
 
-func FilterIntSliceByWhitelist(intSlice []int, whitelistIntSlice []int) (filteredIntSlice []int) {
-	if len(intSlice) == 0 || len(whitelistIntSlice) == 0 {
+func FilterIntSliceByWhitelist(intSlice []int, whitelist []int) []int {
+	if len(intSlice) == 0 || len(whitelist) == 0 {
 		return []int{}
 	}
-
-	keep := func(intVal int) bool {
-		for _, wVal := range whitelistIntSlice {
-			if wVal == intVal {
-				return true
-			}
-		}
-		return false
-	}
-
 	n := 0
-	for _, intValue := range intSlice {
-		if keep(intValue) {
-			intSlice[n] = intValue
+	for i := 0; i < len(intSlice); i++ {
+		if isWhitelisted(intSlice[i], whitelist) {
+			intSlice[n] = intSlice[i]
 			n++
 		}
 	}
+	return intSlice[:n]
+}
 
-	filteredIntSlice = intSlice[:n]
-	return filteredIntSlice
+func isWhitelisted(value int, whitelisted []int) bool {
+	for i := 0; i < len(whitelisted); i++ {
+		if whitelisted[i] == value {
+			return true
+		}
+	}
+	return false
 }

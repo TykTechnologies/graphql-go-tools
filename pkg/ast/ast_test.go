@@ -255,7 +255,7 @@ func TestFilterIntSliceByWhitelist(t *testing.T) {
 		run([]int{}, []int{}, []int{}),
 	)
 
-	t.Run("should return empty slice when int value is whitelisted",
+	t.Run("should return empty slice when whitelisted is empty",
 		run([]int{1, 2, 3}, []int{}, []int{}),
 	)
 
