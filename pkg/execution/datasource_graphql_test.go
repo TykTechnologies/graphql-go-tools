@@ -19,6 +19,18 @@ import (
 	"github.com/jensneuse/graphql-go-tools/pkg/operationreport"
 )
 
+type preSendHttpHookFunc func(ctx datasource.HookContext, req *http.Request)
+
+func (p preSendHttpHookFunc) Execute(ctx datasource.HookContext, req *http.Request) {
+	p(ctx, req)
+}
+
+type postReceiveHttpHookFunc func(ctx datasource.HookContext, resp *http.Response, body []byte)
+
+func (p postReceiveHttpHookFunc) Execute(ctx datasource.HookContext, resp *http.Response, body []byte) {
+	p(ctx, resp, body)
+}
+
 var graphqlDataSourceName = "graphql"
 
 func TestGraphqlDataSource_WithPlanning(t *testing.T) {
@@ -26,6 +38,7 @@ func TestGraphqlDataSource_WithPlanning(t *testing.T) {
 		definition            string
 		operation             datasource.GraphqlRequest
 		typeFieldConfigs      []datasource.TypeFieldConfiguration
+		hooksFactory          func(t *testing.T) datasource.Hooks
 		assertRequestBody     bool
 		expectedRequestBodies []string
 		upstreamResponses     []string
@@ -60,7 +73,12 @@ func TestGraphqlDataSource_WithPlanning(t *testing.T) {
 			basePlanner, err := datasource.NewBaseDataSourcePlanner([]byte(tc.definition), plannerConfig, abstractlogger.NoopLogger)
 			require.NoError(t, err)
 
-			err = basePlanner.RegisterDataSourcePlannerFactory(graphqlDataSourceName, &datasource.GraphQLDataSourcePlannerFactoryFactory{})
+			var hooks datasource.Hooks
+			if tc.hooksFactory != nil {
+				hooks = tc.hooksFactory(t)
+			}
+
+			err = basePlanner.RegisterDataSourcePlannerFactory(graphqlDataSourceName, &datasource.GraphQLDataSourcePlannerFactoryFactory{Hooks: hooks})
 			require.NoError(t, err)
 
 			definitionDocument := unsafeparser.ParseGraphqlDocumentString(tc.definition)
@@ -123,6 +141,40 @@ func TestGraphqlDataSource_WithPlanning(t *testing.T) {
 			},
 			typeFieldConfigs: []datasource.TypeFieldConfiguration{
 				typeFieldConfigCountry,
+			},
+			assertRequestBody: false,
+			upstreamResponses: []string{
+				`{ "data": { "country": { "code": "DE", "name": "Germany" } } }`,
+			},
+			expectedResponseBody: `{ "data": { "country": { "code": "DE", "name": "Germany" } } }`,
+		}),
+	)
+
+	t.Run("should execute hooks", run(
+		testCase{
+			definition: countriesSchema,
+			operation: datasource.GraphqlRequest{
+				OperationName: "",
+				Variables:     nil,
+				Query:         `{ country(code: "DE") { code name } }`,
+			},
+			typeFieldConfigs: []datasource.TypeFieldConfiguration{
+				typeFieldConfigCountry,
+			},
+			hooksFactory: func(t *testing.T) datasource.Hooks {
+				return datasource.Hooks{
+					PreSendHttpHook: preSendHttpHookFunc(func(ctx datasource.HookContext, req *http.Request) {
+						assert.Equal(t, ctx.Type, "Query")
+						assert.Equal(t, ctx.Field, "country")
+						assert.Regexp(t, `http://127.0.0.1:[0-9]+`, req.URL.String())
+					}),
+					PostReceiveHttpHook: postReceiveHttpHookFunc(func(ctx datasource.HookContext, resp *http.Response, body []byte) {
+						assert.Equal(t, ctx.Type, "Query")
+						assert.Equal(t, ctx.Field, "country")
+						assert.Equal(t, 200, resp.StatusCode)
+						assert.Equal(t, body, []byte(`{ "data": { "country": { "code": "DE", "name": "Germany" } } }`))
+					}),
+				}
 			},
 			assertRequestBody: false,
 			upstreamResponses: []string{

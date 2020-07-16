@@ -163,6 +163,14 @@ func TestPlanner_Plan(t *testing.T) {
 							Source: &DataSourceInvocation{
 								Args: []datasource.Argument{
 									&datasource.StaticVariableArgument{
+										Name:  []byte("type_name"),
+										Value: []byte("Query"),
+									},
+									&datasource.StaticVariableArgument{
+										Name:  []byte("field_name"),
+										Value: []byte("country"),
+									},
+									&datasource.StaticVariableArgument{
 										Name:  []byte("url"),
 										Value: []byte("countries.trevorblades.com/"),
 									},
@@ -275,6 +283,14 @@ func TestPlanner_Plan(t *testing.T) {
 						Fetch: &SingleFetch{
 							Source: &DataSourceInvocation{
 								Args: []datasource.Argument{
+									&datasource.StaticVariableArgument{
+										Name:  []byte("type_name"),
+										Value: []byte("Mutation"),
+									},
+									&datasource.StaticVariableArgument{
+										Name:  []byte("field_name"),
+										Value: []byte("likePost"),
+									},
 									&datasource.StaticVariableArgument{
 										Name:  []byte("url"),
 										Value: []byte("fakebook.com/"),
@@ -1292,6 +1308,14 @@ func TestPlanner_Plan(t *testing.T) {
 							Source: &DataSourceInvocation{
 								Args: []datasource.Argument{
 									&datasource.StaticVariableArgument{
+										Name:  []byte("type_name"),
+										Value: []byte("Query"),
+									},
+									&datasource.StaticVariableArgument{
+										Name:  []byte("field_name"),
+										Value: []byte("user"),
+									},
+									&datasource.StaticVariableArgument{
 										Name:  literal.URL,
 										Value: []byte("localhost:8001/graphql"),
 									},
@@ -1530,6 +1554,14 @@ func TestPlanner_Plan(t *testing.T) {
 						Fetch: &SingleFetch{
 							Source: &DataSourceInvocation{
 								Args: []datasource.Argument{
+									&datasource.StaticVariableArgument{
+										Name:  []byte("type_name"),
+										Value: []byte("Query"),
+									},
+									&datasource.StaticVariableArgument{
+										Name:  []byte("field_name"),
+										Value: []byte("user"),
+									},
 									&datasource.StaticVariableArgument{
 										Name:  literal.URL,
 										Value: []byte("localhost:8001/graphql"),
