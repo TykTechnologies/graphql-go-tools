@@ -121,7 +121,7 @@ func TestGraphqlDataSource_WithPlanning(t *testing.T) {
 				Query:         "{ continents { code name } }",
 			},
 			typeFieldConfigs: []datasource.TypeFieldConfiguration{
-				typeFieldConfigContinents,
+				graphqlTypeFieldConfigContinents,
 			},
 			assertRequestBody: false,
 			upstreamResponses: []string{
@@ -140,7 +140,7 @@ func TestGraphqlDataSource_WithPlanning(t *testing.T) {
 				Query:         `{ country(code: "DE") { code name } }`,
 			},
 			typeFieldConfigs: []datasource.TypeFieldConfiguration{
-				typeFieldConfigCountry,
+				graphqlTypeFieldConfigCountry,
 			},
 			assertRequestBody: false,
 			upstreamResponses: []string{
@@ -159,7 +159,7 @@ func TestGraphqlDataSource_WithPlanning(t *testing.T) {
 				Query:         `{ country(code: "DE") { code name } }`,
 			},
 			typeFieldConfigs: []datasource.TypeFieldConfiguration{
-				typeFieldConfigCountry,
+				graphqlTypeFieldConfigCountry,
 			},
 			hooksFactory: func(t *testing.T) datasource.Hooks {
 				return datasource.Hooks{
@@ -193,8 +193,8 @@ func TestGraphqlDataSource_WithPlanning(t *testing.T) {
 				Query:         `{ continents { code name } country(code: "DE") { code name } }`,
 			},
 			typeFieldConfigs: []datasource.TypeFieldConfiguration{
-				typeFieldConfigCountry,
-				typeFieldConfigContinents,
+				graphqlTypeFieldConfigCountry,
+				graphqlTypeFieldConfigContinents,
 			},
 			assertRequestBody: true,
 			expectedRequestBodies: []string{
@@ -218,8 +218,8 @@ func TestGraphqlDataSource_WithPlanning(t *testing.T) {
 				Query:         `{ country(code: "DE") { code name } continent(code: "EU") { code name } }`,
 			},
 			typeFieldConfigs: []datasource.TypeFieldConfiguration{
-				typeFieldConfigCountry,
-				typeFieldConfigContinent,
+				graphqlTypeFieldConfigCountry,
+				graphqlTypeFieldConfigContinent,
 			},
 			assertRequestBody: true,
 			expectedRequestBodies: []string{
@@ -270,7 +270,7 @@ func createPlannerConfigToUpstream(t *testing.T, upstreamURL []string, method st
 	}
 }
 
-var typeFieldConfigContinents = datasource.TypeFieldConfiguration{
+var graphqlTypeFieldConfigContinents = datasource.TypeFieldConfiguration{
 	TypeName:  "Query",
 	FieldName: "continents",
 	Mapping: &datasource.MappingConfiguration{
@@ -282,7 +282,7 @@ var typeFieldConfigContinents = datasource.TypeFieldConfiguration{
 	},
 }
 
-var typeFieldConfigContinent = datasource.TypeFieldConfiguration{
+var graphqlTypeFieldConfigContinent = datasource.TypeFieldConfiguration{
 	TypeName:  "Query",
 	FieldName: "continent",
 	Mapping: &datasource.MappingConfiguration{
@@ -294,7 +294,7 @@ var typeFieldConfigContinent = datasource.TypeFieldConfiguration{
 	},
 }
 
-var typeFieldConfigCountry = datasource.TypeFieldConfiguration{
+var graphqlTypeFieldConfigCountry = datasource.TypeFieldConfiguration{
 	TypeName:  "Query",
 	FieldName: "country",
 	Mapping: &datasource.MappingConfiguration{
