@@ -164,13 +164,13 @@ func TestGraphqlDataSource_WithPlanning(t *testing.T) {
 			hooksFactory: func(t *testing.T) datasource.Hooks {
 				return datasource.Hooks{
 					PreSendHttpHook: preSendHttpHookFunc(func(ctx datasource.HookContext, req *http.Request) {
-						assert.Equal(t, ctx.Type, "Query")
-						assert.Equal(t, ctx.Field, "country")
+						assert.Equal(t, ctx.TypeName, "Query")
+						assert.Equal(t, ctx.FieldName, "country")
 						assert.Regexp(t, `http://127.0.0.1:[0-9]+`, req.URL.String())
 					}),
 					PostReceiveHttpHook: postReceiveHttpHookFunc(func(ctx datasource.HookContext, resp *http.Response, body []byte) {
-						assert.Equal(t, ctx.Type, "Query")
-						assert.Equal(t, ctx.Field, "country")
+						assert.Equal(t, ctx.TypeName, "Query")
+						assert.Equal(t, ctx.FieldName, "country")
 						assert.Equal(t, 200, resp.StatusCode)
 						assert.Equal(t, body, []byte(`{ "data": { "country": { "code": "DE", "name": "Germany" } } }`))
 					}),

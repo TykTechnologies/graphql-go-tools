@@ -169,12 +169,12 @@ func (g *GraphQLDataSourcePlanner) EnterField(ref int) {
 		fieldName := g.Operation.FieldNameBytes(ref)
 
 		g.Args = append(g.Args, &StaticVariableArgument{
-			Name:  TypeName,
+			Name:  RootTypeName,
 			Value: []byte(typeName),
 		})
 
 		g.Args = append(g.Args, &StaticVariableArgument{
-			Name:  FieldName,
+			Name:  RootFieldName,
 			Value: fieldName,
 		})
 
@@ -351,11 +351,11 @@ type GraphQLDataSource struct {
 func (g *GraphQLDataSource) Resolve(ctx context.Context, args ResolverArgs, out io.Writer) (n int, err error) {
 	urlArg := args.ByKey(literal.URL)
 	queryArg := args.ByKey(literal.QUERY)
-	typeName := args.ByKey(TypeName)
-	fieldName := args.ByKey(FieldName)
+	rootTypeName := args.ByKey(RootTypeName)
+	rootFieldName := args.ByKey(RootFieldName)
 	hookContext := HookContext{
-		Type:  string(typeName),
-		Field: string(fieldName),
+		TypeName:  string(rootTypeName),
+		FieldName: string(rootFieldName),
 	}
 
 	g.Log.Debug("GraphQLDataSource.Resolve.Args",
@@ -383,8 +383,8 @@ func (g *GraphQLDataSource) Resolve(ctx context.Context, args ResolverArgs, out 
 		switch {
 		case bytes.Equal(keys[i], literal.URL):
 		case bytes.Equal(keys[i], literal.QUERY):
-		case bytes.Equal(keys[i], TypeName):
-		case bytes.Equal(keys[i], FieldName):
+		case bytes.Equal(keys[i], RootTypeName):
+		case bytes.Equal(keys[i], RootFieldName):
 		default:
 			variables[string(keys[i])] = string(args.ByKey(keys[i]))
 		}

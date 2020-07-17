@@ -19,6 +19,7 @@ import (
 type DataSourceHttpJsonOptions struct {
 	HttpClient         *http.Client
 	WhitelistedSchemes []string
+	Hooks              *datasource.Hooks
 }
 
 type DataSourceGraphqlOptions struct {
@@ -71,6 +72,10 @@ func (e *ExecutionEngine) AddHttpJsonDataSourceWithOptions(name string, options 
 
 	if len(options.WhitelistedSchemes) > 0 {
 		httpJsonFactoryFactory.WhitelistedSchemes = options.WhitelistedSchemes
+	}
+
+	if options.Hooks != nil {
+		httpJsonFactoryFactory.Hooks = *options.Hooks
 	}
 
 	return e.AddDataSource(name, httpJsonFactoryFactory)

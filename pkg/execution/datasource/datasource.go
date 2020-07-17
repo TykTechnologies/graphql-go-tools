@@ -18,8 +18,8 @@ import (
 	"github.com/jensneuse/graphql-go-tools/pkg/astvisitor"
 )
 
-var TypeName = []byte("type_name")
-var FieldName = []byte("field_name")
+var RootTypeName = []byte("root_type_name")
+var RootFieldName = []byte("root_field_name")
 
 var defaultHttpClient *http.Client
 

@@ -5,8 +5,8 @@ import (
 )
 
 type HookContext struct {
-	Type  string
-	Field string
+	TypeName  string
+	FieldName string
 }
 
 type Hooks struct {
