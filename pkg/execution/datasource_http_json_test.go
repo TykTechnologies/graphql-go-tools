@@ -112,6 +112,14 @@ func TestHttpJsonDataSourcePlanner_Plan(t *testing.T) {
 								},
 								Args: []datasource.Argument{
 									&datasource.StaticVariableArgument{
+										Name:  []byte("root_type_name"),
+										Value: []byte("Query"),
+									},
+									&datasource.StaticVariableArgument{
+										Name:  []byte("root_field_name"),
+										Value: []byte("simpleType"),
+									},
+									&datasource.StaticVariableArgument{
 										Name:  []byte("url"),
 										Value: []byte("example.com/"),
 									},
@@ -210,6 +218,14 @@ func TestHttpJsonDataSourcePlanner_Plan(t *testing.T) {
 								},
 								Args: []datasource.Argument{
 									&datasource.StaticVariableArgument{
+										Name:  []byte("root_type_name"),
+										Value: []byte("Query"),
+									},
+									&datasource.StaticVariableArgument{
+										Name:  []byte("root_field_name"),
+										Value: []byte("listOfStrings"),
+									},
+									&datasource.StaticVariableArgument{
 										Name:  []byte("url"),
 										Value: []byte("example.com/"),
 									},
@@ -288,6 +304,14 @@ func TestHttpJsonDataSourcePlanner_Plan(t *testing.T) {
 									Client: datasource.DefaultHttpClient(),
 								},
 								Args: []datasource.Argument{
+									&datasource.StaticVariableArgument{
+										Name:  []byte("root_type_name"),
+										Value: []byte("Query"),
+									},
+									&datasource.StaticVariableArgument{
+										Name:  []byte("root_field_name"),
+										Value: []byte("listOfObjects"),
+									},
 									&datasource.StaticVariableArgument{
 										Name:  []byte("url"),
 										Value: []byte("example.com/"),
@@ -389,6 +413,14 @@ func TestHttpJsonDataSourcePlanner_Plan(t *testing.T) {
 									Client: datasource.DefaultHttpClient(),
 								},
 								Args: []datasource.Argument{
+									&datasource.StaticVariableArgument{
+										Name:  []byte("root_type_name"),
+										Value: []byte("Query"),
+									},
+									&datasource.StaticVariableArgument{
+										Name:  []byte("root_field_name"),
+										Value: []byte("unionType"),
+									},
 									&datasource.StaticVariableArgument{
 										Name:  []byte("url"),
 										Value: []byte("example.com/"),
@@ -531,6 +563,14 @@ func TestHttpJsonDataSourcePlanner_Plan(t *testing.T) {
 									Client: datasource.DefaultHttpClient(),
 								},
 								Args: []datasource.Argument{
+									&datasource.StaticVariableArgument{
+										Name:  []byte("root_type_name"),
+										Value: []byte("Query"),
+									},
+									&datasource.StaticVariableArgument{
+										Name:  []byte("root_field_name"),
+										Value: []byte("interfaceType"),
+									},
 									&datasource.StaticVariableArgument{
 										Name:  []byte("url"),
 										Value: []byte("example.com/"),
