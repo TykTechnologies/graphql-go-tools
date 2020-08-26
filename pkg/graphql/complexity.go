@@ -23,10 +23,19 @@ func (d defaultComplexityCalculator) Calculate(operation, definition *ast.Docume
 }
 
 type ComplexityResult struct {
+	NodeCount    int
+	Complexity   int
+	Depth        int
+	PerRootField []FieldComplexityResult
+	Errors       Errors
+}
+
+type FieldComplexityResult struct {
+	TypeName   string
+	FieldName  string
 	NodeCount  int
 	Complexity int
 	Depth      int
-	Errors     Errors
 }
 
 func complexityResult(nodeCount, complexity, depth int, report operationreport.Report) (ComplexityResult, error) {
