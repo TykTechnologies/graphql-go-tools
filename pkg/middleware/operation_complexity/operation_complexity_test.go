@@ -30,7 +30,15 @@ func TestNodeCount(t *testing.T) {
 				Complexity: 2,
 				Depth:      3,
 			},
-			[]FieldComplexityResult{},
+			[]FieldComplexityResult{
+				{
+					TypeName:   "Query",
+					FieldName:  "users",
+					NodeCount:  2,
+					Complexity: 2,
+					Depth:      3,
+				},
+			},
 		)
 	})
 	t.Run("multiple users", func(t *testing.T) {
@@ -51,7 +59,15 @@ func TestNodeCount(t *testing.T) {
 				Complexity: 11,
 				Depth:      3,
 			},
-			[]FieldComplexityResult{},
+			[]FieldComplexityResult{
+				{
+					TypeName:   "Query",
+					FieldName:  "users",
+					NodeCount:  20,
+					Complexity: 11,
+					Depth:      3,
+				},
+			},
 		)
 	})
 	t.Run("multiple users with multiple transactions", func(t *testing.T) {
@@ -76,7 +92,15 @@ func TestNodeCount(t *testing.T) {
 				Complexity: 21,
 				Depth:      3,
 			},
-			[]FieldComplexityResult{},
+			[]FieldComplexityResult{
+				{
+					TypeName:   "Query",
+					FieldName:  "users",
+					NodeCount:  70,
+					Complexity: 21,
+					Depth:      3,
+				},
+			},
 		)
 	})
 	t.Run("multiple users with multiple transactions with nested senders", func(t *testing.T) {
@@ -115,15 +139,73 @@ func TestNodeCount(t *testing.T) {
 				Complexity: 221,
 				Depth:      5,
 			},
-			[]FieldComplexityResult{},
+			[]FieldComplexityResult{
+				{
+					TypeName:   "Query",
+					FieldName:  "users",
+					NodeCount:  920,
+					Complexity: 221,
+					Depth:      5,
+				},
+			},
+		)
+	})
+	t.Run("multiple queries and one being an alias", func(t *testing.T) {
+		run(t, testDefinition, `
+				{
+				  person: user(id: "1") {
+					name
+ 				  }
+				  users(first: 1) {
+					id
+					balance
+					name
+					address {
+					  city
+					  country
+					}
+				  }
+				}`,
+			GlobalComplexityResult{
+				NodeCount:  2,
+				Complexity: 2,
+				Depth:      3,
+			},
+			[]FieldComplexityResult{
+				{
+					TypeName:   "Query",
+					FieldName:  "user",
+					Alias:      "person",
+					NodeCount:  2,
+					Complexity: 2,
+					Depth:      3,
+				},
+				{
+					TypeName:   "Query",
+					FieldName:  "users",
+					NodeCount:  2,
+					Complexity: 2,
+					Depth:      3,
+				},
+			},
 		)
 	})
 	t.Run("introspection query", func(t *testing.T) {
-		run(t, testDefinition, introspectionQuery, GlobalComplexityResult{
-			NodeCount:  0,
-			Complexity: 0,
-			Depth:      0,
-		}, []FieldComplexityResult{})
+		run(t, testDefinition, introspectionQuery,
+			GlobalComplexityResult{
+				NodeCount:  0,
+				Complexity: 0,
+				Depth:      0,
+			},
+			[]FieldComplexityResult{
+				{
+					TypeName:   "Query",
+					FieldName:  "__schema",
+					NodeCount:  0,
+					Complexity: 0,
+					Depth:      0,
+				},
+			})
 	})
 }
 
