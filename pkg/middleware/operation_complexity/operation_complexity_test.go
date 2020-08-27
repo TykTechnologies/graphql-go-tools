@@ -24,7 +24,14 @@ func TestNodeCount(t *testing.T) {
 					  country
 					}
 				  }
-				}`, 2, 2, 3)
+				}`,
+			GlobalComplexityResult{
+				NodeCount:  2,
+				Complexity: 2,
+				Depth:      3,
+			},
+			[]FieldComplexityResult{},
+		)
 	})
 	t.Run("multiple users", func(t *testing.T) {
 		run(t, testDefinition, `
@@ -38,7 +45,14 @@ func TestNodeCount(t *testing.T) {
 					  country
 					}
 				  }
-				}`, 20, 11, 3)
+				}`,
+			GlobalComplexityResult{
+				NodeCount:  20,
+				Complexity: 11,
+				Depth:      3,
+			},
+			[]FieldComplexityResult{},
+		)
 	})
 	t.Run("multiple users with multiple transactions", func(t *testing.T) {
 		run(t, testDefinition, `
@@ -56,7 +70,14 @@ func TestNodeCount(t *testing.T) {
 						amount
 					}
 				  }
-				}`, 70, 21, 3)
+				}`,
+			GlobalComplexityResult{
+				NodeCount:  70,
+				Complexity: 21,
+				Depth:      3,
+			},
+			[]FieldComplexityResult{},
+		)
 	})
 	t.Run("multiple users with multiple transactions with nested senders", func(t *testing.T) {
 		run(t, testDefinition, `
@@ -88,28 +109,40 @@ func TestNodeCount(t *testing.T) {
 						}
 					}
 				  }
-				}`, 920, 221, 5)
+				}`,
+			GlobalComplexityResult{
+				NodeCount:  920,
+				Complexity: 221,
+				Depth:      5,
+			},
+			[]FieldComplexityResult{},
+		)
 	})
 	t.Run("introspection query", func(t *testing.T) {
-		run(t, testDefinition, introspectionQuery, 0, 0, 0)
+		run(t, testDefinition, introspectionQuery, GlobalComplexityResult{
+			NodeCount:  0,
+			Complexity: 0,
+			Depth:      0,
+		}, []FieldComplexityResult{})
 	})
 }
 
-var run = func(t *testing.T, definition, operation string, expectedNodeCount, expectedComplexity, expectedDepth int) {
+var run = func(t *testing.T, definition, operation string, expectedGlobalComplexityResult GlobalComplexityResult, expectedFieldsComplexityResult []FieldComplexityResult) {
 	def := unsafeparser.ParseGraphqlDocumentString(definition)
 	op := unsafeparser.ParseGraphqlDocumentString(operation)
 	report := operationreport.Report{}
 
 	astnormalization.NormalizeOperation(&op, &def, &report)
 
-	actualNodeCount, actualComplexity, actualDepth := CalculateOperationComplexity(&op, &def, &report)
+	actualGlobalComplexityResult, actualFieldsComplexityResult := CalculateOperationComplexity(&op, &def, &report)
 	if report.HasErrors() {
 		require.NoError(t, report)
 	}
 
-	assert.Equal(t, expectedNodeCount, actualNodeCount, "unexpected node count")
-	assert.Equal(t, expectedComplexity, actualComplexity, "unexpected complexity")
-	assert.Equal(t, expectedDepth, actualDepth, "unexpected depth")
+	assert.Equal(t, expectedGlobalComplexityResult.NodeCount, actualGlobalComplexityResult.NodeCount, "unexpected global node count")
+	assert.Equal(t, expectedGlobalComplexityResult.Complexity, actualGlobalComplexityResult.Complexity, "unexpected global complexity")
+	assert.Equal(t, expectedGlobalComplexityResult.Depth, actualGlobalComplexityResult.Depth, "unexpected global depth")
+	assert.Equal(t, expectedFieldsComplexityResult, actualFieldsComplexityResult, "unexpected fields complexity result")
 }
 
 func BenchmarkEstimateComplexity(b *testing.B) {
@@ -124,19 +157,19 @@ func BenchmarkEstimateComplexity(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		nodeCount, complexity, depth := estimator.Do(&op, &def, &report)
+		globalComplexityResult, _ := estimator.Do(&op, &def, &report)
 		if report.HasErrors() {
 			b.Fatal(report)
 		}
 
-		if nodeCount != 920 {
-			b.Fatalf("want nodeCount: 920, got: %d\n", nodeCount)
+		if globalComplexityResult.NodeCount != 920 {
+			b.Fatalf("want nodeCount: 920, got: %d\n", globalComplexityResult.NodeCount)
 		}
-		if complexity != 221 {
-			b.Fatalf("want complexity: 221, got: %d\n", complexity)
+		if globalComplexityResult.Complexity != 221 {
+			b.Fatalf("want complexity: 221, got: %d\n", globalComplexityResult.Complexity)
 		}
-		if depth != 5 {
-			b.Fatalf("want depth: 5, got: %d\n", depth)
+		if globalComplexityResult.Depth != 5 {
+			b.Fatalf("want depth: 5, got: %d\n", globalComplexityResult.Depth)
 		}
 	}
 }

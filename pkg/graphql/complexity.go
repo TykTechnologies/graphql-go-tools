@@ -17,9 +17,9 @@ type defaultComplexityCalculator struct {
 
 func (d defaultComplexityCalculator) Calculate(operation, definition *ast.Document) (ComplexityResult, error) {
 	report := operationreport.Report{}
-	nodeCount, complexity, depth := operation_complexity.CalculateOperationComplexity(operation, definition, &report)
+	globalComplexityResult, fieldsComplexityResult := operation_complexity.CalculateOperationComplexity(operation, definition, &report)
 
-	return complexityResult(nodeCount, complexity, depth, report)
+	return complexityResult(globalComplexityResult, fieldsComplexityResult, report)
 }
 
 type ComplexityResult struct {
@@ -38,11 +38,11 @@ type FieldComplexityResult struct {
 	Depth      int
 }
 
-func complexityResult(nodeCount, complexity, depth int, report operationreport.Report) (ComplexityResult, error) {
+func complexityResult(globalComplexityResult operation_complexity.GlobalComplexityResult, fieldsComplexityResult []operation_complexity.FieldComplexityResult, report operationreport.Report) (ComplexityResult, error) {
 	result := ComplexityResult{
-		NodeCount:  nodeCount,
-		Complexity: complexity,
-		Depth:      depth,
+		NodeCount:  globalComplexityResult.NodeCount,
+		Complexity: globalComplexityResult.Complexity,
+		Depth:      globalComplexityResult.Depth,
 		Errors:     nil,
 	}
 

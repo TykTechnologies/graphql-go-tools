@@ -27,6 +27,15 @@ import (
 	"github.com/jensneuse/graphql-go-tools/pkg/operationreport"
 )
 
+type GlobalComplexityResult struct {
+	NodeCount  int
+	Complexity int
+	Depth      int
+}
+
+type FieldComplexityResult struct {
+}
+
 var (
 	nodeCountMultiply = []byte("nodeCountMultiply")
 	nodeCountSkip     = []byte("nodeCountSkip")
@@ -58,7 +67,7 @@ func NewOperationComplexityEstimator() *OperationComplexityEstimator {
 	}
 }
 
-func (n *OperationComplexityEstimator) Do(operation, definition *ast.Document, report *operationreport.Report) (nodeCount, complexity, depth int) {
+func (n *OperationComplexityEstimator) Do(operation, definition *ast.Document, report *operationreport.Report) (GlobalComplexityResult, []FieldComplexityResult) {
 	n.visitor.count = 0
 	n.visitor.complexity = 0
 	n.visitor.maxFieldDepth = 0
@@ -69,11 +78,17 @@ func (n *OperationComplexityEstimator) Do(operation, definition *ast.Document, r
 
 	n.walker.Walk(operation, definition, report)
 
-	depth = n.visitor.maxFieldDepth - n.visitor.selectionSetDepth
-	return n.visitor.count, n.visitor.complexity, depth
+	depth := n.visitor.maxFieldDepth - n.visitor.selectionSetDepth
+	globalResult := GlobalComplexityResult{
+		NodeCount:  n.visitor.count,
+		Complexity: n.visitor.complexity,
+		Depth:      depth,
+	}
+
+	return globalResult, []FieldComplexityResult{}
 }
 
-func CalculateOperationComplexity(operation, definition *ast.Document, report *operationreport.Report) (nodeCount, complexity, depth int) {
+func CalculateOperationComplexity(operation, definition *ast.Document, report *operationreport.Report) (GlobalComplexityResult, []FieldComplexityResult) {
 	estimator := NewOperationComplexityEstimator()
 	return estimator.Do(operation, definition, report)
 }
