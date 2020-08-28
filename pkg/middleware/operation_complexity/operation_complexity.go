@@ -117,7 +117,6 @@ type complexityVisitor struct {
 
 	currentRootFieldComplexity           FieldComplexityResult
 	currentRootFieldMaxDepth             int
-	currentRootFieldDepth                int
 	currentRootFieldMaxSelectionSetDepth int
 	currentRootFieldSelectionSetDepth    int
 
@@ -271,9 +270,5 @@ func (c *complexityVisitor) isRootType(name string) bool {
 
 func (c *complexityVisitor) isRootTypeField() bool {
 	enclosingTypeName := c.EnclosingTypeDefinition.Name(c.definition)
-	if !c.isRootType(enclosingTypeName) {
-		return false
-	}
-
-	return true
+	return c.isRootType(enclosingTypeName)
 }
