@@ -33,17 +33,31 @@ type ComplexityResult struct {
 type FieldComplexityResult struct {
 	TypeName   string
 	FieldName  string
+	Alias      string
 	NodeCount  int
 	Complexity int
 	Depth      int
 }
 
 func complexityResult(globalComplexityResult operation_complexity.GlobalComplexityResult, fieldsComplexityResult []operation_complexity.FieldComplexityResult, report operationreport.Report) (ComplexityResult, error) {
+	allFieldComplexityResults := make([]FieldComplexityResult, 0, len(fieldsComplexityResult))
+	for _, fieldResult := range fieldsComplexityResult {
+		allFieldComplexityResults = append(allFieldComplexityResults, FieldComplexityResult{
+			TypeName:   fieldResult.TypeName,
+			FieldName:  fieldResult.FieldName,
+			Alias:      fieldResult.Alias,
+			NodeCount:  fieldResult.NodeCount,
+			Complexity: fieldResult.Complexity,
+			Depth:      fieldResult.Depth,
+		})
+	}
+
 	result := ComplexityResult{
-		NodeCount:  globalComplexityResult.NodeCount,
-		Complexity: globalComplexityResult.Complexity,
-		Depth:      globalComplexityResult.Depth,
-		Errors:     nil,
+		NodeCount:    globalComplexityResult.NodeCount,
+		Complexity:   globalComplexityResult.Complexity,
+		Depth:        globalComplexityResult.Depth,
+		PerRootField: allFieldComplexityResults,
+		Errors:       nil,
 	}
 
 	if !report.HasErrors() {

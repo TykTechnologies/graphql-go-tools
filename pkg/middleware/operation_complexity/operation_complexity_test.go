@@ -165,10 +165,23 @@ func TestNodeCount(t *testing.T) {
 					  country
 					}
 				  }
+				  bestUsers: users(first: 10) {
+					id
+					balance
+					name
+					address {
+					  city
+					  country
+					}
+					transactions(first: 5) {
+						id
+						amount
+					}
+				  }
 				}`,
 			GlobalComplexityResult{
-				NodeCount:  2,
-				Complexity: 2,
+				NodeCount:  73,
+				Complexity: 24,
 				Depth:      3,
 			},
 			[]FieldComplexityResult{
@@ -176,9 +189,9 @@ func TestNodeCount(t *testing.T) {
 					TypeName:   "Query",
 					FieldName:  "user",
 					Alias:      "person",
-					NodeCount:  2,
-					Complexity: 2,
-					Depth:      3,
+					NodeCount:  1,
+					Complexity: 1,
+					Depth:      2,
 				},
 				{
 					TypeName:   "Query",
@@ -186,6 +199,49 @@ func TestNodeCount(t *testing.T) {
 					NodeCount:  2,
 					Complexity: 2,
 					Depth:      3,
+				},
+				{
+					TypeName:   "Query",
+					FieldName:  "users",
+					Alias:      "bestUsers",
+					NodeCount:  70,
+					Complexity: 21,
+					Depth:      3,
+				},
+			},
+		)
+	})
+	t.Run("multiple mutations with alias", func(t *testing.T) {
+		run(t, testDefinition, `
+				mutation AlterUsers {
+				  createJohn: createUser(input: {balance: 10, name: "John Doe", email: "john@doe.fake"}) {
+                    id
+				  }
+				  createJane: createUser(input: {balance: 100, name: "Jane Doe", email: "jane@doe.fake"}) {
+                    id
+				  }
+				}`,
+			GlobalComplexityResult{
+				NodeCount:  2,
+				Complexity: 2,
+				Depth:      2,
+			},
+			[]FieldComplexityResult{
+				{
+					TypeName:   "Mutation",
+					FieldName:  "createUser",
+					Alias:      "createJohn",
+					NodeCount:  1,
+					Complexity: 1,
+					Depth:      2,
+				},
+				{
+					TypeName:   "Mutation",
+					FieldName:  "createUser",
+					Alias:      "createJane",
+					NodeCount:  1,
+					Complexity: 1,
+					Depth:      2,
 				},
 			},
 		)
@@ -197,15 +253,8 @@ func TestNodeCount(t *testing.T) {
 				Complexity: 0,
 				Depth:      0,
 			},
-			[]FieldComplexityResult{
-				{
-					TypeName:   "Query",
-					FieldName:  "__schema",
-					NodeCount:  0,
-					Complexity: 0,
-					Depth:      0,
-				},
-			})
+			[]FieldComplexityResult{},
+		)
 	})
 }
 
