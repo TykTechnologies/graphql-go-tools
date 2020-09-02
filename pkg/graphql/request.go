@@ -49,11 +49,7 @@ func (r *Request) CalculateComplexity(complexityCalculator ComplexityCalculator,
 	report := r.parseQueryOnce()
 	if report.HasErrors() {
 		return complexityResult(
-			operation_complexity.GlobalComplexityResult{
-				NodeCount:  0,
-				Complexity: 0,
-				Depth:      0,
-			},
+			operation_complexity.OperationStats{},
 			[]operation_complexity.FieldComplexityResult{},
 			report,
 		)

@@ -25,18 +25,20 @@ func TestNodeCount(t *testing.T) {
 					}
 				  }
 				}`,
-			GlobalComplexityResult{
+			OperationStats{
 				NodeCount:  2,
 				Complexity: 2,
 				Depth:      3,
 			},
 			[]FieldComplexityResult{
 				{
-					TypeName:   "Query",
-					FieldName:  "users",
-					NodeCount:  2,
-					Complexity: 2,
-					Depth:      3,
+					TypeName:  "Query",
+					FieldName: "users",
+					Stats: OperationStats{
+						NodeCount:  2,
+						Complexity: 2,
+						Depth:      3,
+					},
 				},
 			},
 		)
@@ -54,18 +56,20 @@ func TestNodeCount(t *testing.T) {
 					}
 				  }
 				}`,
-			GlobalComplexityResult{
+			OperationStats{
 				NodeCount:  20,
 				Complexity: 11,
 				Depth:      3,
 			},
 			[]FieldComplexityResult{
 				{
-					TypeName:   "Query",
-					FieldName:  "users",
-					NodeCount:  20,
-					Complexity: 11,
-					Depth:      3,
+					TypeName:  "Query",
+					FieldName: "users",
+					Stats: OperationStats{
+						NodeCount:  20,
+						Complexity: 11,
+						Depth:      3,
+					},
 				},
 			},
 		)
@@ -87,18 +91,20 @@ func TestNodeCount(t *testing.T) {
 					}
 				  }
 				}`,
-			GlobalComplexityResult{
+			OperationStats{
 				NodeCount:  70,
 				Complexity: 21,
 				Depth:      3,
 			},
 			[]FieldComplexityResult{
 				{
-					TypeName:   "Query",
-					FieldName:  "users",
-					NodeCount:  70,
-					Complexity: 21,
-					Depth:      3,
+					TypeName:  "Query",
+					FieldName: "users",
+					Stats: OperationStats{
+						NodeCount:  70,
+						Complexity: 21,
+						Depth:      3,
+					},
 				},
 			},
 		)
@@ -134,18 +140,20 @@ func TestNodeCount(t *testing.T) {
 					}
 				  }
 				}`,
-			GlobalComplexityResult{
+			OperationStats{
 				NodeCount:  920,
 				Complexity: 221,
 				Depth:      5,
 			},
 			[]FieldComplexityResult{
 				{
-					TypeName:   "Query",
-					FieldName:  "users",
-					NodeCount:  920,
-					Complexity: 221,
-					Depth:      5,
+					TypeName:  "Query",
+					FieldName: "users",
+					Stats: OperationStats{
+						NodeCount:  920,
+						Complexity: 221,
+						Depth:      5,
+					},
 				},
 			},
 		)
@@ -179,34 +187,40 @@ func TestNodeCount(t *testing.T) {
 					}
 				  }
 				}`,
-			GlobalComplexityResult{
+			OperationStats{
 				NodeCount:  73,
 				Complexity: 24,
 				Depth:      3,
 			},
 			[]FieldComplexityResult{
 				{
-					TypeName:   "Query",
-					FieldName:  "user",
-					Alias:      "person",
-					NodeCount:  1,
-					Complexity: 1,
-					Depth:      2,
+					TypeName:  "Query",
+					FieldName: "user",
+					Alias:     "person",
+					Stats: OperationStats{
+						NodeCount:  1,
+						Complexity: 1,
+						Depth:      2,
+					},
 				},
 				{
-					TypeName:   "Query",
-					FieldName:  "users",
-					NodeCount:  2,
-					Complexity: 2,
-					Depth:      3,
+					TypeName:  "Query",
+					FieldName: "users",
+					Stats: OperationStats{
+						NodeCount:  2,
+						Complexity: 2,
+						Depth:      3,
+					},
 				},
 				{
-					TypeName:   "Query",
-					FieldName:  "users",
-					Alias:      "bestUsers",
-					NodeCount:  70,
-					Complexity: 21,
-					Depth:      3,
+					TypeName:  "Query",
+					FieldName: "users",
+					Alias:     "bestUsers",
+					Stats: OperationStats{
+						NodeCount:  70,
+						Complexity: 21,
+						Depth:      3,
+					},
 				},
 			},
 		)
@@ -221,34 +235,38 @@ func TestNodeCount(t *testing.T) {
                     id
 				  }
 				}`,
-			GlobalComplexityResult{
+			OperationStats{
 				NodeCount:  2,
 				Complexity: 2,
 				Depth:      2,
 			},
 			[]FieldComplexityResult{
 				{
-					TypeName:   "Mutation",
-					FieldName:  "createUser",
-					Alias:      "createJohn",
-					NodeCount:  1,
-					Complexity: 1,
-					Depth:      2,
+					TypeName:  "Mutation",
+					FieldName: "createUser",
+					Alias:     "createJohn",
+					Stats: OperationStats{
+						NodeCount:  1,
+						Complexity: 1,
+						Depth:      2,
+					},
 				},
 				{
-					TypeName:   "Mutation",
-					FieldName:  "createUser",
-					Alias:      "createJane",
-					NodeCount:  1,
-					Complexity: 1,
-					Depth:      2,
+					TypeName:  "Mutation",
+					FieldName: "createUser",
+					Alias:     "createJane",
+					Stats: OperationStats{
+						NodeCount:  1,
+						Complexity: 1,
+						Depth:      2,
+					},
 				},
 			},
 		)
 	})
 	t.Run("introspection query", func(t *testing.T) {
 		run(t, testDefinition, introspectionQuery,
-			GlobalComplexityResult{
+			OperationStats{
 				NodeCount:  0,
 				Complexity: 0,
 				Depth:      0,
@@ -258,7 +276,7 @@ func TestNodeCount(t *testing.T) {
 	})
 }
 
-var run = func(t *testing.T, definition, operation string, expectedGlobalComplexityResult GlobalComplexityResult, expectedFieldsComplexityResult []FieldComplexityResult) {
+var run = func(t *testing.T, definition, operation string, expectedGlobalComplexityResult OperationStats, expectedFieldsComplexityResult []FieldComplexityResult) {
 	def := unsafeparser.ParseGraphqlDocumentString(definition)
 	op := unsafeparser.ParseGraphqlDocumentString(operation)
 	report := operationreport.Report{}
