@@ -80,8 +80,17 @@ func (n *OperationComplexityEstimator) Do(operation, definition *ast.Document, r
 	n.visitor.maxSelectionSetFieldDepth = 0
 	n.visitor.selectionSetDepth = 0
 
-	n.visitor.calculatedRootFieldStats = []RootFieldStats{}
-	n.visitor.rootOperationTypeNames = make(map[string]bool, len(definition.RootOperationTypeDefinitions))
+	if n.visitor.calculatedRootFieldStats == nil {
+		n.visitor.calculatedRootFieldStats = make([]RootFieldStats, 0, len(definition.RootOperationTypeDefinitions))
+	}
+	n.visitor.calculatedRootFieldStats = n.visitor.calculatedRootFieldStats[:0]
+
+	if n.visitor.rootOperationTypeNames == nil {
+		n.visitor.rootOperationTypeNames = make(map[string]struct{}, len(definition.RootOperationTypeDefinitions))
+	}
+	for key := range n.visitor.rootOperationTypeNames {
+		delete(n.visitor.rootOperationTypeNames, key)
+	}
 
 	n.walker.Walk(operation, definition, report)
 
@@ -111,7 +120,7 @@ type complexityVisitor struct {
 	maxSelectionSetFieldDepth int
 	selectionSetDepth         int
 
-	rootOperationTypeNames map[string]bool
+	rootOperationTypeNames map[string]struct{}
 
 	currentRootFieldStats                RootFieldStats
 	currentRootFieldMaxDepth             int
@@ -139,7 +148,7 @@ func (c *complexityVisitor) EnterDocument(operation, definition *ast.Document) {
 
 	for i := 0; i < len(c.definition.RootOperationTypeDefinitions); i++ {
 		name := c.definition.Input.ByteSliceString(c.definition.RootOperationTypeDefinitions[i].NamedType.Name)
-		c.rootOperationTypeNames[name] = true
+		c.rootOperationTypeNames[name] = struct{}{}
 	}
 }
 
@@ -180,9 +189,7 @@ func (c *complexityVisitor) EnterField(ref int) {
 	}
 
 	typeName, fieldName, alias := c.extractFieldRelatedNames(ref, definition)
-	isRootType := c.isRootType(typeName)
-
-	if isRootType {
+	if c.isRootType(typeName) {
 		c.resetCurrentRootFieldComplexity(typeName, fieldName, alias)
 	}
 
@@ -271,7 +278,8 @@ func (c *complexityVisitor) extractFieldRelatedNames(ref, definitionRef int) (ty
 }
 
 func (c *complexityVisitor) isRootType(name string) bool {
-	return c.rootOperationTypeNames[name]
+	_, ok := c.rootOperationTypeNames[name]
+	return ok
 }
 
 func (c *complexityVisitor) isRootTypeField() bool {

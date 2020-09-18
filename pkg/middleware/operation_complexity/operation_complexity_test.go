@@ -11,7 +11,7 @@ import (
 	"github.com/jensneuse/graphql-go-tools/pkg/operationreport"
 )
 
-func TestNodeCount(t *testing.T) {
+func TestCalculateOperationComplexity(t *testing.T) {
 	t.Run("query with a scalar return type", func(t *testing.T) {
 		run(t, testDefinition, `
 				{
@@ -386,7 +386,6 @@ var run = func(t *testing.T, definition, operation string, expectedGlobalComplex
 }
 
 func BenchmarkEstimateComplexity(b *testing.B) {
-
 	def := unsafeparser.ParseGraphqlDocumentString(testDefinition)
 	op := unsafeparser.ParseGraphqlDocumentString(complexQuery)
 
