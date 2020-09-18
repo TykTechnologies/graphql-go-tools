@@ -33,7 +33,7 @@ type OperationStats struct {
 	Depth      int
 }
 
-type FieldComplexityResult struct {
+type RootFieldStats struct {
 	TypeName  string
 	FieldName string
 	Alias     string
@@ -71,7 +71,7 @@ func NewOperationComplexityEstimator() *OperationComplexityEstimator {
 	}
 }
 
-func (n *OperationComplexityEstimator) Do(operation, definition *ast.Document, report *operationreport.Report) (OperationStats, []FieldComplexityResult) {
+func (n *OperationComplexityEstimator) Do(operation, definition *ast.Document, report *operationreport.Report) (OperationStats, []RootFieldStats) {
 	n.visitor.count = 0
 	n.visitor.complexity = 0
 	n.visitor.maxFieldDepth = 0
@@ -80,7 +80,7 @@ func (n *OperationComplexityEstimator) Do(operation, definition *ast.Document, r
 	n.visitor.maxSelectionSetFieldDepth = 0
 	n.visitor.selectionSetDepth = 0
 
-	n.visitor.calculatedRootFieldComplexities = []FieldComplexityResult{}
+	n.visitor.calculatedRootFieldStats = []RootFieldStats{}
 	n.visitor.rootOperationTypeNames = make(map[string]bool, len(definition.RootOperationTypeDefinitions))
 
 	n.walker.Walk(operation, definition, report)
@@ -92,10 +92,10 @@ func (n *OperationComplexityEstimator) Do(operation, definition *ast.Document, r
 		Depth:      depth,
 	}
 
-	return globalResult, n.visitor.calculatedRootFieldComplexities
+	return globalResult, n.visitor.calculatedRootFieldStats
 }
 
-func CalculateOperationComplexity(operation, definition *ast.Document, report *operationreport.Report) (OperationStats, []FieldComplexityResult) {
+func CalculateOperationComplexity(operation, definition *ast.Document, report *operationreport.Report) (OperationStats, []RootFieldStats) {
 	estimator := NewOperationComplexityEstimator()
 	return estimator.Do(operation, definition, report)
 }
@@ -113,12 +113,12 @@ type complexityVisitor struct {
 
 	rootOperationTypeNames map[string]bool
 
-	currentRootFieldComplexity           FieldComplexityResult
+	currentRootFieldStats                RootFieldStats
 	currentRootFieldMaxDepth             int
 	currentRootFieldMaxSelectionSetDepth int
 	currentRootFieldSelectionSetDepth    int
 
-	calculatedRootFieldComplexities []FieldComplexityResult
+	calculatedRootFieldStats []RootFieldStats
 }
 
 type multiplier struct {
@@ -180,7 +180,9 @@ func (c *complexityVisitor) EnterField(ref int) {
 	}
 
 	typeName, fieldName, alias := c.extractFieldRelatedNames(ref, definition)
-	if c.isRootType(typeName) {
+	isRootType := c.isRootType(typeName)
+
+	if isRootType {
 		c.resetCurrentRootFieldComplexity(typeName, fieldName, alias)
 	}
 
@@ -193,7 +195,7 @@ func (c *complexityVisitor) EnterField(ref int) {
 		c.maxFieldDepth = c.Depth
 	}
 
-	c.currentRootFieldComplexity.Stats.Complexity = c.currentRootFieldComplexity.Stats.Complexity + c.calculateMultiplied(1)
+	c.currentRootFieldStats.Stats.Complexity = c.currentRootFieldStats.Stats.Complexity + c.calculateMultiplied(1)
 	if c.Depth > c.currentRootFieldMaxDepth {
 		c.currentRootFieldMaxDepth = c.Depth
 	}
@@ -225,7 +227,7 @@ func (c *complexityVisitor) EnterSelectionSet(ref int) {
 		c.selectionSetDepth++
 	}
 
-	c.currentRootFieldComplexity.Stats.NodeCount = c.currentRootFieldComplexity.Stats.NodeCount + c.calculateMultiplied(1)
+	c.currentRootFieldStats.Stats.NodeCount = c.currentRootFieldStats.Stats.NodeCount + c.calculateMultiplied(1)
 	if c.Depth > c.currentRootFieldMaxSelectionSetDepth {
 		c.currentRootFieldMaxSelectionSetDepth = c.Depth
 		c.currentRootFieldSelectionSetDepth++
@@ -237,7 +239,7 @@ func (c *complexityVisitor) EnterFragmentDefinition(ref int) {
 }
 
 func (c *complexityVisitor) resetCurrentRootFieldComplexity(typeName, fieldName, alias string) {
-	c.currentRootFieldComplexity = FieldComplexityResult{
+	c.currentRootFieldStats = RootFieldStats{
 		TypeName:  typeName,
 		FieldName: fieldName,
 		Alias:     alias,
@@ -250,8 +252,12 @@ func (c *complexityVisitor) resetCurrentRootFieldComplexity(typeName, fieldName,
 }
 
 func (c *complexityVisitor) endRootFieldComplexityCalculation() {
-	c.currentRootFieldComplexity.Stats.Depth = c.currentRootFieldMaxDepth - c.currentRootFieldSelectionSetDepth
-	c.calculatedRootFieldComplexities = append(c.calculatedRootFieldComplexities, c.currentRootFieldComplexity)
+	currentDepth := c.currentRootFieldMaxDepth - c.currentRootFieldSelectionSetDepth
+	if currentDepth > 0 {
+		currentDepth--
+	}
+	c.currentRootFieldStats.Stats.Depth = currentDepth
+	c.calculatedRootFieldStats = append(c.calculatedRootFieldStats, c.currentRootFieldStats)
 }
 
 func (c *complexityVisitor) extractFieldRelatedNames(ref, definitionRef int) (typeName, fieldName, alias string) {
