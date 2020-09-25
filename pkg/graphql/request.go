@@ -80,3 +80,11 @@ func (r *Request) parseQueryOnce() (report operationreport.Report) {
 	r.document, report = astparser.ParseGraphqlDocumentString(r.Query)
 	return report
 }
+
+func (r *Request) IsIntrospectionQuery() (bool, error) {
+	report := r.parseQueryOnce()
+	if report.HasErrors() {
+		return false, report
+	}
+	return r.OperationName == "IntrospectionQuery", nil
+}
