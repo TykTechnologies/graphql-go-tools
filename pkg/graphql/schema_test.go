@@ -357,11 +357,11 @@ func TestSchema_IntrospectionResponse(t *testing.T) {
 	schemaBytes := []byte("schema { query: Query } type Query { hello: String }")
 	schemaReader := bytes.NewBuffer(schemaBytes)
 	schema, err := NewSchemaFromReader(schemaReader)
-	assert.NoError(t,err)
+	assert.NoError(t, err)
 	out := &bytes.Buffer{}
 	err = schema.IntrospectionResponse(out)
-	assert.NoError(t,err)
-	goldie.Assert(t,"introspection_response",out.Bytes())
+	assert.NoError(t, err)
+	goldie.Assert(t, "introspection_response", out.Bytes())
 }
 
 var invalidSchema = `type Query {
