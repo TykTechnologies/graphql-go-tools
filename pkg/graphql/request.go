@@ -86,7 +86,7 @@ func (r *Request) parseQueryOnce() (report operationreport.Report) {
 	return report
 }
 
-func (r *Request) IsIntrospectionQuery() (bool, error) {
+func (r *Request) IsIntrospectionQuery() (result bool, err error) {
 	report := r.parseQueryOnce()
 	if report.HasErrors() {
 		return false, report
@@ -96,19 +96,31 @@ func (r *Request) IsIntrospectionQuery() (bool, error) {
 		return true, nil
 	}
 
+	if len(r.document.RootNodes) == 0 {
+		return
+	}
+
 	rootNode := r.document.RootNodes[0]
+	if rootNode.Kind != ast.NodeKindOperationDefinition {
+		return
+	}
+
 	operationDef := r.document.OperationDefinitions[rootNode.Ref]
 	if operationDef.OperationType != ast.OperationTypeQuery {
-		return false, nil
+		return
 	}
 	if !operationDef.HasSelections {
-		return false, nil
+		return
 	}
 
 	selectionSet := r.document.SelectionSets[operationDef.SelectionSet]
+	if len(selectionSet.SelectionRefs) == 0 {
+		return
+	}
+
 	selection := r.document.Selections[selectionSet.SelectionRefs[0]]
 	if selection.Kind != ast.SelectionKindField {
-		return false, nil
+		return
 	}
 
 	return r.document.FieldNameString(selection.Ref) == schemaFieldName, nil
