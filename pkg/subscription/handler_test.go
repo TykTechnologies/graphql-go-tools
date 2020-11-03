@@ -114,7 +114,7 @@ func TestHandler_Handle(t *testing.T) {
 			assert.Equal(t, 1, subscriptionHandler.ActiveSubscriptions())
 		})
 
-		t.Run("should stop subscription on stop", func(t *testing.T) {
+		t.Run("should stop subscription on stop and send complete message to client", func(t *testing.T) {
 			client.prepareStopMessage("1").withoutError().and().resetReceivedMessages()
 
 			ctx, cancelFunc := context.WithCancel(context.Background())
@@ -129,6 +129,15 @@ func TestHandler_Handle(t *testing.T) {
 
 			assert.Eventually(t, waitForCanceledSubscription, 1*time.Second, 5*time.Millisecond)
 			assert.Equal(t, 0, subscriptionHandler.ActiveSubscriptions())
+
+			expectedMessage := Message{
+				Id:      "1",
+				Type:    MessageTypeComplete,
+				Payload: nil,
+			}
+
+			messagesFromServer := client.readFromServer()
+			assert.Contains(t, messagesFromServer, expectedMessage)
 
 			cancelFunc()
 		})

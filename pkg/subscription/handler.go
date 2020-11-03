@@ -209,6 +209,7 @@ func (h *Handler) executeSubscription(buf *bytes.Buffer, id string, executor *ex
 // handleStop will handle a stop message,
 func (h *Handler) handleStop(id string) {
 	h.subCancellations.Cancel(id)
+	h.sendComplete(id)
 }
 
 // sendData will send a data message to the client.
