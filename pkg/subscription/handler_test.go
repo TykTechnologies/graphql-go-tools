@@ -22,7 +22,7 @@ func TestHandler_Handle(t *testing.T) {
 		_, client, handlerRoutine := setupSubscriptionHandlerTest(t)
 
 		t.Run("should send connection error message when error on read occurrs", func(t *testing.T) {
-			client.prepareConnectionInitMessage().withError().and().resetReceivedMessages()
+			client.prepareConnectionInitMessage().withError().and().send()
 
 			ctx, cancelFunc := context.WithCancel(context.Background())
 
@@ -39,7 +39,7 @@ func TestHandler_Handle(t *testing.T) {
 		})
 
 		t.Run("should successfully init connection and respond with ack", func(t *testing.T) {
-			client.prepareConnectionInitMessage().withoutError().and().resetReceivedMessages()
+			client.reconnect().and().prepareConnectionInitMessage().withoutError().and().send()
 
 			ctx, cancelFunc := context.WithCancel(context.Background())
 
@@ -64,7 +64,7 @@ func TestHandler_Handle(t *testing.T) {
 
 			subscriptionHandler.ChangeKeepAliveInterval(keepAliveInterval)
 
-			client.prepareConnectionInitMessage().withoutError().and().resetReceivedMessages()
+			client.prepareConnectionInitMessage().withoutError().and().send()
 			ctx, cancelFunc := context.WithCancel(context.Background())
 
 			handlerRoutineFunc := handlerRoutine(ctx)
@@ -89,12 +89,43 @@ func TestHandler_Handle(t *testing.T) {
 		})
 	})
 
+	t.Run("erroneous operation(s)", func(t *testing.T) {
+		_, client, handlerRoutine := setupSubscriptionHandlerTest(t)
+		ctx, cancelFunc := context.WithCancel(context.Background())
+		handlerRoutineFunc := handlerRoutine(ctx)
+		go handlerRoutineFunc()
+
+		t.Run("should send error when query contains syntax errors", func(t *testing.T) {
+			payload := []byte(`{"operationName": "Broken", "query Broken {": "", "variables": null}`)
+			client.prepareStartMessage("1", payload).withoutError().send()
+
+			waitForClientHavingAMessage := func() bool {
+				return client.hasMessage()
+			}
+			require.Eventually(t, waitForClientHavingAMessage, 5*time.Second, 5*time.Millisecond)
+
+			jsonErrParsingError, err := json.Marshal(errParsingError.Error())
+			require.NoError(t, err)
+
+			expectedMessage := Message{
+				Id:      "1",
+				Type:    MessageTypeError,
+				Payload: jsonErrParsingError,
+			}
+
+			messagesFromServer := client.readFromServer()
+			assert.Contains(t, messagesFromServer, expectedMessage)
+		})
+
+		cancelFunc()
+	})
+
 	t.Run("subscription query", func(t *testing.T) {
 		subscriptionHandler, client, handlerRoutine := setupSubscriptionHandlerTest(t)
 
 		t.Run("should start subscription on start", func(t *testing.T) {
 			payload := starwars.LoadQuery(t, starwars.FileRemainingJedisSubscription, nil)
-			client.prepareStartMessage("1", payload).withoutError().and().resetReceivedMessages()
+			client.prepareStartMessage("1", payload).withoutError().and().send()
 
 			ctx, cancelFunc := context.WithCancel(context.Background())
 			handlerRoutineFunc := handlerRoutine(ctx)
@@ -115,7 +146,7 @@ func TestHandler_Handle(t *testing.T) {
 		})
 
 		t.Run("should stop subscription on stop and send complete message to client", func(t *testing.T) {
-			client.prepareStopMessage("1").withoutError().and().resetReceivedMessages()
+			client.reconnect().prepareStopMessage("1").withoutError().and().send()
 
 			ctx, cancelFunc := context.WithCancel(context.Background())
 			handlerRoutineFunc := handlerRoutine(ctx)
@@ -147,7 +178,7 @@ func TestHandler_Handle(t *testing.T) {
 		_, client, handlerRoutine := setupSubscriptionHandlerTest(t)
 
 		t.Run("should successfully disconnect from client", func(t *testing.T) {
-			client.prepareConnectionTerminateMessage().withoutError()
+			client.prepareConnectionTerminateMessage().withoutError().and().send()
 			require.True(t, client.connected)
 
 			ctx, cancelFunc := context.WithCancel(context.Background())

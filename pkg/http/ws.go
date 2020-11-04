@@ -30,7 +30,7 @@ func NewWebsocketSubscriptionClient(logger abstractlogger.Logger, clientConn net
 }
 
 // ReadFromClient will read a subscription message from the websocket client.
-func (w *WebsocketSubscriptionClient) ReadFromClient() (message subscription.Message, err error) {
+func (w *WebsocketSubscriptionClient) ReadFromClient() (message *subscription.Message, err error) {
 	var data []byte
 	var opCode ws.OpCode
 
@@ -48,7 +48,7 @@ func (w *WebsocketSubscriptionClient) ReadFromClient() (message subscription.Mes
 
 		w.isClosedConnectionError(err)
 
-		return message, err
+		return nil, err
 	}
 
 	err = json.Unmarshal(data, &message)
@@ -59,7 +59,7 @@ func (w *WebsocketSubscriptionClient) ReadFromClient() (message subscription.Mes
 			abstractlogger.Any("opCode", opCode),
 		)
 
-		return message, err
+		return nil, err
 	}
 
 	return message, nil

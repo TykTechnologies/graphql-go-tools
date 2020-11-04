@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/jensneuse/abstractlogger"
@@ -27,6 +28,10 @@ const (
 	DefaultSubscriptionUpdateInterval = "1s"
 )
 
+var (
+	errParsingError = errors.New("parsing error: operation could not be parsed successfully")
+)
+
 // Message defines the actual subscription message wich will be passed from client to server and vice versa.
 type Message struct {
 	Id      string          `json:"id"`
@@ -37,7 +42,7 @@ type Message struct {
 // Client provides an interface which can be implemented by any possible subscription client like websockets, mqtt, etc.
 type Client interface {
 	// ReadFromClient will invoke a read operation from the client connection.
-	ReadFromClient() (Message, error)
+	ReadFromClient() (*Message, error)
 	// WriteToClient will invoke a write operation to the client connection.
 	WriteToClient(Message) error
 	// IsConnected will indicate if a connection is still established.
@@ -106,7 +111,7 @@ func (h *Handler) Handle(ctx context.Context) {
 			)
 
 			h.handleConnectionError("could not read message from client")
-		} else {
+		} else if message != nil {
 			switch message.Type {
 			case MessageTypeConnectionInit:
 				h.handleInit()
@@ -168,7 +173,8 @@ func (h *Handler) startSubscription(ctx context.Context, id string, data []byte)
 			abstractlogger.Error(err),
 		)
 
-		h.handleError(id, "error on subscription execution")
+		h.handleError(id, errParsingError.Error())
+		return
 	}
 
 	executionContext.Context = ctx
@@ -195,7 +201,7 @@ func (h *Handler) executeSubscription(buf *bytes.Buffer, id string, executor *ex
 			abstractlogger.Error(err),
 		)
 
-		h.handleError(id, "error on subscription execution")
+		h.handleError(id, err)
 		return
 	}
 
