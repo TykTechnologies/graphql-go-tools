@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jensneuse/abstractlogger"
@@ -61,6 +62,8 @@ type Handler struct {
 	subCancellations subscriptionCancellations
 	// executionHandler will handle the graphql execution.
 	executionHandler *execution.Handler
+	// bufferPool will hold buffers.
+	bufferPool *sync.Pool
 }
 
 // NewHandler creates a new subscription handler.
@@ -82,6 +85,11 @@ func NewHandler(logger abstractlogger.Logger, client Client, executionHandler *e
 		subscriptionUpdateInterval: subscriptionUpdateInterval,
 		subCancellations:           subscriptionCancellations{},
 		executionHandler:           executionHandler,
+		bufferPool: &sync.Pool{
+			New: func() interface{} {
+				return bytes.NewBuffer(make([]byte, 0, 1024))
+			},
+		},
 	}, nil
 }
 
@@ -179,7 +187,9 @@ func (h *Handler) handleStart(id string, payload []byte) {
 
 // handleNonSubscriptionOperation will handle a non-subscription operation like a query or a mutation.
 func (h *Handler) handleNonSubscriptionOperation(id string, executor *execution.Executor, node execution.RootNode, executionContext execution.Context) {
-	buf := bytes.NewBuffer(make([]byte, 0, 1024))
+	buf := h.bufferPool.Get().(*bytes.Buffer)
+	buf.Reset()
+
 	err := executor.Execute(executionContext, node, buf)
 	if err != nil {
 		h.logger.Error("subscription.Handle.handleNonSubscriptionOperation()",
@@ -201,7 +211,9 @@ func (h *Handler) handleNonSubscriptionOperation(id string, executor *execution.
 // startSubscription will invoke the actual subscription.
 func (h *Handler) startSubscription(ctx context.Context, id string, executor *execution.Executor, node execution.RootNode, executionContext execution.Context) {
 	executionContext.Context = ctx
-	buf := bytes.NewBuffer(make([]byte, 0, 1024))
+	buf := h.bufferPool.Get().(*bytes.Buffer)
+	buf.Reset()
+
 	h.executeSubscription(buf, id, executor, node, executionContext)
 
 	for {
