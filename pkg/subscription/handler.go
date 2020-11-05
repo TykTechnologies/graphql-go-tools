@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
+	"strings"
 	"time"
 
 	"github.com/jensneuse/abstractlogger"
@@ -27,10 +27,6 @@ const (
 
 	DefaultKeepAliveInterval          = "15s"
 	DefaultSubscriptionUpdateInterval = "1s"
-)
-
-var (
-	errParsingError = errors.New("parsing error: operation could not be parsed successfully")
 )
 
 // Message defines the actual subscription message wich will be passed from client to server and vice versa.
@@ -168,7 +164,7 @@ func (h *Handler) handleStart(id string, payload []byte) {
 			abstractlogger.Error(err),
 		)
 
-		h.handleError(id, errParsingError.Error())
+		h.handleError(id, cleanErrorMessage(err))
 		return
 	}
 
@@ -181,6 +177,7 @@ func (h *Handler) handleStart(id string, payload []byte) {
 	go h.handleNonSubscriptionOperation(id, executor, node, executionContext)
 }
 
+// handleNonSubscriptionOperation will handle a non-subscription operation like a query or a mutation.
 func (h *Handler) handleNonSubscriptionOperation(id string, executor *execution.Executor, node execution.RootNode, executionContext execution.Context) {
 	buf := bytes.NewBuffer(make([]byte, 0, 1024))
 	err := executor.Execute(executionContext, node, buf)
@@ -370,4 +367,9 @@ func (h *Handler) handleError(id string, errorPayload interface{}) {
 // ActiveSubscriptions will return the actual number of active subscriptions for that client.
 func (h *Handler) ActiveSubscriptions() int {
 	return len(h.subCancellations)
+}
+
+func cleanErrorMessage(err error) string {
+	errMsg := strings.TrimPrefix(err.Error(), "external: ")
+	return errMsg
 }

@@ -104,13 +104,13 @@ func TestHandler_Handle(t *testing.T) {
 			}
 			require.Eventually(t, waitForClientHavingAMessage, 5*time.Second, 5*time.Millisecond)
 
-			jsonErrParsingError, err := json.Marshal(errParsingError.Error())
+			jsonErrorMsg, err := json.Marshal("document doesn't contain any executable operation, locations: [], path: []")
 			require.NoError(t, err)
 
 			expectedMessage := Message{
 				Id:      "1",
 				Type:    MessageTypeError,
-				Payload: jsonErrParsingError,
+				Payload: jsonErrorMsg,
 			}
 
 			messagesFromServer := client.readFromServer()
@@ -122,6 +122,33 @@ func TestHandler_Handle(t *testing.T) {
 
 	t.Run("non-subscription query", func(t *testing.T) {
 		subscriptionHandler, client, handlerRoutine := setupSubscriptionHandlerTest(t)
+
+		t.Run("should process query and return error when query is not valid", func(t *testing.T) {
+			payload := starwars.LoadQuery(t, starwars.FileInvalidQuery, nil)
+			client.prepareStartMessage("1", payload).withoutError().and().send()
+
+			ctx, cancelFunc := context.WithCancel(context.Background())
+			cancelFunc()
+			handlerRoutineFunc := handlerRoutine(ctx)
+			go handlerRoutineFunc()
+
+			waitForClientHavingAMessage := func() bool {
+				return client.hasMoreMessagesThan(0)
+			}
+			require.Eventually(t, waitForClientHavingAMessage, 1*time.Second, 5*time.Millisecond)
+
+			jsonErrMessage, err := json.Marshal("field: invalid not defined on type: Character, locations: [], path: [query,hero,invalid]")
+			require.NoError(t, err)
+			expectedErrorMessage := Message{
+				Id:      "1",
+				Type:    MessageTypeError,
+				Payload: jsonErrMessage,
+			}
+
+			messagesFromServer := client.readFromServer()
+			assert.Contains(t, messagesFromServer, expectedErrorMessage)
+			assert.Equal(t, 0, subscriptionHandler.ActiveSubscriptions())
+		})
 
 		t.Run("should process and send result for a query", func(t *testing.T) {
 			payload := starwars.LoadQuery(t, starwars.FileSimpleHeroQuery, nil)
