@@ -46,8 +46,8 @@ func (c *mockClient) Disconnect() error {
 	return nil
 }
 
-func (c *mockClient) hasMessage() bool {
-	return len(c.messagesFromServer) > 0
+func (c *mockClient) hasMoreMessagesThan(num int) bool {
+	return len(c.messagesFromServer) > num
 }
 
 func (c *mockClient) readFromServer() []Message {

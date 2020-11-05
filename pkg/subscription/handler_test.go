@@ -100,7 +100,7 @@ func TestHandler_Handle(t *testing.T) {
 			client.prepareStartMessage("1", payload).withoutError().send()
 
 			waitForClientHavingAMessage := func() bool {
-				return client.hasMessage()
+				return client.hasMoreMessagesThan(0)
 			}
 			require.Eventually(t, waitForClientHavingAMessage, 5*time.Second, 5*time.Millisecond)
 
@@ -118,6 +118,42 @@ func TestHandler_Handle(t *testing.T) {
 		})
 
 		cancelFunc()
+	})
+
+	t.Run("non-subscription query", func(t *testing.T) {
+		subscriptionHandler, client, handlerRoutine := setupSubscriptionHandlerTest(t)
+
+		t.Run("should process and send result for a query", func(t *testing.T) {
+			payload := starwars.LoadQuery(t, starwars.FileSimpleHeroQuery, nil)
+			client.prepareStartMessage("1", payload).withoutError().and().send()
+
+			ctx, cancelFunc := context.WithCancel(context.Background())
+			cancelFunc()
+			handlerRoutineFunc := handlerRoutine(ctx)
+			go handlerRoutineFunc()
+
+			waitForClientHavingTwoMessages := func() bool {
+				return client.hasMoreMessagesThan(1)
+			}
+			require.Eventually(t, waitForClientHavingTwoMessages, 1*time.Second, 5*time.Millisecond)
+
+			expectedDataMessage := Message{
+				Id:      "1",
+				Type:    MessageTypeData,
+				Payload: []byte(`{"data":null}`),
+			}
+
+			expectedCompleteMessage := Message{
+				Id:      "1",
+				Type:    MessageTypeComplete,
+				Payload: nil,
+			}
+
+			messagesFromServer := client.readFromServer()
+			assert.Contains(t, messagesFromServer, expectedDataMessage)
+			assert.Contains(t, messagesFromServer, expectedCompleteMessage)
+			assert.Equal(t, 0, subscriptionHandler.ActiveSubscriptions())
+		})
 	})
 
 	t.Run("subscription query", func(t *testing.T) {

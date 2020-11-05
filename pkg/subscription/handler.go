@@ -9,6 +9,7 @@ import (
 
 	"github.com/jensneuse/abstractlogger"
 
+	"github.com/jensneuse/graphql-go-tools/pkg/ast"
 	"github.com/jensneuse/graphql-go-tools/pkg/execution"
 )
 
@@ -161,15 +162,9 @@ func (h *Handler) handleInit() {
 
 // handleStart will handle s start message.
 func (h *Handler) handleStart(id string, payload []byte) {
-	ctx := h.subCancellations.Add(id)
-	go h.startSubscription(ctx, id, payload)
-}
-
-// startSubscription will invoke the actual subscription.
-func (h *Handler) startSubscription(ctx context.Context, id string, data []byte) {
-	executor, node, executionContext, err := h.executionHandler.Handle(data, []byte(""))
+	executor, node, executionContext, err := h.executionHandler.Handle(payload, []byte(""))
 	if err != nil {
-		h.logger.Error("subscription.Handler.startSubscription()",
+		h.logger.Error("subscription.Handler.handleStart()",
 			abstractlogger.Error(err),
 		)
 
@@ -177,6 +172,37 @@ func (h *Handler) startSubscription(ctx context.Context, id string, data []byte)
 		return
 	}
 
+	if node.OperationType() == ast.OperationTypeSubscription {
+		ctx := h.subCancellations.Add(id)
+		go h.startSubscription(ctx, id, executor, node, executionContext)
+		return
+	}
+
+	go h.handleNonSubscriptionOperation(id, executor, node, executionContext)
+}
+
+func (h *Handler) handleNonSubscriptionOperation(id string, executor *execution.Executor, node execution.RootNode, executionContext execution.Context) {
+	buf := bytes.NewBuffer(make([]byte, 0, 1024))
+	err := executor.Execute(executionContext, node, buf)
+	if err != nil {
+		h.logger.Error("subscription.Handle.handleNonSubscriptionOperation()",
+			abstractlogger.Error(err),
+		)
+
+		h.handleError(id, err)
+		return
+	}
+
+	h.logger.Debug("subscription.Handle.handleNonSubscriptionOperation()",
+		abstractlogger.ByteString("execution_result", buf.Bytes()),
+	)
+
+	h.sendData(id, buf.Bytes())
+	h.sendComplete(id)
+}
+
+// startSubscription will invoke the actual subscription.
+func (h *Handler) startSubscription(ctx context.Context, id string, executor *execution.Executor, node execution.RootNode, executionContext execution.Context) {
 	executionContext.Context = ctx
 	buf := bytes.NewBuffer(make([]byte, 0, 1024))
 	h.executeSubscription(buf, id, executor, node, executionContext)
