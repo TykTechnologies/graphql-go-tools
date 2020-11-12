@@ -9,6 +9,7 @@ import (
 	"github.com/gobwas/ws/wsutil"
 	"github.com/jensneuse/abstractlogger"
 
+	"github.com/jensneuse/graphql-go-tools/pkg/execution"
 	"github.com/jensneuse/graphql-go-tools/pkg/subscription"
 )
 
@@ -117,26 +118,40 @@ func (w *WebsocketSubscriptionClient) isClosedConnectionError(err error) bool {
 	return w.isClosedConnection
 }
 
-// handleWebsocket will handle the websocket connection.
-func (g *GraphQLHTTPRequestHandler) handleWebsocket(conn net.Conn) {
-	websocketClient := NewWebsocketSubscriptionClient(g.log, conn)
-	subscriptionHandler, err := subscription.NewHandler(g.log, websocketClient, g.executionHandler)
+func HandleWebsocket(errChan chan error, conn net.Conn, executionHandler *execution.Handler, logger abstractlogger.Logger) {
+	websocketClient := NewWebsocketSubscriptionClient(logger, conn)
+	subscriptionHandler, err := subscription.NewHandler(logger, websocketClient, executionHandler)
 	if err != nil {
-		g.log.Error("http.GraphQLHTTPRequestHandler.handleWebsocket()",
+		logger.Error("http.HandleWebsocket()",
 			abstractlogger.String("message", "could not create subscriptionHandler"),
 			abstractlogger.Error(err),
 		)
 
-		return
+		errChan <- err
 	}
 
 	subscriptionHandler.Handle(context.Background()) // Blocking
 
 	err = conn.Close()
 	if err != nil {
-		g.log.Error("http.GraphQLHTTPRequestHandler.handleWebsocket()",
+		logger.Error("http.HandleWebsocket()",
 			abstractlogger.String("message", "could not close connection to client"),
 			abstractlogger.Error(err),
 		)
+	}
+}
+
+// handleWebsocket will handle the websocket connection.
+func (g *GraphQLHTTPRequestHandler) handleWebsocket(conn net.Conn) {
+	errChan := make(chan error)
+
+	go HandleWebsocket(errChan, conn, g.executionHandler, g.log)
+	select {
+	case err := <-errChan:
+		g.log.Error("http.GraphQLHTTPRequestHandler.handleWebsocket()",
+			abstractlogger.Error(err),
+		)
+		conn.Close()
+	default:
 	}
 }
