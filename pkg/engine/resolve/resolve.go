@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"net/http"
 	"strconv"
 	"sync"
 	"time"
@@ -43,6 +44,7 @@ var (
 
 var errNonNullableFieldValueIsNull = errors.New("non Nullable field value is null")
 var errTypeNameSkipped = errors.New("skipped because of __typename condition")
+var errHeaderPathInvalid = errors.New("invalid header path: header variables must be of this format: .request.header.{{ key }} ")
 
 type Node interface {
 	NodeKind() NodeKind
@@ -78,6 +80,7 @@ type AfterFetchHook interface {
 type Context struct {
 	context.Context
 	Variables       []byte
+	Request         Request
 	pathElements    [][]byte
 	patches         []patch
 	usedBuffers     []*bytes.Buffer
@@ -86,6 +89,10 @@ type Context struct {
 	pathPrefix      []byte
 	beforeFetchHook BeforeFetchHook
 	afterFetchHook  AfterFetchHook
+}
+
+type Request struct {
+	Header http.Header
 }
 
 func NewContext(ctx context.Context) *Context {
@@ -178,15 +185,6 @@ type Fetch interface {
 }
 
 type Fetches []Fetch
-
-func (f *Fetches) AppendIfUnique(fetch Fetch) {
-	for i := range *f {
-		if fetch == (*f)[i] {
-			return
-		}
-	}
-	*f = append(*f, fetch)
-}
 
 type DataSource interface {
 	Load(ctx context.Context, input []byte, bufPair *BufPair) (err error)
@@ -288,61 +286,6 @@ func (r *Resolver) writeSafe(err error, writer io.Writer, data []byte) error {
 		return err
 	}
 	_, err = writer.Write(data)
-	return err
-}
-
-// nolint
-func (r *Resolver) writeErrSafe(err error, writer io.Writer, message, locations, path []byte) error {
-	if err != nil {
-		return err
-	}
-	_, err = writer.Write(lBrace)
-	err = r.resolveObjectFieldSafe(err, writer, literalMessage, message)
-	if err != nil {
-		return err
-	}
-	if locations != nil {
-		_, err = writer.Write(comma)
-		if err != nil {
-			return err
-		}
-		err = r.resolveObjectFieldSafe(err, writer, literalLocations, locations)
-		if err != nil {
-			return err
-		}
-	}
-	if locations != nil {
-		_, err = writer.Write(comma)
-		if err != nil {
-			return err
-		}
-		err = r.resolveObjectFieldSafe(err, writer, literalPath, locations)
-		if err != nil {
-			return err
-		}
-	}
-	_, err = writer.Write(rBrace)
-	return err
-}
-
-// nolint
-func (r *Resolver) resolveObjectFieldSafe(err error, writer io.Writer, fieldName, fieldContent []byte) error {
-	if err != nil {
-		return err
-	}
-	if _, err = writer.Write(quote); err != nil {
-		return err
-	}
-	if _, err = writer.Write(fieldName); err != nil {
-		return err
-	}
-	if _, err = writer.Write(quote); err != nil {
-		return err
-	}
-	if _, err = writer.Write(colon); err != nil {
-		return err
-	}
-	_, err = writer.Write(fieldContent)
 	return err
 }
 
@@ -1127,9 +1070,6 @@ type InputTemplate struct {
 }
 
 func (i *InputTemplate) Render(ctx *Context, data []byte, preparedInput *fastbuffer.FastBuffer) (err error) {
-	var (
-		variableSource []byte
-	)
 	for j := range i.Segments {
 		switch i.Segments[j].SegmentType {
 		case StaticSegmentType:
@@ -1137,20 +1077,59 @@ func (i *InputTemplate) Render(ctx *Context, data []byte, preparedInput *fastbuf
 		case VariableSegmentType:
 			switch i.Segments[j].VariableSource {
 			case VariableSourceObject:
-				variableSource = data
+				err = i.renderObjectVariable(data, i.Segments[j].VariableSourcePath, preparedInput)
 			case VariableSourceContext:
-				variableSource = ctx.Variables
+				err = i.renderContextVariable(ctx,i.Segments[j].VariableSourcePath,preparedInput)
+			case VariableSourceRequestHeader:
+				err = i.renderHeaderVariable(ctx,i.Segments[j].VariableSourcePath,preparedInput)
 			default:
-				return fmt.Errorf("InputTemplate.Render: cannot resolve variable of kind: %d", i.Segments[j].VariableSource)
+				err = fmt.Errorf("InputTemplate.Render: cannot resolve variable of kind: %d", i.Segments[j].VariableSource)
 			}
-			value, _, _, err := jsonparser.Get(variableSource, i.Segments[j].VariableSourcePath...)
 			if err != nil {
 				return err
 			}
-			preparedInput.WriteBytes(value)
 		}
 	}
 	return
+}
+
+func (i *InputTemplate) renderObjectVariable(data []byte, path []string, preparedInput *fastbuffer.FastBuffer) error {
+	value, _, _, err := jsonparser.Get(data, path...)
+	if err != nil {
+		return err
+	}
+	preparedInput.WriteBytes(value)
+	return nil
+}
+
+func (i *InputTemplate) renderContextVariable(ctx *Context, path []string, preparedInput *fastbuffer.FastBuffer) error {
+	value, _, _, err := jsonparser.Get(ctx.Variables, path...)
+	if err != nil {
+		return err
+	}
+	preparedInput.WriteBytes(value)
+	return nil
+}
+
+func (i *InputTemplate) renderHeaderVariable(ctx *Context,path []string, preparedInput *fastbuffer.FastBuffer) error {
+	if len(path) != 1 {
+		return errHeaderPathInvalid
+	}
+	value := ctx.Request.Header[path[0]]
+	if len(value) == 0 {
+		return nil
+	}
+	if len(value) == 1 {
+		preparedInput.WriteString(value[0])
+		return nil
+	}
+	for j := range value {
+		if j != 0 {
+			preparedInput.WriteBytes(literal.COMMA)
+		}
+		preparedInput.WriteString(value[j])
+	}
+	return nil
 }
 
 type SegmentType int
@@ -1162,6 +1141,7 @@ const (
 
 	VariableSourceObject VariableSource = iota + 1
 	VariableSourceContext
+	VariableSourceRequestHeader
 )
 
 type TemplateSegment struct {
