@@ -42,6 +42,7 @@ type Planner struct {
 	hasFederationRoot          bool
 	extractEntities            bool
 	client                     httpclient.Client
+	isNested bool
 }
 
 type Configuration struct {
@@ -76,7 +77,7 @@ func (c *Configuration) ApplyDefaults() {
 	}
 }
 
-func (p *Planner) Register(visitor *plan.Visitor, config json.RawMessage) error {
+func (p *Planner) Register(visitor *plan.Visitor, config json.RawMessage, isNested bool) error {
 	p.visitor = visitor
 	p.visitor.Walker.RegisterDocumentVisitor(p)
 	p.visitor.Walker.RegisterFieldVisitor(p)
@@ -90,6 +91,7 @@ func (p *Planner) Register(visitor *plan.Visitor, config json.RawMessage) error 
 	}
 
 	p.config.ApplyDefaults()
+	p.isNested = isNested
 
 	return nil
 }
@@ -139,10 +141,14 @@ func (p *Planner) ConfigureSubscription() plan.SubscriptionConfiguration {
 }
 
 func (p *Planner) EnterOperationDefinition(ref int) {
+	operationType := p.visitor.Operation.OperationDefinitions[ref].OperationType
+	if p.isNested {
+		operationType = ast.OperationTypeQuery
+	}
 	definition := p.upstreamOperation.AddOperationDefinitionToRootNodes(ast.OperationDefinition{
-		OperationType: p.visitor.Operation.OperationDefinitions[ref].OperationType,
+		OperationType: operationType,
 	})
-	p.disallowSingleFlight = p.visitor.Operation.OperationDefinitions[ref].OperationType == ast.OperationTypeMutation
+	p.disallowSingleFlight = operationType == ast.OperationTypeMutation
 	p.nodes = append(p.nodes, definition)
 }
 
