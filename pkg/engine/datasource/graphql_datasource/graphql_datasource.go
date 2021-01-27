@@ -105,7 +105,7 @@ func (p *Planner) ConfigureFetch() plan.FetchConfiguration {
 
 	header, err := json.Marshal(p.config.Fetch.Header)
 	if err == nil && len(header) != 0 && !bytes.Equal(header, literal.NULL) {
-		input = httpclient.SetInputHeaders(input, header)
+		input = httpclient.SetInputHeader(input, header)
 	}
 
 	input = httpclient.SetInputURL(input, []byte(p.config.Fetch.URL))
@@ -129,7 +129,7 @@ func (p *Planner) ConfigureSubscription() plan.SubscriptionConfiguration {
 
 	header, err := json.Marshal(p.config.Fetch.Header)
 	if err == nil && len(header) != 0 && !bytes.Equal(header, literal.NULL) {
-		input = httpclient.SetInputHeaders(input, header)
+		input = httpclient.SetInputHeader(input, header)
 	}
 
 	return plan.SubscriptionConfiguration{

@@ -89,7 +89,7 @@ func (p *Planner) configureInput() []byte {
 
 	header, err := json.Marshal(p.config.Fetch.Header)
 	if err == nil && len(header) != 0 && !bytes.Equal(header, literal.NULL) {
-		input = httpclient.SetInputHeaders(input, header)
+		input = httpclient.SetInputHeader(input, header)
 	}
 
 	preparedQuery := p.prepareQueryParams(p.rootField, p.config.Fetch.Query)
