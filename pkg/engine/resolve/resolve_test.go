@@ -550,25 +550,14 @@ func TestResolver_WithHooks(t *testing.T) {
 	}
 	t.Run("resolve with hooks", testFn(func(t *testing.T, r *Resolver, ctrl *gomock.Controller) (node Node, ctx Context, expectedOutput string) {
 
-		/*
-		Doesn't work for some reason, have a try
-		expectBytesEqualString := func(expected string) gomock.Matcher {
-			return gomock.GotFormatterAdapter(
-				gomock.GotFormatterFunc(func(i interface{}) string {
-					formatted := string(i.(HookContext).CurrentPath)
-					fmt.Printf("formatted::%s::\n",formatted)
-					return formatted
-				}),
-				gomock.Eq(expected),
-			)
-		}*/
+		pathEq := func(expected string) gomock.Matcher {
+			return hookContextPathMatcher{path: expected}
+		}
 
 		beforeFetch := NewMockBeforeFetchHook(ctrl)
-		beforeFetch.EXPECT().OnBeforeFetch(gomock.Any(), []byte("fakeInput")).Return()
-		//beforeFetch.EXPECT().OnBeforeFetch(expectBytesEqualString("/data/user"), []byte("fakeInput")).Return()
+		beforeFetch.EXPECT().OnBeforeFetch(pathEq("/data/user"), []byte("fakeInput")).Return()
 		afterFetch := NewMockAfterFetchHook(ctrl)
-		//afterFetch.EXPECT().OnData(expectBytesEqualString("/data/user"), []byte(`{"id":"1","name":"Jens","registered":true,"pet":{"name":"Barky","kind":"Dog"}}`), false).Return()
-		afterFetch.EXPECT().OnData(gomock.Any(), []byte(`{"id":"1","name":"Jens","registered":true,"pet":{"name":"Barky","kind":"Dog"}}`), false).Return()
+		afterFetch.EXPECT().OnData(pathEq("/data/user"), []byte(`{"id":"1","name":"Jens","registered":true,"pet":{"name":"Barky","kind":"Dog"}}`), false).Return()
 		return &Object{
 			Fields: []*Field{
 				{
@@ -1708,4 +1697,17 @@ func BenchmarkResolver_ResolveNode(b *testing.B) {
 			resolver.EnableSingleFlightLoader = false
 			runBench(b)
 		})*/
+}
+
+type hookContextPathMatcher struct {
+	path string
+}
+
+func (h hookContextPathMatcher) Matches(x interface{}) bool {
+	path := string(x.(HookContext).CurrentPath)
+	return path == h.path
+}
+
+func (h hookContextPathMatcher) String() string {
+	return fmt.Sprintf("is equal to %s", h.path)
 }
