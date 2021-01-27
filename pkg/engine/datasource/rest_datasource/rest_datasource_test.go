@@ -399,8 +399,13 @@ func TestFastHttpJsonDataSourcePlanning(t *testing.T) {
 				Data: &resolve.Object{
 					Fetch: &resolve.SingleFetch{
 						BufferId:   0,
-						Input:      `{"headers":{"Authorization":["Bearer 123"],"X-API-Key":["456"]},"method":"GET","url":"https://example.com/friend"}`,
+						Input:      `{"headers":{"Authorization":["Bearer 123"],"Token":["Bearer $$0$$"],"X-API-Key":["456"]},"method":"GET","url":"https://example.com/friend"}`,
 						DataSource: &Source{},
+						Variables: []resolve.Variable{
+							&resolve.HeaderVariable{
+								Path: []string{"Authorization"},
+							},
+						},
 					},
 					Fields: []*resolve.Field{
 						{
@@ -440,6 +445,7 @@ func TestFastHttpJsonDataSourcePlanning(t *testing.T) {
 							Header: http.Header{
 								"Authorization": []string{"Bearer 123"},
 								"X-API-Key":     []string{"456"},
+								"Token":         []string{"Bearer {{ .request.header.Authorization }}"},
 							},
 						},
 					}),

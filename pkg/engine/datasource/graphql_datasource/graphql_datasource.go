@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -64,13 +65,14 @@ type SubscriptionConfiguration struct {
 }
 
 type FetchConfiguration struct {
-	URL        string
-	HttpMethod string
+	URL    string
+	Method string
+	Header http.Header
 }
 
 func (c *Configuration) ApplyDefaults() {
-	if c.Fetch.HttpMethod == "" {
-		c.Fetch.HttpMethod = "POST"
+	if c.Fetch.Method == "" {
+		c.Fetch.Method = "POST"
 	}
 }
 
@@ -100,8 +102,14 @@ func (p *Planner) ConfigureFetch() plan.FetchConfiguration {
 	}
 	input = httpclient.SetInputBodyWithPath(input, p.upstreamVariables, "variables")
 	input = httpclient.SetInputBodyWithPath(input, p.printOperation(), "query")
+
+	header, err := json.Marshal(p.config.Fetch.Header)
+	if err == nil && len(header) != 0 && !bytes.Equal(header, literal.NULL) {
+		input = httpclient.SetInputHeaders(input, header)
+	}
+
 	input = httpclient.SetInputURL(input, []byte(p.config.Fetch.URL))
-	input = httpclient.SetInputMethod(input, []byte(p.config.Fetch.HttpMethod))
+	input = httpclient.SetInputMethod(input, []byte(p.config.Fetch.Method))
 
 	return plan.FetchConfiguration{
 		Input: string(input),
@@ -118,6 +126,11 @@ func (p *Planner) ConfigureSubscription() plan.SubscriptionConfiguration {
 	input := httpclient.SetInputBodyWithPath(nil, p.upstreamVariables, "variables")
 	input = httpclient.SetInputBodyWithPath(input, p.printOperation(), "query")
 	input = httpclient.SetInputURL(input, []byte(p.config.Subscription.URL))
+
+	header, err := json.Marshal(p.config.Fetch.Header)
+	if err == nil && len(header) != 0 && !bytes.Equal(header, literal.NULL) {
+		input = httpclient.SetInputHeaders(input, header)
+	}
 
 	return plan.SubscriptionConfiguration{
 		Input:                 string(input),

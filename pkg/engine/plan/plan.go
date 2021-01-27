@@ -649,6 +649,17 @@ func (v *Visitor) resolveInputTemplates(config objectFetchConfiguration, input *
 			variableName, _ = variables.AddVariable(&resolve.ContextVariable{
 				Path: []string{variableValue},
 			}, false)
+		case "request":
+			if len(path) != 2 {
+				break
+			}
+			switch path[0] {
+			case "header":
+				key := path[1]
+				variableName, _ = variables.AddVariable(&resolve.HeaderVariable{
+					Path: []string{key},
+				}, false)
+			}
 		}
 		return variableName
 	})

@@ -122,6 +122,7 @@ func (c *Context) Free() {
 	c.maxPatch = -1
 	c.beforeFetchHook = nil
 	c.afterFetchHook = nil
+	c.Request.Header = nil
 }
 
 func (c *Context) SetBeforeFetchHook(hook BeforeFetchHook) {
@@ -1220,6 +1221,7 @@ func (_ *Array) NodeKind() NodeKind {
 type Variable interface {
 	VariableKind() VariableKind
 	Equals(another Variable) bool
+	TemplateSegment () TemplateSegment
 }
 
 type Variables []Variable
@@ -1259,10 +1261,19 @@ type VariableKind int
 const (
 	VariableKindContext VariableKind = iota + 1
 	VariableKindObject
+	VariableKindHeader
 )
 
 type ContextVariable struct {
 	Path []string
+}
+
+func (c *ContextVariable) TemplateSegment() TemplateSegment {
+	return TemplateSegment{
+		SegmentType:        VariableSegmentType,
+		VariableSource:     VariableSourceContext,
+		VariableSourcePath: c.Path,
+	}
 }
 
 func (c *ContextVariable) Equals(another Variable) bool {
@@ -1292,6 +1303,14 @@ type ObjectVariable struct {
 	Path []string
 }
 
+func (o *ObjectVariable) TemplateSegment() TemplateSegment {
+	return TemplateSegment{
+		SegmentType:        VariableSegmentType,
+		VariableSource:     VariableSourceObject,
+		VariableSourcePath: o.Path,
+	}
+}
+
 func (o *ObjectVariable) Equals(another Variable) bool {
 	if another == nil {
 		return false
@@ -1313,6 +1332,41 @@ func (o *ObjectVariable) Equals(another Variable) bool {
 
 func (o *ObjectVariable) VariableKind() VariableKind {
 	return VariableKindObject
+}
+
+type HeaderVariable struct {
+	Path []string
+}
+
+func (h *HeaderVariable) TemplateSegment() TemplateSegment {
+	return TemplateSegment{
+		SegmentType:        VariableSegmentType,
+		VariableSource:     VariableSourceRequestHeader,
+		VariableSourcePath: h.Path,
+	}
+}
+
+func (h *HeaderVariable) VariableKind() VariableKind {
+	return VariableKindHeader
+}
+
+func (h *HeaderVariable) Equals(another Variable) bool {
+	if another == nil {
+		return false
+	}
+	if another.VariableKind() != h.VariableKind() {
+		return false
+	}
+	anotherHeaderVariable := another.(*HeaderVariable)
+	if len(h.Path) != len(anotherHeaderVariable.Path) {
+		return false
+	}
+	for i := range h.Path {
+		if h.Path[i] != anotherHeaderVariable.Path[i] {
+			return false
+		}
+	}
+	return true
 }
 
 type GraphQLSubscription struct {
