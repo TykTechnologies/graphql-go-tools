@@ -10,9 +10,15 @@ import (
 	"github.com/jensneuse/graphql-go-tools/pkg/astparser"
 	"github.com/jensneuse/graphql-go-tools/pkg/asttransform"
 	"github.com/jensneuse/graphql-go-tools/pkg/astvalidation"
+	"github.com/jensneuse/graphql-go-tools/pkg/engine/plan"
 	"github.com/jensneuse/graphql-go-tools/pkg/introspection"
 	"github.com/jensneuse/graphql-go-tools/pkg/operationreport"
 )
+
+type TypeFields struct {
+	TypeName   string
+	FieldNames []string
+}
 
 type Schema struct {
 	rawInput []byte
@@ -119,6 +125,77 @@ func (s *Schema) IntrospectionResponse(out io.Writer) error {
 	return json.NewEncoder(out).Encode(introspectionData)
 }
 
+func (s *Schema) GetAllNestedFieldChildren(typeName string, fieldName string, skipFieldFunc SkipFieldFunc) []TypeFields {
+	fields := s.nodeFieldRefs(typeName)
+	if len(fields) == 0 {
+		return nil
+	}
+	for _, ref := range fields {
+		if fieldName == s.document.FieldDefinitionNameString(ref) {
+			fieldTypeName := s.document.FieldDefinitionTypeNode(ref).NameString(&s.document)
+			childNodes := make([]TypeFields, 0)
+			s.findNestedFieldChildren(fieldTypeName, &childNodes, skipFieldFunc)
+			return childNodes
+		}
+	}
+
+	return nil
+}
+
+func (s *Schema) findNestedFieldChildren(typeName string, childNodes *[]TypeFields, skipFieldFunc SkipFieldFunc) {
+	fields := s.nodeFieldRefs(typeName)
+	if len(fields) == 0 {
+		return
+	}
+	for _, ref := range fields {
+		fieldName := s.document.FieldDefinitionNameString(ref)
+		if skipFieldFunc != nil && skipFieldFunc(typeName, fieldName, s.document) {
+			continue
+		}
+		s.putChildNode(childNodes, typeName, fieldName)
+		fieldTypeName := s.document.FieldDefinitionTypeNode(ref).NameString(&s.document)
+		s.findNestedFieldChildren(fieldTypeName, childNodes, skipFieldFunc)
+	}
+	return
+}
+
+func (s *Schema) nodeFieldRefs(typeName string) []int {
+	node, exists := s.document.Index.FirstNodeByNameStr(typeName)
+	if !exists {
+		return nil
+	}
+	var fields []int
+	switch node.Kind {
+	case ast.NodeKindObjectTypeDefinition:
+		fields = s.document.ObjectTypeDefinitions[node.Ref].FieldsDefinition.Refs
+	case ast.NodeKindInterfaceTypeDefinition:
+		fields = s.document.InterfaceTypeDefinitions[node.Ref].FieldsDefinition.Refs
+	default:
+		return nil
+	}
+
+	return fields
+}
+
+func (s *Schema) putChildNode(nodes *[]TypeFields, typeName, fieldName string) {
+	for i := range *nodes {
+		if typeName != (*nodes)[i].TypeName {
+			continue
+		}
+		for j := range (*nodes)[i].FieldNames {
+			if fieldName == (*nodes)[i].FieldNames[j] {
+				return
+			}
+		}
+		(*nodes)[i].FieldNames = append((*nodes)[i].FieldNames, fieldName)
+		return
+	}
+	*nodes = append(*nodes, TypeFields{
+		TypeName:   typeName,
+		FieldNames: []string{fieldName},
+	})
+}
+
 func createSchema(schemaContent []byte) (*Schema, error) {
 	document, report := astparser.ParseGraphqlDocumentBytes(schemaContent)
 	if report.HasErrors() {
@@ -140,4 +217,24 @@ func SchemaIntrospection(schema *Schema) (*ExecutionResult, error) {
 	var buf bytes.Buffer
 	err := schema.IntrospectionResponse(&buf)
 	return &ExecutionResult{&buf}, err
+}
+
+type SkipFieldFunc func(typeName, fieldName string, definition ast.Document) bool
+
+func NewIsDataSourceConfigV2RootFieldSkipFunc(dataSources []plan.DataSourceConfiguration) SkipFieldFunc {
+	return func(typeName, fieldName string, _ ast.Document) bool {
+		for i := range dataSources {
+			for j := range dataSources[i].RootNodes {
+				if typeName != dataSources[i].RootNodes[j].TypeName {
+					continue
+				}
+				for k := range dataSources[i].RootNodes[j].FieldNames {
+					if fieldName == dataSources[i].RootNodes[j].FieldNames[k] {
+						return true
+					}
+				}
+			}
+		}
+		return false
+	}
 }
