@@ -8,6 +8,8 @@ import (
 	"github.com/sebdah/goldie"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/jensneuse/graphql-go-tools/pkg/engine/plan"
 )
 
 func TestNewSchemaFromReader(t *testing.T) {
@@ -383,8 +385,77 @@ func TestSchemaIntrospection(t *testing.T) {
 	goldie.Assert(t, "introspection_response", bodyBytes)
 }
 
+func TestSchema_GetAllNestedFieldChildren(t *testing.T) {
+	schema, err := NewSchemaFromString(schemaWithChildren)
+	require.NoError(t, err)
+
+	t.Run("should get field children without skip function", func(t *testing.T) {
+		typeFields := schema.GetAllNestedFieldChildren("Query", "withChildren", nil)
+		expectedTypeFields := []TypeFields{
+			{
+				TypeName:   "WithChildren",
+				FieldNames: []string{"id", "name", "nested"},
+			},
+			{
+				TypeName:   "Nested",
+				FieldNames: []string{"id", "name"},
+			},
+		}
+
+		assert.Equal(t, expectedTypeFields, typeFields)
+	})
+
+	t.Run("should get field children with skip function for engine v2 data source config", func(t *testing.T) {
+		dataSources := []plan.DataSourceConfiguration{
+			{
+				RootNodes: []plan.TypeField{
+					{
+						TypeName:   "WithChildren",
+						FieldNames: []string{"nested"},
+					},
+				},
+			},
+		}
+		typeFields := schema.GetAllNestedFieldChildren("Query", "withChildren", NewIsDataSourceConfigV2RootFieldSkipFunc(dataSources))
+		expectedTypeFields := []TypeFields{
+			{
+				TypeName:   "WithChildren",
+				FieldNames: []string{"id", "name"},
+			},
+		}
+
+		assert.Equal(t, expectedTypeFields, typeFields)
+	})
+}
+
 var invalidSchema = `type Query {
 	foo: Bar
+}`
+
+var schemaWithChildren = `
+type Query {
+	withChildren: WithChildren
+	multiRoot1: MultiRoot1
+	multiRoot2: MultiRoot2 
+} 
+
+type WithChildren { 
+	id: ID!
+	name: String
+	nested: Nested
+} 
+
+type Nested { 
+	id: ID! 
+	name: String! 
+} 
+
+type MultiRoot1 { 
+	id: ID! 
+} 
+
+type MultiRoot2 { 
+	name: String! 
 }`
 
 var countriesSchema = `directive @cacheControl(maxAge: Int, scope: CacheControlScope) on FIELD_DEFINITION | OBJECT | INTERFACE
