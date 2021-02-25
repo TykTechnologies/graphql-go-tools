@@ -133,7 +133,7 @@ func (s *Schema) IntrospectionResponse(out io.Writer) error {
 }
 
 func (s *Schema) GetAllFieldArguments(skipFieldFuncs ...SkipFieldFunc) []TypeFieldArguments {
-	objectTypeExtensions := make(map[string]ast.ObjectTypeExtension, 0)
+	objectTypeExtensions := make(map[string]ast.ObjectTypeExtension)
 	for _, objectTypeExtension := range s.document.ObjectTypeExtensions {
 		typeName, ok := s.typeNameOfObjectTypeIfHavingFields(objectTypeExtension.ObjectTypeDefinition)
 		if !ok {
@@ -266,7 +266,6 @@ func (s *Schema) findNestedFieldChildren(typeName string, childNodes *[]TypeFiel
 		fieldTypeName := s.document.FieldDefinitionTypeNode(ref).NameString(&s.document)
 		s.findNestedFieldChildren(fieldTypeName, childNodes, skipFieldFuncs...)
 	}
-	return
 }
 
 func (s *Schema) nodeFieldRefs(typeName string) []int {
