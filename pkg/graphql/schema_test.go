@@ -385,12 +385,91 @@ func TestSchemaIntrospection(t *testing.T) {
 	goldie.Assert(t, "introspection_response", bodyBytes)
 }
 
-func TestSchema_GetAllNestedFieldChildren(t *testing.T) {
+func TestSchema_GetAllFieldArguments(t *testing.T) {
 	schema, err := NewSchemaFromString(schemaWithChildren)
 	require.NoError(t, err)
 
+	t.Run("should get all field arguments without skip function", func(t *testing.T) {
+		fieldArguments := schema.GetAllFieldArguments()
+		expectedFieldArguments := []TypeFieldArguments{
+			{
+				TypeName:      "Query",
+				FieldName:     "singleArgLevel1",
+				ArgumentNames: []string{"lvl"},
+			},
+			{
+				TypeName:      "Query",
+				FieldName:     "__type",
+				ArgumentNames: []string{"name"},
+			},
+			{
+				TypeName:      "Query",
+				FieldName:     "multiArgLevel1",
+				ArgumentNames: []string{"lvl", "number"},
+			},
+			{
+				TypeName:      "SingleArgLevel1",
+				FieldName:     "singleArgLevel2",
+				ArgumentNames: []string{"lvl"},
+			},
+			{
+				TypeName:      "MultiArgLevel1",
+				FieldName:     "multiArgLevel2",
+				ArgumentNames: []string{"lvl", "number"},
+			},
+			{
+				TypeName:      "__Type",
+				FieldName:     "fields",
+				ArgumentNames: []string{"includeDeprecated"},
+			},
+			{
+				TypeName:      "__Type",
+				FieldName:     "enumValues",
+				ArgumentNames: []string{"includeDeprecated"},
+			},
+		}
+		assert.Equal(t, expectedFieldArguments, fieldArguments)
+	})
+
+	t.Run("should get all field arguments excluding skipped fields by skip field funcs", func(t *testing.T) {
+		fieldArguments := schema.GetAllFieldArguments(NewSkipReservedNamesFunc())
+		expectedFieldArguments := []TypeFieldArguments{
+			{
+				TypeName:      "Query",
+				FieldName:     "singleArgLevel1",
+				ArgumentNames: []string{"lvl"},
+			},
+			{
+				TypeName:      "Query",
+				FieldName:     "multiArgLevel1",
+				ArgumentNames: []string{"lvl", "number"},
+			},
+			{
+				TypeName:      "SingleArgLevel1",
+				FieldName:     "singleArgLevel2",
+				ArgumentNames: []string{"lvl"},
+			},
+			{
+				TypeName:      "MultiArgLevel1",
+				FieldName:     "multiArgLevel2",
+				ArgumentNames: []string{"lvl", "number"},
+			},
+		}
+		assert.Equal(t, expectedFieldArguments, fieldArguments)
+	})
+}
+
+func TestSchema_GetAllNestedFieldChildrenFromTypeField(t *testing.T) {
+	schema, err := NewSchemaFromString(schemaWithChildren)
+	require.NoError(t, err)
+
+	t.Run("should return nil when type or field does not exist", func(t *testing.T) {
+		typeFields := schema.GetAllNestedFieldChildrenFromTypeField("Not", "existent")
+		assert.Equal(t, []TypeFields(nil), typeFields)
+	})
+
 	t.Run("should get field children without skip function", func(t *testing.T) {
-		typeFields := schema.GetAllNestedFieldChildren("Query", "withChildren", nil)
+		typeFields := schema.GetAllNestedFieldChildrenFromTypeField("Query", "withChildren")
 		expectedTypeFields := []TypeFields{
 			{
 				TypeName:   "WithChildren",
@@ -416,7 +495,7 @@ func TestSchema_GetAllNestedFieldChildren(t *testing.T) {
 				},
 			},
 		}
-		typeFields := schema.GetAllNestedFieldChildren("Query", "withChildren", NewIsDataSourceConfigV2RootFieldSkipFunc(dataSources))
+		typeFields := schema.GetAllNestedFieldChildrenFromTypeField("Query", "withChildren", NewIsDataSourceConfigV2RootFieldSkipFunc(dataSources))
 		expectedTypeFields := []TypeFields{
 			{
 				TypeName:   "WithChildren",
@@ -435,9 +514,12 @@ var invalidSchema = `type Query {
 var schemaWithChildren = `
 type Query {
 	withChildren: WithChildren
-	multiRoot1: MultiRoot1
-	multiRoot2: MultiRoot2 
-} 
+	singleArgLevel1(lvl: int): SingleArgLevel1
+}
+
+extend type Query {
+	multiArgLevel1(lvl: int, number: int): MultiArgLevel1
+}
 
 type WithChildren { 
 	id: ID!
@@ -450,12 +532,12 @@ type Nested {
 	name: String! 
 } 
 
-type MultiRoot1 { 
-	id: ID! 
-} 
+type SingleArgLevel1 {
+	singleArgLevel2(lvl: int): String
+}
 
-type MultiRoot2 { 
-	name: String! 
+type MultiArgLevel1 {
+	multiArgLevel2(lvl: int, number: int): String
 }`
 
 var countriesSchema = `directive @cacheControl(maxAge: Int, scope: CacheControlScope) on FIELD_DEFINITION | OBJECT | INTERFACE

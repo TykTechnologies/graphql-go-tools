@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"strings"
 
 	"github.com/jensneuse/graphql-go-tools/pkg/ast"
 	"github.com/jensneuse/graphql-go-tools/pkg/astparser"
@@ -18,6 +19,12 @@ import (
 type TypeFields struct {
 	TypeName   string
 	FieldNames []string
+}
+
+type TypeFieldArguments struct {
+	TypeName      string
+	FieldName     string
+	ArgumentNames []string
 }
 
 type Schema struct {
@@ -125,7 +132,100 @@ func (s *Schema) IntrospectionResponse(out io.Writer) error {
 	return json.NewEncoder(out).Encode(introspectionData)
 }
 
-func (s *Schema) GetAllNestedFieldChildren(typeName string, fieldName string, skipFieldFunc SkipFieldFunc) []TypeFields {
+func (s *Schema) GetAllFieldArguments(skipFieldFuncs ...SkipFieldFunc) []TypeFieldArguments {
+	objectTypeExtensions := make(map[string]ast.ObjectTypeExtension, 0)
+	for _, objectTypeExtension := range s.document.ObjectTypeExtensions {
+		typeName, ok := s.typeNameOfObjectTypeIfHavingFields(objectTypeExtension.ObjectTypeDefinition)
+		if !ok {
+			continue
+		}
+
+		objectTypeExtensions[typeName] = objectTypeExtension
+	}
+
+	typeFieldArguments := make([]TypeFieldArguments, 0)
+	for _, objectType := range s.document.ObjectTypeDefinitions {
+		typeName, ok := s.typeNameOfObjectTypeIfHavingFields(objectType)
+		if !ok {
+			continue
+		}
+
+		for _, fieldRef := range objectType.FieldsDefinition.Refs {
+			fieldName, skip := s.determineIfFieldWithFieldNameShouldBeSkipped(fieldRef, typeName, skipFieldFuncs...)
+			if skip {
+				continue
+			}
+
+			s.addTypeFieldArgsForFieldRef(fieldRef, typeName, fieldName, &typeFieldArguments)
+		}
+
+		objectTypeExt, ok := objectTypeExtensions[typeName]
+		if !ok {
+			continue
+		}
+
+		for _, fieldRef := range objectTypeExt.FieldsDefinition.Refs {
+			fieldName, skip := s.determineIfFieldWithFieldNameShouldBeSkipped(fieldRef, typeName, skipFieldFuncs...)
+			if skip {
+				continue
+			}
+
+			s.addTypeFieldArgsForFieldRef(fieldRef, typeName, fieldName, &typeFieldArguments)
+		}
+	}
+
+	return typeFieldArguments
+}
+
+func (s *Schema) typeNameOfObjectTypeIfHavingFields(objectType ast.ObjectTypeDefinition) (typeName string, ok bool) {
+	if !objectType.HasFieldDefinitions {
+		return "", false
+	}
+
+	return string(s.document.Input.ByteSlice(objectType.Name)), true
+}
+
+func (s *Schema) fieldNameOfFieldDefinitionIfHavingArguments(field ast.FieldDefinition, ref int) (fieldName string, ok bool) {
+	if !field.HasArgumentsDefinitions {
+		return "", false
+	}
+
+	return s.document.FieldDefinitionNameString(ref), true
+}
+
+func (s *Schema) determineIfFieldWithFieldNameShouldBeSkipped(ref int, typeName string, skipFieldFuncs ...SkipFieldFunc) (fieldName string, skip bool) {
+	field := s.document.FieldDefinitions[ref]
+	fieldName, ok := s.fieldNameOfFieldDefinitionIfHavingArguments(field, ref)
+	if !ok {
+		return fieldName, true
+	}
+
+	for _, skipFieldFunc := range skipFieldFuncs {
+		if skipFieldFunc != nil && skipFieldFunc(typeName, fieldName, s.document) {
+			skip = true
+			break
+		}
+	}
+
+	return fieldName, skip
+}
+
+func (s *Schema) addTypeFieldArgsForFieldRef(ref int, typeName string, fieldName string, fieldArguments *[]TypeFieldArguments) {
+	currentTypeFieldArgs := TypeFieldArguments{
+		TypeName:      typeName,
+		FieldName:     fieldName,
+		ArgumentNames: make([]string, 0),
+	}
+
+	for _, argRef := range s.document.FieldDefinitions[ref].ArgumentsDefinition.Refs {
+		argName := s.document.Input.ByteSlice(s.document.InputValueDefinitions[argRef].Name)
+		currentTypeFieldArgs.ArgumentNames = append(currentTypeFieldArgs.ArgumentNames, string(argName))
+	}
+
+	*fieldArguments = append(*fieldArguments, currentTypeFieldArgs)
+}
+
+func (s *Schema) GetAllNestedFieldChildrenFromTypeField(typeName string, fieldName string, skipFieldFuncs ...SkipFieldFunc) []TypeFields {
 	fields := s.nodeFieldRefs(typeName)
 	if len(fields) == 0 {
 		return nil
@@ -134,7 +234,7 @@ func (s *Schema) GetAllNestedFieldChildren(typeName string, fieldName string, sk
 		if fieldName == s.document.FieldDefinitionNameString(ref) {
 			fieldTypeName := s.document.FieldDefinitionTypeNode(ref).NameString(&s.document)
 			childNodes := make([]TypeFields, 0)
-			s.findNestedFieldChildren(fieldTypeName, &childNodes, skipFieldFunc)
+			s.findNestedFieldChildren(fieldTypeName, &childNodes, skipFieldFuncs...)
 			return childNodes
 		}
 	}
@@ -142,19 +242,29 @@ func (s *Schema) GetAllNestedFieldChildren(typeName string, fieldName string, sk
 	return nil
 }
 
-func (s *Schema) findNestedFieldChildren(typeName string, childNodes *[]TypeFields, skipFieldFunc SkipFieldFunc) {
+func (s *Schema) findNestedFieldChildren(typeName string, childNodes *[]TypeFields, skipFieldFuncs ...SkipFieldFunc) {
 	fields := s.nodeFieldRefs(typeName)
 	if len(fields) == 0 {
 		return
 	}
 	for _, ref := range fields {
 		fieldName := s.document.FieldDefinitionNameString(ref)
-		if skipFieldFunc != nil && skipFieldFunc(typeName, fieldName, s.document) {
-			continue
+		if len(skipFieldFuncs) > 0 {
+			skip := false
+			for _, skipFieldFunc := range skipFieldFuncs {
+				if skipFieldFunc != nil && skipFieldFunc(typeName, fieldName, s.document) {
+					skip = true
+					break
+				}
+			}
+
+			if skip {
+				continue
+			}
 		}
 		s.putChildNode(childNodes, typeName, fieldName)
 		fieldTypeName := s.document.FieldDefinitionTypeNode(ref).NameString(&s.document)
-		s.findNestedFieldChildren(fieldTypeName, childNodes, skipFieldFunc)
+		s.findNestedFieldChildren(fieldTypeName, childNodes, skipFieldFuncs...)
 	}
 	return
 }
@@ -236,5 +346,12 @@ func NewIsDataSourceConfigV2RootFieldSkipFunc(dataSources []plan.DataSourceConfi
 			}
 		}
 		return false
+	}
+}
+
+func NewSkipReservedNamesFunc() SkipFieldFunc {
+	return func(typeName, fieldName string, _ ast.Document) bool {
+		prefix := "__"
+		return strings.HasPrefix(typeName, prefix) || strings.HasPrefix(fieldName, prefix)
 	}
 }
