@@ -42,7 +42,7 @@ type Planner struct {
 	hasFederationRoot          bool
 	extractEntities            bool
 	client                     httpclient.Client
-	isNested bool
+	isNested                   bool
 }
 
 type Configuration struct {
