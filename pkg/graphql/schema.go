@@ -262,7 +262,11 @@ func (s *Schema) findNestedFieldChildren(typeName string, childNodes *[]TypeFiel
 				continue
 			}
 		}
-		s.putChildNode(childNodes, typeName, fieldName)
+
+		if added := s.putChildNode(childNodes, typeName, fieldName); !added {
+			continue
+		}
+
 		fieldTypeName := s.document.FieldDefinitionTypeNode(ref).NameString(&s.document)
 		s.findNestedFieldChildren(fieldTypeName, childNodes, skipFieldFuncs...)
 	}
@@ -286,23 +290,24 @@ func (s *Schema) nodeFieldRefs(typeName string) []int {
 	return fields
 }
 
-func (s *Schema) putChildNode(nodes *[]TypeFields, typeName, fieldName string) {
+func (s *Schema) putChildNode(nodes *[]TypeFields, typeName, fieldName string) (added bool) {
 	for i := range *nodes {
 		if typeName != (*nodes)[i].TypeName {
 			continue
 		}
 		for j := range (*nodes)[i].FieldNames {
 			if fieldName == (*nodes)[i].FieldNames[j] {
-				return
+				return false
 			}
 		}
 		(*nodes)[i].FieldNames = append((*nodes)[i].FieldNames, fieldName)
-		return
+		return true
 	}
 	*nodes = append(*nodes, TypeFields{
 		TypeName:   typeName,
 		FieldNames: []string{fieldName},
 	})
+	return true
 }
 
 func createSchema(schemaContent []byte) (*Schema, error) {

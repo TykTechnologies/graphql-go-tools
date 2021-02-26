@@ -505,6 +505,33 @@ func TestSchema_GetAllNestedFieldChildrenFromTypeField(t *testing.T) {
 
 		assert.Equal(t, expectedTypeFields, typeFields)
 	})
+
+	t.Run("should get field children from schema with recursive references", func(t *testing.T) {
+		schema, err = NewSchemaFromString(countriesSchema)
+		require.NoError(t, err)
+
+		typeFields := schema.GetAllNestedFieldChildrenFromTypeField("Query", "countries")
+		expectedTypeFields := []TypeFields{
+			{
+				TypeName:   "Country",
+				FieldNames: []string{"code", "name", "native", "phone", "continent", "capital", "currency", "languages", "emoji", "emojiU", "states"},
+			},
+			{
+				TypeName:   "Continent",
+				FieldNames: []string{"code", "name", "countries"},
+			},
+			{
+				TypeName:   "Language",
+				FieldNames: []string{"code", "name", "native", "rtl"},
+			},
+			{
+				TypeName:   "State",
+				FieldNames: []string{"code", "name", "country"},
+			},
+		}
+
+		assert.Equal(t, expectedTypeFields, typeFields)
+	})
 }
 
 var invalidSchema = `type Query {
