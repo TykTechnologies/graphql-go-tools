@@ -182,7 +182,7 @@ func (s *Schema) typeNameOfObjectTypeIfHavingFields(objectType ast.ObjectTypeDef
 		return "", false
 	}
 
-	return string(s.document.Input.ByteSlice(objectType.Name)), true
+	return s.document.Input.ByteSliceString(objectType.Name), true
 }
 
 func (s *Schema) fieldNameOfFieldDefinitionIfHavingArguments(field ast.FieldDefinition, ref int) (fieldName string, ok bool) {
@@ -218,7 +218,7 @@ func (s *Schema) addTypeFieldArgsForFieldRef(ref int, typeName string, fieldName
 	}
 
 	for _, argRef := range s.document.FieldDefinitions[ref].ArgumentsDefinition.Refs {
-		argName := s.document.Input.ByteSlice(s.document.InputValueDefinitions[argRef].Name)
+		argName := s.document.InputValueDefinitionNameString(argRef)
 		currentTypeFieldArgs.ArgumentNames = append(currentTypeFieldArgs.ArgumentNames, string(argName))
 	}
 
