@@ -657,7 +657,7 @@ func (v *Visitor) resolveInputTemplates(config objectFetchConfiguration, input *
 				break
 			}
 			switch path[0] {
-			case "header":
+			case "headers":
 				key := path[1]
 				variableName, _ = variables.AddVariable(&resolve.HeaderVariable{
 					Path: []string{key},
