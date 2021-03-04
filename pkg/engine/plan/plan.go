@@ -612,7 +612,7 @@ func (v *Visitor) LeaveDocument(operation, definition *ast.Document) {
 
 var (
 	templateRegex = regexp.MustCompile(`{{.*?}}`)
-	selectorRegex = regexp.MustCompile(`{{\s*(.*?)\s*}}`)
+	selectorRegex = regexp.MustCompile(`{{\s*\.(.*?)\s*}}`)
 )
 
 func (v *Visitor) resolveInputTemplates(config objectFetchConfiguration, input *string, variables *resolve.Variables) {
