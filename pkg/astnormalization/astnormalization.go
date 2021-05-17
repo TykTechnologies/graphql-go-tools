@@ -185,6 +185,7 @@ func (o *OperationNormalizer) setupDefinitionWalkers() {
 	extendScalarTypeDefinition(&walker)
 	extendUnionTypeDefinition(&walker)
 	removeMergedTypeExtensions(&walker)
+	implicitSchemaDefinition(&walker)
 
 	o.prepareDefinitionWalker = &walker
 }

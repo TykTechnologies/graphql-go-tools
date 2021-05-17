@@ -171,6 +171,30 @@ func TestNormalizeOperation(t *testing.T) {
 			`{"a": {"lat": 1.000, "lon": 2.000, "planet": "EARTH"}}`,
 			`{"a": {"lat":1.000,"lon":2.000,"planet":"EARTH"}}`)
 	})
+	t.Run("use extended Query without explicit schema definition", func(t *testing.T) {
+		run(t, extendedRootOperationTypeDefinition, `
+			{
+				me
+			}`, `{
+				me
+			}`, ``, ``)
+	})
+	t.Run("use extended Mutation without explicit schema definition", func(t *testing.T) {
+		run(t, extendedRootOperationTypeDefinition, `
+			mutation {
+				increaseTextCounter
+			}`, `mutation {
+				increaseTextCounter
+			}`, ``, ``)
+	})
+	t.Run("use extended Subscription without explicit schema definition", func(t *testing.T) {
+		run(t, extendedRootOperationTypeDefinition, `
+			subscription {
+				textCounter
+			}`, `subscription {
+				textCounter
+			}`, ``, ``)
+	})
 }
 
 func TestOperationNormalizer_NormalizeOperation(t *testing.T) {
@@ -906,5 +930,18 @@ enum __TypeKind {
     LIST
     "Indicates this type is a non-null. ofType is a valid field."
     NON_NULL
+}
+`
+
+const extendedRootOperationTypeDefinition = `
+scalar String
+extend type Query {
+	me: String
+}
+extend type Mutation {
+	increaseTextCounter: String
+}
+extend type Subscription {
+	textCounter: String
 }
 `
