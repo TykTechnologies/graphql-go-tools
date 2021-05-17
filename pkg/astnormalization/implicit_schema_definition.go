@@ -20,7 +20,6 @@ func implicitSchemaDefinition(walker *astvisitor.Walker) {
 
 type implicitSchemaDefinitionVisitor struct {
 	*astvisitor.Walker
-	operation *ast.Document
 }
 
 func (i *implicitSchemaDefinitionVisitor) LeaveDocument(operation, definition *ast.Document) {
