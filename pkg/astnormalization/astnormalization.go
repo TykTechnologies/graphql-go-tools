@@ -192,14 +192,14 @@ func (o *OperationNormalizer) setupDefinitionWalkers() {
 
 func (o *OperationNormalizer) prepareDefinition(definition *ast.Document, report *operationreport.Report) {
 	o.prepareDefinitionWalker.Walk(definition, nil, report)
-	if report.HasErrors() {
-		return
-	}
 }
 
 // NormalizeOperation applies all registered rules to the AST
 func (o *OperationNormalizer) NormalizeOperation(operation, definition *ast.Document, report *operationreport.Report) {
 	o.prepareDefinition(definition, report)
+	if report.HasErrors() {
+		return
+	}
 
 	for i := range o.operationWalkers {
 		o.operationWalkers[i].Walk(operation, definition, report)
@@ -212,6 +212,9 @@ func (o *OperationNormalizer) NormalizeOperation(operation, definition *ast.Docu
 // NormalizeNamedOperation applies all registered rules to one specific named operation in the AST
 func (o *OperationNormalizer) NormalizeNamedOperation(operation, definition *ast.Document, operationName []byte, report *operationreport.Report) {
 	o.prepareDefinition(definition, report)
+	if report.HasErrors() {
+		return
+	}
 
 	if o.variablesExtraction != nil {
 		o.variablesExtraction.operationName = operationName
