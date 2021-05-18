@@ -41,3 +41,12 @@ func (d *Document) ExtendScalarTypeDefinitionByScalarTypeExtension(scalarTypeDef
 
 	d.Index.MergedTypeExtensions = append(d.Index.MergedTypeExtensions, Node{Ref: scalarTypeExtensionRef, Kind: NodeKindScalarTypeExtension})
 }
+
+func (d *Document) ImportAndExtendScalarTypeDefinitionByScalarTypeExtension(scalarTypeExtensionRef int) {
+	d.ImportScalarTypeDefinitionWithDirectives(
+		d.ScalarTypeExtensionNameString(scalarTypeExtensionRef),
+		d.ScalarTypeExtensionDescriptionString(scalarTypeExtensionRef),
+		d.ScalarTypeExtensions[scalarTypeExtensionRef].Directives.Refs,
+	)
+	d.Index.MergedTypeExtensions = append(d.Index.MergedTypeExtensions, Node{Ref: scalarTypeExtensionRef, Kind: NodeKindScalarTypeExtension})
+}

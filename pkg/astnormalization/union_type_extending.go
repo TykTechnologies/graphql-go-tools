@@ -23,8 +23,8 @@ func (e *extendUnionTypeDefinitionVisitor) EnterDocument(operation, definition *
 }
 
 func (e *extendUnionTypeDefinitionVisitor) EnterUnionTypeExtension(ref int) {
-	name := e.operation.UnionTypeExtensionNameBytes(ref)
-	nodes, exists := e.operation.Index.NodesByNameBytes(name)
+
+	nodes, exists := e.operation.Index.NodesByNameBytes(e.operation.UnionTypeExtensionNameBytes(ref))
 	if !exists {
 		return
 	}
@@ -37,10 +37,5 @@ func (e *extendUnionTypeDefinitionVisitor) EnterUnionTypeExtension(ref int) {
 		return
 	}
 
-	e.operation.ImportUnionTypeDefinitionWithDirectives(
-		name.String(),
-		e.operation.UnionTypeExtensionDescriptionString(ref),
-		e.operation.UnionTypeExtensions[ref].UnionMemberTypes.Refs,
-		e.operation.UnionTypeExtensions[ref].Directives.Refs,
-	)
+	e.operation.ImportAndExtendUnionTypeDefinitionByUnionTypeExtension(ref)
 }

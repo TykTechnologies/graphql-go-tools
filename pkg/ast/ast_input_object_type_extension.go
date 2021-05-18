@@ -30,7 +30,7 @@ func (d *Document) InputObjectTypeExtensionDescriptionString(ref int) string {
 }
 
 func (d *Document) InputObjectTypeExtensionHasInputFieldsDefinition(ref int) bool {
-	return d.InputObjectTypeDefinitions[ref].HasInputFieldsDefinition
+	return d.InputObjectTypeExtensions[ref].HasInputFieldsDefinition
 }
 
 func (d *Document) InputObjectTypeExtensionHasDirectives(ref int) bool {
@@ -48,5 +48,15 @@ func (d *Document) ExtendInputObjectTypeDefinitionByInputObjectTypeExtension(inp
 		d.InputObjectTypeDefinitions[inputObjectTypeDefinitionRef].HasInputFieldsDefinition = true
 	}
 
+	d.Index.MergedTypeExtensions = append(d.Index.MergedTypeExtensions, Node{Ref: inputObjectTypeExtensionRef, Kind: NodeKindInputObjectTypeExtension})
+}
+
+func (d *Document) ImportAndExtendInputObjectTypeDefinitionByInputObjectTypeExtension(inputObjectTypeExtensionRef int) {
+	d.ImportInputObjectTypeDefinitionWithDirectives(
+		d.InputObjectTypeExtensionNameString(inputObjectTypeExtensionRef),
+		d.InputObjectTypeExtensionDescriptionString(inputObjectTypeExtensionRef),
+		d.InputObjectTypeExtensions[inputObjectTypeExtensionRef].InputFieldsDefinition.Refs,
+		d.InputObjectTypeExtensions[inputObjectTypeExtensionRef].Directives.Refs,
+	)
 	d.Index.MergedTypeExtensions = append(d.Index.MergedTypeExtensions, Node{Ref: inputObjectTypeExtensionRef, Kind: NodeKindInputObjectTypeExtension})
 }

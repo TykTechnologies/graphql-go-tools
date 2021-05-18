@@ -30,6 +30,8 @@ func (d *Document) NodeNameBytes(node Node) ByteSlice {
 		ref = d.ScalarTypeDefinitions[node.Ref].Name
 	case NodeKindDirectiveDefinition:
 		ref = d.DirectiveDefinitions[node.Ref].Name
+	case NodeKindEnumTypeDefinition:
+		ref = d.EnumTypeDefinitions[node.Ref].Name
 	case NodeKindField:
 		ref = d.Fields[node.Ref].Name
 	case NodeKindDirective:
@@ -38,8 +40,8 @@ func (d *Document) NodeNameBytes(node Node) ByteSlice {
 		ref = d.ObjectTypeExtensions[node.Ref].Name
 	case NodeKindInterfaceTypeExtension:
 		ref = d.InterfaceTypeExtensions[node.Ref].Name
-	case NodeKindEnumTypeDefinition:
-		ref = d.EnumTypeDefinitions[node.Ref].Name
+	case NodeKindEnumTypeExtension:
+		ref = d.EnumTypeExtensions[node.Ref].Name
 	}
 
 	return d.Input.ByteSlice(ref)

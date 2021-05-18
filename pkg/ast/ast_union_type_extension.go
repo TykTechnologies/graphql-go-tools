@@ -50,3 +50,13 @@ func (d *Document) ExtendUnionTypeDefinitionByUnionTypeExtension(unionTypeDefini
 
 	d.Index.MergedTypeExtensions = append(d.Index.MergedTypeExtensions, Node{Ref: unionTypeExtensionRef, Kind: NodeKindUnionTypeExtension})
 }
+
+func (d *Document) ImportAndExtendUnionTypeDefinitionByUnionTypeExtension(unionTypeExtensionRef int) {
+	d.ImportUnionTypeDefinitionWithDirectives(
+		d.UnionTypeExtensionNameString(unionTypeExtensionRef),
+		d.UnionTypeExtensionDescriptionString(unionTypeExtensionRef),
+		d.UnionTypeExtensions[unionTypeExtensionRef].UnionMemberTypes.Refs,
+		d.UnionTypeExtensions[unionTypeExtensionRef].Directives.Refs,
+	)
+	d.Index.MergedTypeExtensions = append(d.Index.MergedTypeExtensions, Node{Ref: unionTypeExtensionRef, Kind: NodeKindUnionTypeExtension})
+}

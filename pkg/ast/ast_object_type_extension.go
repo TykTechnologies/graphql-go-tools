@@ -50,3 +50,14 @@ func (d *Document) ExtendObjectTypeDefinitionByObjectTypeExtension(objectTypeDef
 
 	d.Index.MergedTypeExtensions = append(d.Index.MergedTypeExtensions, Node{Ref: objectTypeExtensionRef, Kind: NodeKindObjectTypeExtension})
 }
+
+func (d *Document) ImportAndExtendObjectTypeDefinitionByObjectTypeExtension(objectTypeExtensionRef int) {
+	d.ImportObjectTypeDefinitionWithDirectives(
+		d.ObjectTypeExtensionNameBytes(objectTypeExtensionRef).String(),
+		d.ObjectTypeExtensionDescriptionNameString(objectTypeExtensionRef),
+		d.ObjectTypeExtensions[objectTypeExtensionRef].FieldsDefinition.Refs,
+		d.ObjectTypeExtensions[objectTypeExtensionRef].ImplementsInterfaces.Refs,
+		d.ObjectTypeExtensions[objectTypeExtensionRef].Directives.Refs,
+	)
+	d.Index.MergedTypeExtensions = append(d.Index.MergedTypeExtensions, Node{Ref: objectTypeExtensionRef, Kind: NodeKindObjectTypeExtension})
+}
