@@ -316,6 +316,11 @@ var runWithDeleteUnusedVariables = func(t *testing.T, normalizeFunc registerNorm
 var run = func(normalizeFunc registerNormalizeFunc, definition, operation, expectedOutput string) {
 
 	definitionDocument := unsafeparser.ParseGraphqlDocumentString(definition)
+	err := asttransform.MergeDefinitionWithBaseSchema(&definitionDocument)
+	if err != nil {
+		panic(err)
+	}
+
 	operationDocument := unsafeparser.ParseGraphqlDocumentString(operation)
 	expectedOutputDocument := unsafeparser.ParseGraphqlDocumentString(expectedOutput)
 	report := operationreport.Report{}
