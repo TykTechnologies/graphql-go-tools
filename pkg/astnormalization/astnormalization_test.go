@@ -261,6 +261,11 @@ var mustString = func(str string, err error) string {
 
 var runWithVariables = func(t *testing.T, normalizeFunc registerNormalizeVariablesFunc, definition, operation, operationName, expectedOutput, variablesInput, expectedVariables string) {
 	definitionDocument := unsafeparser.ParseGraphqlDocumentString(definition)
+	err := asttransform.MergeDefinitionWithBaseSchema(&definitionDocument)
+	if err != nil {
+		panic(err)
+	}
+
 	operationDocument := unsafeparser.ParseGraphqlDocumentString(operation)
 	expectedOutputDocument := unsafeparser.ParseGraphqlDocumentString(expectedOutput)
 	report := operationreport.Report{}
@@ -288,6 +293,11 @@ var runWithVariables = func(t *testing.T, normalizeFunc registerNormalizeVariabl
 
 var runWithDeleteUnusedVariables = func(t *testing.T, normalizeFunc registerNormalizeDeleteVariablesFunc, definition, operation, operationName, expectedOutput, variablesInput, expectedVariables string) {
 	definitionDocument := unsafeparser.ParseGraphqlDocumentString(definition)
+	err := asttransform.MergeDefinitionWithBaseSchema(&definitionDocument)
+	if err != nil {
+		panic(err)
+	}
+
 	operationDocument := unsafeparser.ParseGraphqlDocumentString(operation)
 	expectedOutputDocument := unsafeparser.ParseGraphqlDocumentString(expectedOutput)
 	report := operationreport.Report{}
