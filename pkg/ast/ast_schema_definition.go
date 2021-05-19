@@ -20,7 +20,7 @@ func (d *Document) HasSchemaDefinition() bool {
 func (d *Document) SchemaDefinitionRef() int {
 	for i := range d.RootNodes {
 		if d.RootNodes[i].Kind == NodeKindSchemaDefinition {
-			return i
+			return d.RootNodes[i].Ref
 		}
 	}
 
