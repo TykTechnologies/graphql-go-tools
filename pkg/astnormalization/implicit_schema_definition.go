@@ -23,19 +23,12 @@ type implicitSchemaDefinitionVisitor struct {
 }
 
 func (i *implicitSchemaDefinitionVisitor) LeaveDocument(operation, definition *ast.Document) {
-	const noSchemaDefinition = -1
-	schemaDefinitionRef := noSchemaDefinition
-	for i := range operation.RootNodes {
-		if operation.RootNodes[i].Kind == ast.NodeKindSchemaDefinition {
-			schemaDefinitionRef = operation.RootNodes[i].Ref
-		}
-	}
-
 	queryNodeName := i.nodeName(implicitQueryTypeName, operation)
 	mutationNodeName := i.nodeName(implicitMutationTypeName, operation)
 	subscriptionNodeName := i.nodeName(implicitSubscriptionTypeName, operation)
 
-	if schemaDefinitionRef == noSchemaDefinition {
+	schemaDefinitionRef := operation.SchemaDefinitionRef()
+	if schemaDefinitionRef == ast.InvalidRef {
 		operation.ImportSchemaDefinition(queryNodeName, mutationNodeName, subscriptionNodeName)
 		return
 	}
@@ -44,7 +37,7 @@ func (i *implicitSchemaDefinitionVisitor) LeaveDocument(operation, definition *a
 		return
 	}
 
-	operation.ReplaceSchemaDefinition(schemaDefinitionRef, queryNodeName, mutationNodeName, subscriptionNodeName)
+	operation.ReplaceRootOperationTypesOfSchemaDefinition(schemaDefinitionRef, queryNodeName, mutationNodeName, subscriptionNodeName)
 }
 
 func (i *implicitSchemaDefinitionVisitor) nodeName(operationTypeName string, operation *ast.Document) string {

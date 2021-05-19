@@ -14,13 +14,17 @@ func (s *SchemaDefinition) AddRootOperationTypeDefinitionRefs(refs ...int) {
 }
 
 func (d *Document) HasSchemaDefinition() bool {
+	return d.SchemaDefinitionRef() != InvalidRef
+}
+
+func (d *Document) SchemaDefinitionRef() int {
 	for i := range d.RootNodes {
 		if d.RootNodes[i].Kind == NodeKindSchemaDefinition {
-			return true
+			return i
 		}
 	}
 
-	return false
+	return InvalidRef
 }
 
 func (d *Document) AddSchemaDefinition(schemaDefinition SchemaDefinition) (ref int) {
@@ -49,7 +53,8 @@ func (d *Document) ImportSchemaDefinition(queryTypeName, mutationTypeName, subsc
 	d.AddSchemaDefinitionRootNode(schemaDefinition)
 }
 
-func (d *Document) ReplaceSchemaDefinition(ref int, queryTypeName, mutationTypeName, subscriptionTypeName string) {
+func (d *Document) ReplaceRootOperationTypesOfSchemaDefinition(schemaDefinitionRef int, queryTypeName, mutationTypeName, subscriptionTypeName string) {
+	d.RootOperationTypeDefinitions = d.RootOperationTypeDefinitions[:0]
 	rootOperationTypeRefs := d.ImportRootOperationTypeDefinitions(queryTypeName, mutationTypeName, subscriptionTypeName)
-	d.SchemaDefinitions[ref].RootOperationTypeDefinitions.Refs = rootOperationTypeRefs
+	d.SchemaDefinitions[schemaDefinitionRef].RootOperationTypeDefinitions.Refs = rootOperationTypeRefs
 }

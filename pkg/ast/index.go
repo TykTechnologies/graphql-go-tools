@@ -98,14 +98,7 @@ func (i *Index) FirstNonExtensionNodeByNameBytes(name []byte) (Node, bool) {
 	}
 
 	for j := range nodes {
-		switch nodes[j].Kind {
-		case NodeKindSchemaExtension,
-			NodeKindObjectTypeExtension,
-			NodeKindInputObjectTypeExtension,
-			NodeKindInterfaceTypeExtension,
-			NodeKindEnumTypeExtension,
-			NodeKindScalarTypeExtension,
-			NodeKindUnionTypeExtension:
+		if nodes[j].IsExtensionKind() {
 			continue
 		}
 

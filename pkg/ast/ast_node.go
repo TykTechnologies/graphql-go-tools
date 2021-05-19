@@ -13,6 +13,21 @@ type Node struct {
 	Ref  int
 }
 
+func (n *Node) IsExtensionKind() bool {
+	switch n.Kind {
+	case NodeKindSchemaExtension,
+		NodeKindObjectTypeExtension,
+		NodeKindInputObjectTypeExtension,
+		NodeKindInterfaceTypeExtension,
+		NodeKindEnumTypeExtension,
+		NodeKindScalarTypeExtension,
+		NodeKindUnionTypeExtension:
+		return true
+	}
+
+	return false
+}
+
 func (d *Document) NodeNameBytes(node Node) ByteSlice {
 
 	var ref ByteSliceReference
