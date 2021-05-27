@@ -3676,7 +3676,7 @@ func TestValidationEdgeCases(t *testing.T) {
 		}
 	}
 
-	t.Run("validation with variables", run(
+	t.Run("validation with typename", run(
 		`
 		schema {
 			query: Query
