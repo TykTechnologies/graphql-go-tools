@@ -65,7 +65,7 @@ type ComplexityRoot struct {
 	}
 
 	Subscription struct {
-		Stocks             func(childComplexity int) int
+		Stock              func(childComplexity int) int
 		UpdateProductPrice func(childComplexity int, upc string) int
 		UpdatedPrice       func(childComplexity int) int
 	}
@@ -84,7 +84,7 @@ type QueryResolver interface {
 type SubscriptionResolver interface {
 	UpdatedPrice(ctx context.Context) (<-chan *model.Product, error)
 	UpdateProductPrice(ctx context.Context, upc string) (<-chan *model.Product, error)
-	Stocks(ctx context.Context) (<-chan []*model.Product, error)
+	Stock(ctx context.Context) (<-chan []*model.Product, error)
 }
 
 type executableSchema struct {
@@ -173,12 +173,12 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.__resolve_entities(childComplexity, args["representations"].([]map[string]interface{})), true
 
-	case "Subscription.stocks":
-		if e.complexity.Subscription.Stocks == nil {
+	case "Subscription.stock":
+		if e.complexity.Subscription.Stock == nil {
 			break
 		}
 
-		return e.complexity.Subscription.Stocks(childComplexity), true
+		return e.complexity.Subscription.Stock(childComplexity), true
 
 	case "Subscription.updateProductPrice":
 		if e.complexity.Subscription.UpdateProductPrice == nil {
@@ -280,7 +280,7 @@ var sources = []*ast.Source{
 extend type Subscription {
     updatedPrice: Product!
     updateProductPrice(upc: String!): Product!
-    stocks: [Product!]
+    stock: [Product!]
 }
 
 type Product @key(fields: "upc") {
@@ -904,7 +904,7 @@ func (ec *executionContext) _Subscription_updateProductPrice(ctx context.Context
 	}
 }
 
-func (ec *executionContext) _Subscription_stocks(ctx context.Context, field graphql.CollectedField) (ret func() graphql.Marshaler) {
+func (ec *executionContext) _Subscription_stock(ctx context.Context, field graphql.CollectedField) (ret func() graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -922,7 +922,7 @@ func (ec *executionContext) _Subscription_stocks(ctx context.Context, field grap
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Subscription().Stocks(rctx)
+		return ec.resolvers.Subscription().Stock(rctx)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2292,8 +2292,8 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 		return ec._Subscription_updatedPrice(ctx, fields[0])
 	case "updateProductPrice":
 		return ec._Subscription_updateProductPrice(ctx, fields[0])
-	case "stocks":
-		return ec._Subscription_stocks(ctx, fields[0])
+	case "stock":
+		return ec._Subscription_stock(ctx, fields[0])
 	default:
 		panic("unknown field " + strconv.Quote(fields[0].Name))
 	}

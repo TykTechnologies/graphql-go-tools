@@ -77,8 +77,8 @@ func (r *subscriptionResolver) UpdateProductPrice(ctx context.Context, upc strin
 	return updatedPrice, nil
 }
 
-func (r *subscriptionResolver) Stocks(ctx context.Context) (<-chan []*model.Product, error) {
-	stocks := make(chan []*model.Product)
+func (r *subscriptionResolver) Stock(ctx context.Context) (<-chan []*model.Product, error) {
+	stock := make(chan []*model.Product)
 
 	go func() {
 		for {
@@ -93,12 +93,12 @@ func (r *subscriptionResolver) Stocks(ctx context.Context) (<-chan []*model.Prod
 					hats[randIndex].InStock--
 				}
 
-				stocks <- hats
+				stock <- hats
 			}
 		}
 	}()
 
-	return stocks, nil
+	return stock, nil
 }
 
 // Query returns generated.QueryResolver implementation.
