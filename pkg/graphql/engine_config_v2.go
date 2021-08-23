@@ -40,6 +40,14 @@ func (e *EngineV2Configuration) SetFieldConfigurations(fieldConfigs plan.FieldCo
 	e.plannerConfig.Fields = fieldConfigs
 }
 
+func (e *EngineV2Configuration) DataSources() []plan.DataSourceConfiguration {
+	return e.plannerConfig.DataSources
+}
+
+func (e *EngineV2Configuration) FieldConfigurations() plan.FieldConfigurations {
+	return e.plannerConfig.Fields
+}
+
 type graphqlDataSourceV2Generator struct {
 	document *ast.Document
 }
