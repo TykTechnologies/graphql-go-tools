@@ -85,7 +85,7 @@ func TestGraphQLDataSourceV2Generator_Generate(t *testing.T) {
 	expectedRootNodes := []plan.TypeField{
 		{
 			TypeName:   "Query",
-			FieldNames: []string{"me", "find"},
+			FieldNames: []string{"me", "_entities"},
 		},
 		{
 			TypeName:   "Mutation",
@@ -142,10 +142,10 @@ func TestGraphqlFieldConfigurationsV2Generator_Generate(t *testing.T) {
 			},
 			{
 				TypeName:  "Query",
-				FieldName: "find",
+				FieldName: "_entities",
 				Arguments: []plan.ArgumentConfiguration{
 					{
-						Name:       "id",
+						Name:       "representations",
 						SourceType: plan.FieldArgumentSource,
 					},
 				},
@@ -164,10 +164,10 @@ func TestGraphqlFieldConfigurationsV2Generator_Generate(t *testing.T) {
 			},
 			{
 				TypeName:  "Query",
-				FieldName: "find",
+				FieldName: "_entities",
 				Arguments: []plan.ArgumentConfiguration{
 					{
-						Name:       "id",
+						Name:       "representations",
 						SourceType: plan.FieldArgumentSource,
 					},
 				},
@@ -200,10 +200,10 @@ func TestGraphqlFieldConfigurationsV2Generator_Generate(t *testing.T) {
 			},
 			{
 				TypeName:  "Query",
-				FieldName: "find",
+				FieldName: "_entities",
 				Arguments: []plan.ArgumentConfiguration{
 					{
-						Name:       "id",
+						Name:       "representations",
 						SourceType: plan.FieldArgumentSource,
 					},
 				},
@@ -220,10 +220,12 @@ func TestGraphqlFieldConfigurationsV2Generator_Generate(t *testing.T) {
 
 }
 
-var graphqlGeneratorSchema = `
+var graphqlGeneratorSchema = `scalar _Any
+	union _Entity = User
+
 	type Query {
 		me: User!
-		find(id: ID!): User
+		_entities(representations: [_Any!]!): [_Entity]!
 	}
 
 	type Mutation {

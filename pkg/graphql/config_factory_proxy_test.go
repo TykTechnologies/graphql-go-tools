@@ -34,7 +34,7 @@ func TestProxyEngineConfigFactory_EngineV2Configuration(t *testing.T) {
 		RootNodes: []plan.TypeField{
 			{
 				TypeName:   "Query",
-				FieldNames: []string{"me", "find"},
+				FieldNames: []string{"me", "_entities"},
 			},
 			{
 				TypeName:   "Mutation",
@@ -90,10 +90,10 @@ func TestProxyEngineConfigFactory_EngineV2Configuration(t *testing.T) {
 		},
 		{
 			TypeName:  "Query",
-			FieldName: "find",
+			FieldName: "_entities",
 			Arguments: plan.ArgumentsConfigurations{
 				{
-					Name:       "id",
+					Name:       "representations",
 					SourceType: plan.FieldArgumentSource,
 				},
 			},
