@@ -9,8 +9,9 @@ import (
 )
 
 type EngineV2Configuration struct {
-	schema        *Schema
-	plannerConfig plan.Configuration
+	schema                   *Schema
+	plannerConfig            plan.Configuration
+	websocketBeforeStartHook WebsocketBeforeStartHook
 }
 
 func NewEngineV2Configuration(schema *Schema) EngineV2Configuration {
@@ -48,6 +49,11 @@ func (e *EngineV2Configuration) FieldConfigurations() plan.FieldConfigurations {
 	return e.plannerConfig.Fields
 }
 
+// SetWebsocketBeforeStartHook - sets before start hook which will be called before processing any operation sent over websockets
+func (e *EngineV2Configuration) SetWebsocketBeforeStartHook(hook WebsocketBeforeStartHook) {
+	e.websocketBeforeStartHook = hook
+}
+
 type graphqlDataSourceV2Generator struct {
 	document *ast.Document
 }
@@ -64,7 +70,7 @@ func (d *graphqlDataSourceV2Generator) Generate(config graphqlDataSource.Configu
 	planDataSource.RootNodes, planDataSource.ChildNodes = extractor.GetAllNodes()
 
 	factory := &graphqlDataSource.Factory{
-		Client: httpClient,
+		HTTPClient: httpClient,
 	}
 
 	planDataSource.Factory = factory

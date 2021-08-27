@@ -56,7 +56,7 @@ func TestProxyEngineConfigFactory_EngineV2Configuration(t *testing.T) {
 			},
 		},
 		Factory: &graphqlDataSource.Factory{
-			Client: client,
+			HTTPClient: client,
 		},
 		Custom: graphqlDataSource.ConfigJson(graphqlDataSource.Configuration{
 			Fetch: graphqlDataSource.FetchConfiguration{
