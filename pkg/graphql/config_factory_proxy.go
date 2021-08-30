@@ -20,12 +20,14 @@ func WithProxyHttpClient(client *http.Client) ProxyEngineConfigFactoryOption {
 	}
 }
 
+// ProxyUpstreamConfig holds configuration to configure a single data source to a single upstream.
 type ProxyUpstreamConfig struct {
 	URL           string
 	Method        string
 	StaticHeaders http.Header
 }
 
+// ProxyEngineConfigFactory is used to create a v2 engine config with a single upstream and a single data source for this upstream.
 type ProxyEngineConfigFactory struct {
 	httpClient          *http.Client
 	schema              *Schema

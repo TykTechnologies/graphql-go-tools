@@ -44,6 +44,7 @@ func NewFederationEngineConfigFactory(dataSourceConfigs []graphqlDataSource.Conf
 	}
 }
 
+// FederationEngineConfigFactory is used to create a v2 engine config for a supergraph with multiple data sources for subgraphs.
 type FederationEngineConfigFactory struct {
 	httpClient        *http.Client
 	dataSourceConfigs []graphqlDataSource.Configuration
@@ -53,7 +54,7 @@ type FederationEngineConfigFactory struct {
 func (f *FederationEngineConfigFactory) SetMergedSchemaFromString(mergedSchema string) (err error) {
 	f.schema, err = NewSchemaFromString(mergedSchema)
 	if err != nil {
-		return fmt.Errorf("set merged schema: %s", err.Error())
+		return fmt.Errorf("set merged schema in FederationEngineConfigFactory: %s", err.Error())
 	}
 	return nil
 }

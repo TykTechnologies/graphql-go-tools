@@ -71,7 +71,6 @@ func (g *Gateway) Ready() {
 	<-g.readyCh
 }
 
-// Error handling is not finished.
 func (g *Gateway) UpdateDataSources(newDataSourcesConfig []graphqlDataSource.Configuration) {
 	ctx := context.Background()
 	engineConfigFactory := graphql.NewFederationEngineConfigFactory(newDataSourcesConfig, graphql.WithFederationHttpClient(g.httpClient))
