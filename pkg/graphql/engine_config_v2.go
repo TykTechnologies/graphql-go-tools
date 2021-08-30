@@ -8,6 +8,10 @@ import (
 	"github.com/jensneuse/graphql-go-tools/pkg/engine/plan"
 )
 
+const (
+	DefaultFlushIntervalInMilliseconds = 1000
+)
+
 type EngineV2Configuration struct {
 	schema                   *Schema
 	plannerConfig            plan.Configuration
@@ -18,9 +22,9 @@ func NewEngineV2Configuration(schema *Schema) EngineV2Configuration {
 	return EngineV2Configuration{
 		schema: schema,
 		plannerConfig: plan.Configuration{
-			DefaultFlushInterval: 0,
-			DataSources:          []plan.DataSourceConfiguration{},
-			Fields:               plan.FieldConfigurations{},
+			DefaultFlushIntervalMillis: DefaultFlushIntervalInMilliseconds,
+			DataSources:                []plan.DataSourceConfiguration{},
+			Fields:                     plan.FieldConfigurations{},
 		},
 	}
 }
