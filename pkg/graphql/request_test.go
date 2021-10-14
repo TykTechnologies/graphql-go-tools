@@ -253,6 +253,7 @@ const mutationQuery = `{"operationName":null,"query":"mutation Foo {bar}"}`
 const testSubscriptionDefinition = `
 type Subscription {
 	lastRegisteredUser: User
+	liveUserCount: Int!
 }
 
 type User {
@@ -262,12 +263,18 @@ type User {
 }
 `
 
-const testSubscriptionOperation = `
+const testSubscriptionLastRegisteredUserOperation = `
 subscription LastRegisteredUser {
 	lastRegisteredUser {
 		id
 		username
 		email
 	}
+}
+`
+
+const testSubscriptionLiveUserCountOperation = `
+subscription LiveUserCount {
+	liveUserCount
 }
 `

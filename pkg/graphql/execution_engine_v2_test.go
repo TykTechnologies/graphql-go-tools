@@ -123,7 +123,15 @@ func TestWithAdditionalHttpHeaders(t *testing.T) {
 			},
 		}
 
-		optionsFn := WithAdditionalHttpHeaders(reqHeader, ExcludableRuntimeHeaderKeys...)
+		excludableRuntimeHeaders := []string{
+			http.CanonicalHeaderKey("Date"),
+			http.CanonicalHeaderKey("Host"),
+			http.CanonicalHeaderKey("Sec-WebSocket-Key"),
+			http.CanonicalHeaderKey("User-Agent"),
+			http.CanonicalHeaderKey("Content-Length"),
+		}
+
+		optionsFn := WithAdditionalHttpHeaders(reqHeader, excludableRuntimeHeaders...)
 		optionsFn(internalExecutionCtx)
 
 		expectedHeaders := http.Header{
@@ -541,7 +549,7 @@ func TestExecutionEngineV2_Execute(t *testing.T) {
 					Path:                  []string{"race"},
 					Arguments: []plan.ArgumentConfiguration{
 						{
-							Name: "name",
+							Name:         "name",
 							RenderConfig: plan.RenderArgumentAsGraphQLValue,
 						},
 					},
@@ -596,7 +604,7 @@ func TestExecutionEngineV2_Execute(t *testing.T) {
 					Path:                  []string{"race"},
 					Arguments: []plan.ArgumentConfiguration{
 						{
-							Name: "name",
+							Name:         "name",
 							RenderConfig: plan.RenderArgumentDefault,
 						},
 					},
@@ -814,7 +822,7 @@ func TestExecutionEngineV2_GetCachedPlan(t *testing.T) {
 	gqlRequest := Request{
 		OperationName: "LastRegisteredUser",
 		Variables:     nil,
-		Query:         testSubscriptionOperation,
+		Query:         testSubscriptionLastRegisteredUserOperation,
 	}
 
 	validationResult, err := gqlRequest.ValidateForSchema(schema)
@@ -825,13 +833,27 @@ func TestExecutionEngineV2_GetCachedPlan(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, normalizationResult.Successful)
 
+	differentGqlRequest := Request{
+		OperationName: "LiveUserCount",
+		Variables:     nil,
+		Query:         testSubscriptionLiveUserCountOperation,
+	}
+
+	validationResult, err = differentGqlRequest.ValidateForSchema(schema)
+	require.NoError(t, err)
+	require.True(t, validationResult.Valid)
+
+	normalizationResult, err = differentGqlRequest.Normalize(schema)
+	require.NoError(t, err)
+	require.True(t, normalizationResult.Successful)
+
 	engineConfig := NewEngineV2Configuration(schema)
 	engineConfig.SetDataSources([]plan.DataSourceConfiguration{
 		{
 			RootNodes: []plan.TypeField{
 				{
 					TypeName:   "Subscription",
-					FieldNames: []string{"lastRegisteredUser"},
+					FieldNames: []string{"lastRegisteredUser", "liveUserCount"},
 				},
 			},
 			ChildNodes: []plan.TypeField{
@@ -852,62 +874,60 @@ func TestExecutionEngineV2_GetCachedPlan(t *testing.T) {
 	engine, err := NewExecutionEngineV2(context.Background(), abstractlogger.NoopLogger, engineConfig)
 	require.NoError(t, err)
 
-	t.Run("subscription", func(t *testing.T) {
-		t.Run("should cache plan with same headers", func(t *testing.T) {
-			t.Cleanup(engine.executionPlanCache.Purge)
-			require.Equal(t, 0, engine.executionPlanCache.Len())
+	t.Run("should reuse cached plan", func(t *testing.T) {
+		t.Cleanup(engine.executionPlanCache.Purge)
+		require.Equal(t, 0, engine.executionPlanCache.Len())
 
-			firstInternalExecCtx := newInternalExecutionContext()
-			firstInternalExecCtx.resolveContext.Request.Header = http.Header{
-				http.CanonicalHeaderKey("Authorization"): []string{"123abc"},
-			}
+		firstInternalExecCtx := newInternalExecutionContext()
+		firstInternalExecCtx.resolveContext.Request.Header = http.Header{
+			http.CanonicalHeaderKey("Authorization"): []string{"123abc"},
+		}
 
-			report := operationreport.Report{}
-			cachedPlan := engine.getCachedPlan(firstInternalExecCtx, &gqlRequest.document, &schema.document, gqlRequest.OperationName, OperationTypeSubscription, &report)
-			_, oldestCachedPlan, _ := engine.executionPlanCache.GetOldest()
-			assert.False(t, report.HasErrors())
-			assert.Equal(t, 1, engine.executionPlanCache.Len())
-			assert.Equal(t, cachedPlan, oldestCachedPlan.(*plan.SubscriptionResponsePlan))
+		report := operationreport.Report{}
+		cachedPlan := engine.getCachedPlan(firstInternalExecCtx, &gqlRequest.document, &schema.document, gqlRequest.OperationName, &report)
+		_, oldestCachedPlan, _ := engine.executionPlanCache.GetOldest()
+		assert.False(t, report.HasErrors())
+		assert.Equal(t, 1, engine.executionPlanCache.Len())
+		assert.Equal(t, cachedPlan, oldestCachedPlan.(*plan.SubscriptionResponsePlan))
 
-			secondInternalExecCtx := newInternalExecutionContext()
-			secondInternalExecCtx.resolveContext.Request.Header = http.Header{
-				http.CanonicalHeaderKey("Authorization"): []string{"123abc"},
-			}
+		secondInternalExecCtx := newInternalExecutionContext()
+		secondInternalExecCtx.resolveContext.Request.Header = http.Header{
+			http.CanonicalHeaderKey("Authorization"): []string{"123abc"},
+		}
 
-			cachedPlan = engine.getCachedPlan(secondInternalExecCtx, &gqlRequest.document, &schema.document, gqlRequest.OperationName, OperationTypeSubscription, &report)
-			_, oldestCachedPlan, _ = engine.executionPlanCache.GetOldest()
-			assert.False(t, report.HasErrors())
-			assert.Equal(t, 1, engine.executionPlanCache.Len())
-			assert.Equal(t, cachedPlan, oldestCachedPlan.(*plan.SubscriptionResponsePlan))
-		})
+		cachedPlan = engine.getCachedPlan(secondInternalExecCtx, &gqlRequest.document, &schema.document, gqlRequest.OperationName, &report)
+		_, oldestCachedPlan, _ = engine.executionPlanCache.GetOldest()
+		assert.False(t, report.HasErrors())
+		assert.Equal(t, 1, engine.executionPlanCache.Len())
+		assert.Equal(t, cachedPlan, oldestCachedPlan.(*plan.SubscriptionResponsePlan))
+	})
 
-		t.Run("should not cache plan with different headers", func(t *testing.T) {
-			t.Cleanup(engine.executionPlanCache.Purge)
-			require.Equal(t, 0, engine.executionPlanCache.Len())
+	t.Run("should create new plan and cache it", func(t *testing.T) {
+		t.Cleanup(engine.executionPlanCache.Purge)
+		require.Equal(t, 0, engine.executionPlanCache.Len())
 
-			firstInternalExecCtx := newInternalExecutionContext()
-			firstInternalExecCtx.resolveContext.Request.Header = http.Header{
-				http.CanonicalHeaderKey("Authorization"): []string{"123abc"},
-			}
+		firstInternalExecCtx := newInternalExecutionContext()
+		firstInternalExecCtx.resolveContext.Request.Header = http.Header{
+			http.CanonicalHeaderKey("Authorization"): []string{"123abc"},
+		}
 
-			report := operationreport.Report{}
-			cachedPlan := engine.getCachedPlan(firstInternalExecCtx, &gqlRequest.document, &schema.document, gqlRequest.OperationName, OperationTypeSubscription, &report)
-			_, oldestCachedPlan, _ := engine.executionPlanCache.GetOldest()
-			assert.False(t, report.HasErrors())
-			assert.Equal(t, 1, engine.executionPlanCache.Len())
-			assert.Equal(t, cachedPlan, oldestCachedPlan.(*plan.SubscriptionResponsePlan))
+		report := operationreport.Report{}
+		cachedPlan := engine.getCachedPlan(firstInternalExecCtx, &gqlRequest.document, &schema.document, gqlRequest.OperationName, &report)
+		_, oldestCachedPlan, _ := engine.executionPlanCache.GetOldest()
+		assert.False(t, report.HasErrors())
+		assert.Equal(t, 1, engine.executionPlanCache.Len())
+		assert.Equal(t, cachedPlan, oldestCachedPlan.(*plan.SubscriptionResponsePlan))
 
-			secondInternalExecCtx := newInternalExecutionContext()
-			secondInternalExecCtx.resolveContext.Request.Header = http.Header{
-				http.CanonicalHeaderKey("Authorization"): []string{"xyz098"},
-			}
+		secondInternalExecCtx := newInternalExecutionContext()
+		secondInternalExecCtx.resolveContext.Request.Header = http.Header{
+			http.CanonicalHeaderKey("Authorization"): []string{"xyz098"},
+		}
 
-			cachedPlan = engine.getCachedPlan(secondInternalExecCtx, &gqlRequest.document, &schema.document, gqlRequest.OperationName, OperationTypeSubscription, &report)
-			_, oldestCachedPlan, _ = engine.executionPlanCache.GetOldest()
-			assert.False(t, report.HasErrors())
-			assert.Equal(t, 2, engine.executionPlanCache.Len())
-			assert.NotEqual(t, cachedPlan, oldestCachedPlan.(*plan.SubscriptionResponsePlan))
-		})
+		cachedPlan = engine.getCachedPlan(secondInternalExecCtx, &differentGqlRequest.document, &schema.document, differentGqlRequest.OperationName, &report)
+		_, oldestCachedPlan, _ = engine.executionPlanCache.GetOldest()
+		assert.False(t, report.HasErrors())
+		assert.Equal(t, 2, engine.executionPlanCache.Len())
+		assert.NotEqual(t, cachedPlan, oldestCachedPlan.(*plan.SubscriptionResponsePlan))
 	})
 }
 

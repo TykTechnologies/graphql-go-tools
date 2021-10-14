@@ -6,11 +6,9 @@ import (
 	"compress/gzip"
 	"context"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -242,13 +240,8 @@ func (e *ExecutionEngineV2) Execute(ctx context.Context, operation *Request, wri
 		options[i](execContext)
 	}
 
-	operationType, err := operation.OperationType()
-	if err != nil {
-		return err
-	}
-
 	var report operationreport.Report
-	cachedPlan := e.getCachedPlan(execContext, &operation.document, &e.config.schema.document, operation.OperationName, operationType, &report)
+	cachedPlan := e.getCachedPlan(execContext, &operation.document, &e.config.schema.document, operation.OperationName, &report)
 	if report.HasErrors() {
 		return report
 	}
@@ -265,7 +258,7 @@ func (e *ExecutionEngineV2) Execute(ctx context.Context, operation *Request, wri
 	return err
 }
 
-func (e *ExecutionEngineV2) getCachedPlan(ctx *internalExecutionContext, operation, definition *ast.Document, operationName string, operationType OperationType, report *operationreport.Report) plan.Plan {
+func (e *ExecutionEngineV2) getCachedPlan(ctx *internalExecutionContext, operation, definition *ast.Document, operationName string, report *operationreport.Report) plan.Plan {
 
 	hash := pool.Hash64.Get()
 	hash.Reset()
@@ -274,18 +267,6 @@ func (e *ExecutionEngineV2) getCachedPlan(ctx *internalExecutionContext, operati
 	if err != nil {
 		report.AddInternalError(err)
 		return nil
-	}
-
-	if operationType == OperationTypeSubscription {
-		for headerKey, headerValues := range ctx.resolveContext.Request.Header {
-			joinedHeaderValues := strings.Join(headerValues, ";")
-			headerString := fmt.Sprintf("%s:%s", headerKey, joinedHeaderValues)
-			_, err := hash.Write([]byte(headerString))
-			if err != nil {
-				report.AddInternalError(err)
-				return nil
-			}
-		}
 	}
 
 	cacheKey := hash.Sum64()
