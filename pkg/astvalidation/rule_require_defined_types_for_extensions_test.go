@@ -12,7 +12,7 @@ func TestExtendOnlyOnDefinedTypes(t *testing.T) {
 					directive @future on SCALAR
 					scalar Date
 					extend scalar Date @future
-				`, Valid, ExtendOnlyOnDefinedTypes(),
+				`, Valid, RequireDefinedTypesForExtensions(),
 				)
 			})
 
@@ -20,7 +20,7 @@ func TestExtendOnlyOnDefinedTypes(t *testing.T) {
 				runDefinitionValidation(t, `
 					directive @future on SCALAR
 					extend scalar Date @future
-				`, Invalid, ExtendOnlyOnDefinedTypes(),
+				`, Invalid, RequireDefinedTypesForExtensions(),
 				)
 			})
 		})
@@ -35,7 +35,7 @@ func TestExtendOnlyOnDefinedTypes(t *testing.T) {
 					extend type User {
 						email: String
 					}
-				`, Valid, ExtendOnlyOnDefinedTypes(),
+				`, Valid, RequireDefinedTypesForExtensions(),
 				)
 			})
 
@@ -44,7 +44,7 @@ func TestExtendOnlyOnDefinedTypes(t *testing.T) {
 					extend type User {
 						email: String
 					}
-				`, Invalid, ExtendOnlyOnDefinedTypes(),
+				`, Invalid, RequireDefinedTypesForExtensions(),
 				)
 			})
 		})
@@ -59,7 +59,7 @@ func TestExtendOnlyOnDefinedTypes(t *testing.T) {
 					extend interface Animal {
 						weight: Float
 					}
-				`, Valid, ExtendOnlyOnDefinedTypes(),
+				`, Valid, RequireDefinedTypesForExtensions(),
 				)
 			})
 
@@ -68,7 +68,7 @@ func TestExtendOnlyOnDefinedTypes(t *testing.T) {
 					extend interface Animal {
 						weight: Float
 					}
-				`, Invalid, ExtendOnlyOnDefinedTypes(),
+				`, Invalid, RequireDefinedTypesForExtensions(),
 				)
 			})
 		})
@@ -78,14 +78,14 @@ func TestExtendOnlyOnDefinedTypes(t *testing.T) {
 				runDefinitionValidation(t, `
 					union Animal = Cat | Dog
 					extend union Animal = Bird
-				`, Valid, ExtendOnlyOnDefinedTypes(),
+				`, Valid, RequireDefinedTypesForExtensions(),
 				)
 			})
 
 			t.Run("should be invalid when union type is not defined", func(t *testing.T) {
 				runDefinitionValidation(t, `
 					extend union Animal = Bird
-				`, Invalid, ExtendOnlyOnDefinedTypes(),
+				`, Invalid, RequireDefinedTypesForExtensions(),
 				)
 			})
 		})
@@ -100,7 +100,7 @@ func TestExtendOnlyOnDefinedTypes(t *testing.T) {
 					extend enum Currency {
 						Euro
 					}
-				`, Valid, ExtendOnlyOnDefinedTypes(),
+				`, Valid, RequireDefinedTypesForExtensions(),
 				)
 			})
 
@@ -109,7 +109,7 @@ func TestExtendOnlyOnDefinedTypes(t *testing.T) {
 					extend enum Currency {
 						Euro
 					}
-				`, Invalid, ExtendOnlyOnDefinedTypes(),
+				`, Invalid, RequireDefinedTypesForExtensions(),
 				)
 			})
 		})
@@ -125,7 +125,7 @@ func TestExtendOnlyOnDefinedTypes(t *testing.T) {
 					extend input Point {
 						z: int
 					}
-				`, Valid, ExtendOnlyOnDefinedTypes(),
+				`, Valid, RequireDefinedTypesForExtensions(),
 				)
 			})
 
@@ -134,7 +134,7 @@ func TestExtendOnlyOnDefinedTypes(t *testing.T) {
 					extend input Point {
 						z: int
 					}
-				`, Invalid, ExtendOnlyOnDefinedTypes(),
+				`, Invalid, RequireDefinedTypesForExtensions(),
 				)
 			})
 		})

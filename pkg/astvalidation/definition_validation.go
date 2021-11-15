@@ -13,6 +13,7 @@ func DefaultDefinitionValidator() *DefinitionValidator {
 		UniqueFieldDefinitionNames(),
 		UniqueEnumValueNames(),
 		KnownTypeNames(),
+		RequireDefinedTypesForExtensions(),
 	)
 }
 
