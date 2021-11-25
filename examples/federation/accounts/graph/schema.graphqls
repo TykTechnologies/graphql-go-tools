@@ -5,4 +5,5 @@ extend type Query {
 type User @key(fields: "id") {
     id: ID!
     username: String!
+    email: String!
 }

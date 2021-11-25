@@ -14,7 +14,12 @@ import (
 )
 
 func (r *queryResolver) TopProducts(ctx context.Context, first *int) ([]*model.Product, error) {
-	return hats, nil
+	if !itemsGenerationEnabled {
+		return hats, nil
+	}
+
+	initProducts(*first)
+	return dynamicHats[0:*first], nil
 }
 
 func (r *subscriptionResolver) UpdatedPrice(ctx context.Context) (<-chan *model.Product, error) {

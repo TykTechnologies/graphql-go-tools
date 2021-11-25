@@ -12,6 +12,7 @@ require (
 	github.com/vektah/gqlparser/v2 v2.2.0
 	go.uber.org/atomic v1.9.0
 	go.uber.org/zap v1.18.1
+	syreclabs.com/go/faker v1.2.3
 )
 
 replace github.com/jensneuse/graphql-go-tools => ../../

@@ -10,7 +10,9 @@ import (
 )
 
 type EndpointOptions struct {
-	EnableDebug bool
+	EnableDebug           bool
+	EnableItemsGeneration bool
+	GeneratedReviewsCount *int
 }
 
 var TestOptions = EndpointOptions{
@@ -21,6 +23,11 @@ func GraphQLEndpointHandler(opts EndpointOptions) http.Handler {
 	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: &Resolver{}}))
 	if opts.EnableDebug {
 		srv.Use(&debug.Tracer{})
+	}
+
+	itemsGenerationEnabled = opts.EnableItemsGeneration
+	if opts.GeneratedReviewsCount != nil {
+		generatedReviewsCount = *opts.GeneratedReviewsCount
 	}
 
 	return srv

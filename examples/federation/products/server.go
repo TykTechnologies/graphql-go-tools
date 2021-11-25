@@ -19,8 +19,18 @@ func main() {
 		port = defaultPort
 	}
 
+	endpointOpts := graph.EndpointOptions{EnableRandomness: true}
+
+	if os.Getenv("ITEM_GENERATION") == "1" {
+		endpointOpts.EnableItemsGeneration = true
+	}
+
+	if os.Getenv("DEBUG") != "" {
+		endpointOpts.EnableDebug = true
+	}
+
 	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
-	http.Handle("/query", graph.GraphQLEndpointHandler(graph.EndpointOptions{EnableDebug: true, EnableRandomness: true}))
+	http.Handle("/query", graph.GraphQLEndpointHandler(endpointOpts))
 	http.HandleFunc("/websocket_connections", graph.WebsocketConnectionsHandler)
 
 	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)

@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/99designs/gqlgen/graphql/playground"
 
@@ -19,8 +20,24 @@ func main() {
 		port = defaultPort
 	}
 
+	endpointOpts := graph.EndpointOptions{}
+	if os.Getenv("DEBUG") != "" {
+		endpointOpts.EnableDebug = true
+	}
+
+	if os.Getenv("ITEM_GENERATION") == "1" {
+		endpointOpts.EnableItemsGeneration = true
+	}
+
+	if count := os.Getenv("REVIEWS_COUNT"); count != "" {
+		itemCount, err := strconv.Atoi(count)
+		if err == nil {
+			endpointOpts.GeneratedReviewsCount = &itemCount
+		}
+	}
+
 	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
-	http.Handle("/query", graph.GraphQLEndpointHandler(graph.EndpointOptions{EnableDebug: true}))
+	http.Handle("/query", graph.GraphQLEndpointHandler(endpointOpts))
 
 	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))

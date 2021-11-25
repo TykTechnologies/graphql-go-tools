@@ -21,6 +21,7 @@ var websocketConnections atomic.Uint32
 type EndpointOptions struct {
 	EnableDebug            bool
 	EnableRandomness       bool
+	EnableItemsGeneration  bool
 	OverrideUpdateInterval time.Duration
 }
 
@@ -58,6 +59,7 @@ func GraphQLEndpointHandler(opts EndpointOptions) http.Handler {
 	}
 
 	randomnessEnabled = opts.EnableRandomness
+	itemsGenerationEnabled = opts.EnableItemsGeneration
 
 	if opts.OverrideUpdateInterval > 0 {
 		updateInterval = opts.OverrideUpdateInterval

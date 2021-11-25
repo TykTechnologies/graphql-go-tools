@@ -19,8 +19,13 @@ func main() {
 		port = defaultPort
 	}
 
+	endpointOpts := graph.EndpointOptions{}
+	if os.Getenv("DEBUG") != "" {
+		endpointOpts.EnableDebug = true
+	}
+
 	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
-	http.Handle("/query", graph.GraphQLEndpointHandler(graph.EndpointOptions{EnableDebug: true}))
+	http.Handle("/query", graph.GraphQLEndpointHandler(endpointOpts))
 
 	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))

@@ -6,6 +6,7 @@ package graph
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"github.com/jensneuse/graphql-go-tools/examples/federation/reviews/graph/generated"
 	"github.com/jensneuse/graphql-go-tools/examples/federation/reviews/graph/model"
@@ -14,13 +15,28 @@ import (
 func (r *productResolver) Reviews(ctx context.Context, obj *model.Product) ([]*model.Review, error) {
 	var res []*model.Review
 
-	for _, review := range reviews {
-		if review.Product.Upc == obj.Upc {
-			res = append(res, review)
+	if !itemsGenerationEnabled {
+		for _, review := range reviews {
+			if review.Product.Upc == obj.Upc {
+				res = append(res, review)
+			}
 		}
+
+		return res, nil
 	}
 
-	return res, nil
+	generateProductReviews(obj.Upc)
+
+	upcReviews := reviewsByUpc[obj.Upc]
+	res = make([]*model.Review, 0, len(upcReviews))
+	for _, review := range upcReviews {
+		res = append(res, review)
+	}
+
+	s := sortReviewsByUser(res)
+	sort.Sort(s)
+
+	return s, nil
 }
 
 func (r *userResolver) Username(ctx context.Context, obj *model.User) (string, error) {
@@ -30,13 +46,26 @@ func (r *userResolver) Username(ctx context.Context, obj *model.User) (string, e
 func (r *userResolver) Reviews(ctx context.Context, obj *model.User) ([]*model.Review, error) {
 	var res []*model.Review
 
-	for _, review := range reviews {
-		if review.Author.ID == obj.ID {
-			res = append(res, review)
+	if !itemsGenerationEnabled {
+		for _, review := range reviews {
+			if review.Author.ID == obj.ID {
+				res = append(res, review)
+			}
 		}
+
+		return res, nil
 	}
 
-	return res, nil
+	userReviews := reviewsByUser[obj.ID]
+	res = make([]*model.Review, 0, len(userReviews))
+	for _, review := range userReviews {
+		res = append(res, review)
+	}
+
+	s := sortReviewsByUpc(res)
+	sort.Sort(s)
+
+	return s, nil
 }
 
 // Product returns generated.ProductResolver implementation.
