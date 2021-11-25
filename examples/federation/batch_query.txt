@@ -1,0 +1,5 @@
+{
+  "operationName":"MyQuery",
+  "variables":{},
+  "query":"query MyQuery{topProducts(first: 5){inStock name price upc reviews{body author{id username email}}}}"
+}

@@ -1,0 +1,16 @@
+{
+  "name": "apollo-gw",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@apollo/gateway": "^0.38.2",
+    "apollo-server": "^3.5.0",
+    "graphql": "15"
+  }
+}
