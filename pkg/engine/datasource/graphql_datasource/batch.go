@@ -3,6 +3,7 @@ package graphql_datasource
 import (
 	"bytes"
 	"fmt"
+	"sync"
 
 	"github.com/buger/jsonparser"
 
@@ -29,6 +30,12 @@ type inputResponseBufferMappings struct {
 	originalInput []byte
 	// assignedBufferIndices are the buffers to which the response needs to be assigned
 	assignedBufferIndices []int
+}
+
+var inputResponseBufferMappingsPool = sync.Pool{
+	New: func() interface{} {
+		return make([]inputResponseBufferMappings, 0, 1024)
+	},
 }
 
 func NewBatchFactory() *BatchFactory {
@@ -75,6 +82,8 @@ func (b *Batch) Demultiplex(responseBufPair *resolve.BufPair, bufPairs []*resolv
 }
 
 func (b *BatchFactory) multiplexBatch(out *fastbuffer.FastBuffer, inputs [][]byte) (responseMappings []inputResponseBufferMappings, err error) {
+	responseMappings = inputResponseBufferMappingsPool.Get().([]inputResponseBufferMappings)
+
 	if len(inputs) == 0 {
 		return nil, nil
 	}
@@ -146,6 +155,15 @@ func (b *BatchFactory) multiplexBatch(out *fastbuffer.FastBuffer, inputs [][]byt
 }
 
 func (b *Batch) demultiplexBatch(responsePair *resolve.BufPair, responseMappings []inputResponseBufferMappings, resultBufPairs []*resolve.BufPair) (err error) {
+	defer func() {
+		for i := 0; i < len(responseMappings); i++ {
+			responseMappings[i].assignedBufferIndices = responseMappings[i].assignedBufferIndices[:0]
+			responseMappings[i].originalInput = nil
+		}
+		responseMappings = responseMappings[:0]
+		inputResponseBufferMappingsPool.Put(responseMappings)
+	}()
+
 	var outPosition int
 
 	if responsePair.HasData() {
