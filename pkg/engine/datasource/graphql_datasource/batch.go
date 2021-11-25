@@ -99,6 +99,8 @@ func (b *BatchFactory) multiplexBatch(out *fastbuffer.FastBuffer, inputs [][]byt
 		firstRepresentationsEnd   int
 	)
 
+	// TODO: extract this part into a benchmark
+
 	for i := range inputs {
 		inputVariables, _, representationsOffset, err := jsonparser.Get(inputs[i], representationPath...)
 		if err != nil {
