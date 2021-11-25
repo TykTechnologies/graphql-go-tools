@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -2920,8 +2921,82 @@ func runTestOnTestDefinition(operation, operationName string, expectedPlan plan.
 func BenchmarkFederationBatching(b *testing.B) {
 
 	userService := FakeDataSource(`{"data":{"me": {"id": "1234","username": "Me","__typename": "User"}}}`)
-	reviewsService := FakeDataSource(`{"data":{"_entities":[{"reviews": [{"body": "A highly effective form of birth control.","product": {"upc": "top-1","__typename": "Product"}},{"body": "Fedoras are one of the most fashionable hats around and can look great with a variety of outfits.","product": {"upc": "top-2","__typename": "Product"}}]}]}}`)
-	productsService := FakeDataSource(`{"data":{"_entities":[{"name": "Trilby"},{"name": "Fedora"}]}}`)
+
+	reviews := strings.Builder{}
+
+	count := 100
+	last := count - 1
+
+	reviews.Write(
+		[]byte(`
+{
+    "data": {
+      "_entities": [
+        {
+          "reviews": [`))
+
+	for i := 0; i < count; i++ {
+		reviews.Write(
+			[]byte(fmt.Sprintf(`
+            {
+              "body": "Doloremque quasi animi sed eum.",
+              "product": {
+                "upc": "top-%d"
+              }
+            }`, i+1)))
+
+		if i != last {
+			reviews.Write([]byte(`,`))
+		}
+
+	}
+
+	reviews.Write(
+		[]byte(`
+          ]
+        }
+      ]
+    }
+  }
+`))
+
+	reviewsResp := reviews.String()
+	buf := bytes.Buffer{}
+	assert.NoError(b, json.Compact(&buf, []byte(reviewsResp)))
+	reviewsResp = buf.String()
+	reviewsService := FakeDataSource(reviewsResp)
+
+	products := strings.Builder{}
+
+	products.Write([]byte(`
+ {
+    "data": {
+      "_entities": [`))
+
+	for i := 0; i < count; i++ {
+		products.Write([]byte(`
+        {
+          "name": "Trilby"
+        }`))
+
+		if i != last {
+			products.Write([]byte(`,`))
+		}
+	}
+
+	products.Write([]byte(`
+      ]
+    }
+  }
+`))
+
+	productsResp := products.String()
+
+	buf = bytes.Buffer{}
+	assert.NoError(b, json.Compact(&buf, []byte(productsResp)))
+
+	productsResp = buf.String()
+	productsService := FakeDataSource(productsResp)
 
 	reviewBatchFactory := NewBatchFactory()
 	productBatchFactory := NewBatchFactory()
@@ -3080,7 +3155,9 @@ func BenchmarkFederationBatching(b *testing.B) {
 	}
 
 	var err error
-	expected := []byte(`{"data":{"me":{"id":"1234","username":"Me","reviews":[{"body":"A highly effective form of birth control.","product":{"upc":"top-1","name":"Trilby"}},{"body":"Fedoras are one of the most fashionable hats around and can look great with a variety of outfits.","product":{"upc":"top-2","name":"Fedora"}}]}}}`)
+	// expected := []byte(`{"data":{"me":{"id":"1234","username":"Me","reviews":[{"body":"A highly effective form of birth control.","product":{"upc":"top-1","name":"Trilby"}},{"body":"Fedoras are one of the most fashionable hats around and can look great with a variety of outfits.","product":{"upc":"top-2","name":"Fedora"}}]}}}`)
+
+	expected := []byte(`{"data":{"me":{"id":"1234","username":"Me","reviews":[{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-1","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-2","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-3","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-4","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-5","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-6","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-7","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-8","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-9","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-10","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-11","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-12","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-13","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-14","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-15","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-16","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-17","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-18","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-19","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-20","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-21","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-22","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-23","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-24","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-25","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-26","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-27","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-28","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-29","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-30","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-31","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-32","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-33","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-34","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-35","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-36","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-37","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-38","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-39","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-40","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-41","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-42","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-43","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-44","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-45","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-46","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-47","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-48","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-49","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-50","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-51","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-52","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-53","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-54","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-55","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-56","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-57","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-58","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-59","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-60","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-61","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-62","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-63","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-64","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-65","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-66","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-67","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-68","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-69","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-70","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-71","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-72","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-73","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-74","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-75","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-76","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-77","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-78","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-79","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-80","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-81","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-82","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-83","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-84","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-85","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-86","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-87","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-88","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-89","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-90","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-91","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-92","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-93","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-94","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-95","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-96","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-97","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-98","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-99","name":"Trilby"}},{"body":"Doloremque quasi animi sed eum.","product":{"upc":"top-100","name":"Trilby"}}]}}}`)
 
 	pool := sync.Pool{
 		New: func() interface{} {
