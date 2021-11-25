@@ -140,16 +140,17 @@ type Request struct {
 
 func NewContext(ctx context.Context) *Context {
 	return &Context{
-		Context:      ctx,
-		Variables:    make([]byte, 0, 4096),
-		pathPrefix:   make([]byte, 0, 4096),
-		pathElements: make([][]byte, 0, 16),
-		patches:      make([]patch, 0, 48),
-		usedBuffers:  make([]*bytes.Buffer, 0, 48),
-		currentPatch: -1,
-		maxPatch:     -1,
-		position:     Position{},
-		dataLoader:   nil,
+		Context:          ctx,
+		Variables:        make([]byte, 0, 4096),
+		pathPrefix:       make([]byte, 0, 4096),
+		pathElements:     make([][]byte, 0, 16),
+		responseElements: make([]string, 0, 4096),
+		patches:          make([]patch, 0, 48),
+		usedBuffers:      make([]*bytes.Buffer, 0, 48),
+		currentPatch:     -1,
+		maxPatch:         -1,
+		position:         Position{},
+		dataLoader:       nil,
 	}
 }
 
@@ -163,6 +164,10 @@ func (c *Context) Clone() Context {
 		pathElements[i] = make([]byte, len(c.pathElements[i]))
 		copy(pathElements[i], c.pathElements[i])
 	}
+
+	responseElements := make([]string, len(c.responseElements))
+	copy(responseElements, c.responseElements)
+
 	patches := make([]patch, len(c.patches))
 	for i := range patches {
 		patches[i] = patch{
@@ -176,18 +181,19 @@ func (c *Context) Clone() Context {
 		copy(patches[i].data, c.patches[i].data)
 	}
 	return Context{
-		Context:         c.Context,
-		Variables:       variables,
-		Request:         c.Request,
-		pathElements:    pathElements,
-		patches:         patches,
-		usedBuffers:     make([]*bytes.Buffer, 0, 48),
-		currentPatch:    c.currentPatch,
-		maxPatch:        c.maxPatch,
-		pathPrefix:      pathPrefix,
-		beforeFetchHook: c.beforeFetchHook,
-		afterFetchHook:  c.afterFetchHook,
-		position:        c.position,
+		Context:          c.Context,
+		Variables:        variables,
+		Request:          c.Request,
+		pathElements:     pathElements,
+		responseElements: responseElements,
+		patches:          patches,
+		usedBuffers:      make([]*bytes.Buffer, 0, 48),
+		currentPatch:     c.currentPatch,
+		maxPatch:         c.maxPatch,
+		pathPrefix:       pathPrefix,
+		beforeFetchHook:  c.beforeFetchHook,
+		afterFetchHook:   c.afterFetchHook,
+		position:         c.position,
 	}
 }
 
@@ -196,6 +202,7 @@ func (c *Context) Free() {
 	c.Variables = c.Variables[:0]
 	c.pathPrefix = c.pathPrefix[:0]
 	c.pathElements = c.pathElements[:0]
+	c.responseElements = c.responseElements[:0]
 	c.patches = c.patches[:0]
 	for i := range c.usedBuffers {
 		pool.BytesBuffer.Put(c.usedBuffers[i])
@@ -239,7 +246,7 @@ func (c *Context) removeResponseArrayLastElements(elements []string) {
 }
 
 func (c *Context) resetResponsePathElements() {
-	c.responseElements = nil
+	c.responseElements = c.responseElements[:0]
 }
 
 func (c *Context) addPathElement(elem []byte) {
