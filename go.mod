@@ -11,6 +11,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/eclipse/paho.mqtt.golang v1.2.0
 	github.com/evanphx/json-patch/v5 v5.1.0
+	github.com/francoispqt/gojay v1.2.13 // indirect
 	github.com/go-test/deep v1.0.4
 	github.com/gobuffalo/packr v1.30.1
 	github.com/gobwas/ws v1.0.4
@@ -24,6 +25,7 @@ require (
 	github.com/jensneuse/graphql-go-tools/examples/chat v0.0.0-20210714083836-7bf4457dc2b2
 	github.com/jensneuse/graphql-go-tools/examples/federation v0.0.0-20210714083836-7bf4457dc2b2
 	github.com/jensneuse/pipeline v0.0.0-20200117120358-9fb4de085cd6
+	github.com/json-iterator/go v1.1.9 // indirect
 	github.com/klauspost/compress v1.13.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
@@ -35,6 +37,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/tidwall/gjson v1.11.0
 	github.com/tidwall/sjson v1.0.4
+	github.com/valyala/fastjson v1.6.3 // indirect
 	github.com/vektah/gqlparser/v2 v2.2.0
 	go.uber.org/atomic v1.9.0
 	go.uber.org/zap v1.18.1
