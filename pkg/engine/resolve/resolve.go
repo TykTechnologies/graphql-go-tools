@@ -995,7 +995,10 @@ func (r *Resolver) resolveObject(ctx *Context, object *Object, data *fastjson.Va
 
 		var parentObjectData []byte
 		if data != nil {
-			parentObjectData = data.MarshalTo(nil)
+			buf := pool.FastBuffer.Get()
+			defer pool.FastBuffer.Put(buf)
+			_ = data.MarshalToWriter(buf)
+			parentObjectData = buf.Bytes()
 		}
 
 		err = r.resolveFetch(ctx, object.Fetch, parentObjectData, set)
