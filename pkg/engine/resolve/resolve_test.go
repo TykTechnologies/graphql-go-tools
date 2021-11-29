@@ -115,6 +115,7 @@ func TestResolver_ResolveNode(t *testing.T) {
 		r := newResolver(rCtx, enableSingleFlight, enableDataLoader)
 		node, ctx, expectedOutput := fn(t, ctrl)
 		return func(t *testing.T) {
+			t.Helper()
 			buf := &BufPair{
 				Data:   fastbuffer.New(),
 				Errors: fastbuffer.New(),
@@ -1067,7 +1068,7 @@ func TestResolver_ResolveGraphQLResponse(t *testing.T) {
 		}, Context{Context: context.Background()}, `{"errors":[{"message":"errorMessage1"},{"message":"errorMessage2"}],"data":{"name":null}}`
 	}))
 	t.Run("not nullable object in nullable field", testFn(false, false, func(t *testing.T, ctrl *gomock.Controller) (node *GraphQLResponse, ctx Context, expectedOutput string) {
-		return  &GraphQLResponse{
+		return &GraphQLResponse{
 			Data: &Object{
 				Nullable: false,
 				Fetch: &SingleFetch{
@@ -1081,13 +1082,13 @@ func TestResolver_ResolveGraphQLResponse(t *testing.T) {
 						Name:      []byte("nullableField"),
 						Value: &Object{
 							Nullable: true,
-							Path: []string{"nullable_field"},
+							Path:     []string{"nullable_field"},
 							Fields: []*Field{
 								{
 									Name: []byte("notNullableField"),
 									Value: &Object{
 										Nullable: false,
-										Path: []string{"not_nullable_field"},
+										Path:     []string{"not_nullable_field"},
 										Fields: []*Field{
 											{
 												Name: []byte("someField"),

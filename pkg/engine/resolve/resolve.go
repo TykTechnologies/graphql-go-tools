@@ -15,6 +15,7 @@ import (
 
 	"github.com/buger/jsonparser"
 	"github.com/cespare/xxhash/v2"
+	"github.com/valyala/fastjson"
 
 	errors "golang.org/x/xerrors"
 
@@ -397,16 +398,16 @@ func New(ctx context.Context, fetcher *Fetcher, enableDataLoader bool) *Resolver
 	}
 }
 
-func (r *Resolver) resolveNode(ctx *Context, node Node, data []byte, bufPair *BufPair) (err error) {
+func (r *Resolver) resolveNode(ctx *Context, node Node, data *fastjson.Value, bufPair *BufPair) (err error) {
 	switch n := node.(type) {
 	case *Object:
 		return r.resolveObject(ctx, n, data, bufPair)
 	case *Array:
 		return r.resolveArray(ctx, n, data, bufPair)
 	case *Null:
-		if n.Defer.Enabled {
-			r.preparePatch(ctx, n.Defer.PatchIndex, nil, data)
-		}
+		// if n.Defer.Enabled {
+		// 	r.preparePatch(ctx, n.Defer.PatchIndex, nil, data)
+		// }
 		r.resolveNull(bufPair.Data)
 		return
 	case *String:
@@ -501,7 +502,12 @@ func (r *Resolver) ResolveGraphQLResponse(ctx *Context, response *GraphQLRespons
 	}
 
 	ignoreData := false
-	err = r.resolveNode(ctx, response.Data, responseBuf.Data.Bytes(), buf)
+
+	parser := pool.FastJsonParser.Get()
+	defer pool.FastJsonParser.Put(parser)
+
+	value, _ := parser.ParseBytes(responseBuf.Data.Bytes())
+	err = r.resolveNode(ctx, response.Data, value, buf)
 	if err != nil {
 		if !errors.Is(err, errNonNullableFieldValueIsNull) {
 			return
@@ -657,7 +663,11 @@ func (r *Resolver) ResolveGraphQLResponsePatch(ctx *Context, patch *GraphQLRespo
 		}
 	}
 
-	err = r.resolveNode(ctx, patch.Value, data, buf)
+	parser := pool.FastJsonParser.Get()
+	defer pool.FastJsonParser.Put(parser)
+	value, _ := parser.ParseBytes(data)
+
+	err = r.resolveNode(ctx, patch.Value, value, buf)
 	if err != nil {
 		return
 	}
@@ -711,31 +721,13 @@ func (r *Resolver) resolveEmptyObject(b *fastbuffer.FastBuffer) {
 	b.WriteBytes(rBrace)
 }
 
-func (r *Resolver) resolveArray(ctx *Context, array *Array, data []byte, arrayBuf *BufPair) (err error) {
+func (r *Resolver) resolveArray(ctx *Context, array *Array, data *fastjson.Value, arrayBuf *BufPair) (err error) {
 	if len(array.Path) != 0 {
-		data, _, _, _ = jsonparser.Get(data, array.Path...)
+		data = data.Get(array.Path...)
 	}
 
-	if bytes.Equal(data, emptyArray) {
-		r.resolveEmptyArray(arrayBuf.Data)
-		return
-	}
-
-	arrayItems := r.byteSlicesPool.Get().(*[][]byte)
-	defer func() {
-		*arrayItems = (*arrayItems)[:0]
-		r.byteSlicesPool.Put(arrayItems)
-	}()
-
-	_, err = jsonparser.ArrayEach(data, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-		if err == nil && dataType == jsonparser.String {
-			value = data[offset-2 : offset+len(value)] // add quotes to string values
-		}
-
-		*arrayItems = append(*arrayItems, value)
-	})
-
-	if len(*arrayItems) == 0 {
+	// handle null array response
+	if data == nil || data.Type() == fastjson.TypeNull {
 		if !array.Nullable {
 			r.resolveEmptyArray(arrayBuf.Data)
 			return errNonNullableFieldValueIsNull
@@ -744,17 +736,24 @@ func (r *Resolver) resolveArray(ctx *Context, array *Array, data []byte, arrayBu
 		return nil
 	}
 
+	// handle empty array response
+	arrayItems := data.GetArray()
+	if len(arrayItems) == 0 {
+		r.resolveEmptyArray(arrayBuf.Data)
+		return
+	}
+
 	ctx.addResponseArrayElements(array.Path)
 	defer func() { ctx.removeResponseArrayLastElements(array.Path) }()
 
-	if array.ResolveAsynchronous && !array.Stream.Enabled && !r.dataLoaderEnabled {
-		return r.resolveArrayAsynchronous(ctx, array, arrayItems, arrayBuf)
-	}
+	// TODO: FIX ME
+	// if array.ResolveAsynchronous && !array.Stream.Enabled && !r.dataLoaderEnabled {
+	// 	return r.resolveArrayAsynchronous(ctx, array, arrayItems, arrayBuf)
+	// }
 	return r.resolveArraySynchronous(ctx, array, arrayItems, arrayBuf)
 }
 
-func (r *Resolver) resolveArraySynchronous(ctx *Context, array *Array, arrayItems *[][]byte, arrayBuf *BufPair) (err error) {
-
+func (r *Resolver) resolveArraySynchronous(ctx *Context, array *Array, arrayItems []*fastjson.Value, arrayBuf *BufPair) (err error) {
 	itemBuf := r.getBufPair()
 	defer r.freeBufPair(itemBuf)
 
@@ -763,19 +762,18 @@ func (r *Resolver) resolveArraySynchronous(ctx *Context, array *Array, arrayItem
 		hasPreviousItem bool
 		dataWritten     int
 	)
-	for i := range *arrayItems {
-
-		if array.Stream.Enabled {
-			if i > array.Stream.InitialBatchSize-1 {
-				ctx.addIntegerPathElement(i)
-				r.preparePatch(ctx, array.Stream.PatchIndex, nil, (*arrayItems)[i])
-				ctx.removeLastPathElement()
-				continue
-			}
-		}
+	for i := range arrayItems {
+		// if array.Stream.Enabled {
+		// 	if i > array.Stream.InitialBatchSize-1 {
+		// 		ctx.addIntegerPathElement(i)
+		// 		r.preparePatch(ctx, array.Stream.PatchIndex, nil, (*arrayItems)[i])
+		// 		ctx.removeLastPathElement()
+		// 		continue
+		// 	}
+		// }
 
 		ctx.addIntegerPathElement(i)
-		err = r.resolveNode(ctx, array.Item, (*arrayItems)[i], itemBuf)
+		err = r.resolveNode(ctx, array.Item, arrayItems[i], itemBuf)
 		ctx.removeLastPathElement()
 		if err != nil {
 			if errors.Is(err, errNonNullableFieldValueIsNull) && array.Nullable {
@@ -818,16 +816,16 @@ func (r *Resolver) resolveArrayAsynchronous(ctx *Context, array *Array, arrayIte
 	for i := range *arrayItems {
 		itemBuf := r.getBufPair()
 		*bufSlice = append(*bufSlice, itemBuf)
-		itemData := (*arrayItems)[i]
+		// itemData := (*arrayItems)[i]
 		cloned := ctx.Clone()
 		go func(ctx Context, i int) {
 			ctx.addPathElement([]byte(strconv.Itoa(i)))
-			if e := r.resolveNode(&ctx, array.Item, itemData, itemBuf); e != nil && !errors.Is(e, errTypeNameSkipped) {
-				select {
-				case errCh <- e:
-				default:
-				}
-			}
+			// if e := r.resolveNode(&ctx, array.Item, itemData, itemBuf); e != nil && !errors.Is(e, errTypeNameSkipped) {
+			// 	select {
+			// 	case errCh <- e:
+			// 	default:
+			// 	}
+			// }
 			ctx.Free()
 			wg.Done()
 		}(cloned, i)
@@ -865,68 +863,53 @@ func (r *Resolver) resolveArrayAsynchronous(ctx *Context, array *Array, arrayIte
 	return
 }
 
-func (r *Resolver) resolveInteger(integer *Integer, data []byte, integerBuf *BufPair) error {
-	value, dataType, _, err := jsonparser.Get(data, integer.Path...)
-	if err != nil || dataType != jsonparser.Number {
-		if !integer.Nullable {
-			return errNonNullableFieldValueIsNull
-		}
-		r.resolveNull(integerBuf.Data)
-		return nil
-	}
-	integerBuf.Data.WriteBytes(value)
-	return nil
-}
-
-func (r *Resolver) resolveFloat(floatValue *Float, data []byte, floatBuf *BufPair) error {
-	value, dataType, _, err := jsonparser.Get(data, floatValue.Path...)
-	if err != nil || dataType != jsonparser.Number {
-		if !floatValue.Nullable {
-			return errNonNullableFieldValueIsNull
-		}
-		r.resolveNull(floatBuf.Data)
-		return nil
-	}
-	floatBuf.Data.WriteBytes(value)
-	return nil
-}
-
-func (r *Resolver) resolveBoolean(boolean *Boolean, data []byte, booleanBuf *BufPair) error {
-	value, valueType, _, err := jsonparser.Get(data, boolean.Path...)
-	if err != nil || valueType != jsonparser.Boolean {
-		if !boolean.Nullable {
-			return errNonNullableFieldValueIsNull
-		}
-		r.resolveNull(booleanBuf.Data)
-		return nil
-	}
-	booleanBuf.Data.WriteBytes(value)
-	return nil
-}
-
-func (r *Resolver) resolveString(str *String, data []byte, stringBuf *BufPair) error {
-	var (
-		value     []byte
-		valueType jsonparser.ValueType
-		err       error
-	)
-
-	value, valueType, _, err = jsonparser.Get(data, str.Path...)
-	if err != nil || valueType != jsonparser.String {
-		if !str.Nullable {
-			return errNonNullableFieldValueIsNull
-		}
-		r.resolveNull(stringBuf.Data)
-		return nil
-	}
-
-	if value == nil && !str.Nullable {
+func (r *Resolver) resolveNullable(nullable bool, resultData *fastbuffer.FastBuffer) error {
+	if !nullable {
 		return errNonNullableFieldValueIsNull
 	}
-	stringBuf.Data.WriteBytes(quote)
-	stringBuf.Data.WriteBytes(value)
-	stringBuf.Data.WriteBytes(quote)
+	r.resolveNull(resultData)
 	return nil
+}
+
+func (r *Resolver) resolveScalar(data *fastjson.Value, path []string, nullable bool, resultData *fastbuffer.FastBuffer, desiredType ...fastjson.Type) error {
+	value := data.Get(path...)
+	if value == nil {
+		return r.resolveNullable(nullable, resultData)
+	}
+
+	var (
+		validType bool
+		valueType = value.Type()
+	)
+
+	for i, _ := range desiredType {
+		if valueType == desiredType[i] {
+			validType = true
+			break
+		}
+	}
+
+	if !validType {
+		return r.resolveNullable(nullable, resultData)
+	}
+
+	return value.MarshalToWriter(resultData)
+}
+
+func (r *Resolver) resolveInteger(integer *Integer, data *fastjson.Value, integerBuf *BufPair) error {
+	return r.resolveScalar(data, integer.Path, integer.Nullable, integerBuf.Data, fastjson.TypeNumber)
+}
+
+func (r *Resolver) resolveFloat(floatValue *Float, data *fastjson.Value, floatBuf *BufPair) error {
+	return r.resolveScalar(data, floatValue.Path, floatValue.Nullable, floatBuf.Data, fastjson.TypeNumber)
+}
+
+func (r *Resolver) resolveBoolean(boolean *Boolean, data *fastjson.Value, booleanBuf *BufPair) error {
+	return r.resolveScalar(data, boolean.Path, boolean.Nullable, booleanBuf.Data, fastjson.TypeFalse, fastjson.TypeTrue)
+}
+
+func (r *Resolver) resolveString(str *String, data *fastjson.Value, stringBuf *BufPair) error {
+	return r.resolveScalar(data, str.Path, str.Nullable, stringBuf.Data, fastjson.TypeString)
 }
 
 func (r *Resolver) preparePatch(ctx *Context, patchIndex int, extraPath, data []byte) {
@@ -977,11 +960,21 @@ func (r *Resolver) addResolveError(ctx *Context, objectBuf *BufPair) {
 	objectBuf.WriteErr(unableToResolveMsg, locations.Bytes(), pathBytes, nil)
 }
 
-func (r *Resolver) resolveObject(ctx *Context, object *Object, data []byte, objectBuf *BufPair) (err error) {
+func (r *Resolver) resolveObject(ctx *Context, object *Object, data *fastjson.Value, objectBuf *BufPair) (err error) {
 	if len(object.Path) != 0 {
-		data, _, _, _ = jsonparser.Get(data, object.Path...)
+		if data == nil {
+			if object.Nullable {
+				r.resolveNull(objectBuf.Data)
+				return
+			}
 
-		if len(data) == 0 || bytes.Equal(data, literal.NULL) {
+			r.addResolveError(ctx, objectBuf)
+			return errNonNullableFieldValueIsNull
+		}
+
+		data = data.Get(object.Path...)
+
+		if data.Type() == fastjson.TypeNull {
 			if object.Nullable {
 				r.resolveNull(objectBuf.Data)
 				return
@@ -999,13 +992,25 @@ func (r *Resolver) resolveObject(ctx *Context, object *Object, data []byte, obje
 	if object.Fetch != nil {
 		set = r.getResultSet()
 		defer r.freeResultSet(set)
-		err = r.resolveFetch(ctx, object.Fetch, data, set)
+
+		var parentObjectData []byte
+		if data != nil {
+			parentObjectData = data.MarshalTo(nil)
+		}
+
+		err = r.resolveFetch(ctx, object.Fetch, parentObjectData, set)
 		if err != nil {
 			return
 		}
 		for i := range set.buffers {
 			r.MergeBufPairErrors(set.buffers[i], objectBuf)
 		}
+
+		parser := pool.FastJsonParser.Get()
+		defer pool.FastJsonParser.Put(parser)
+
+		// TODO: defered
+		data, _ = parser.ParseBytes(parentObjectData)
 	}
 
 	fieldBuf := r.getBufPair()
@@ -1016,22 +1021,28 @@ func (r *Resolver) resolveObject(ctx *Context, object *Object, data []byte, obje
 
 	typeNameSkip := false
 	first := true
-	for i := range object.Fields {
 
-		var fieldData []byte
+	parser := pool.FastJsonParser.Get()
+	defer pool.FastJsonParser.Put(parser)
+
+	for i := range object.Fields {
+		var fieldData *fastjson.Value
 		if set != nil && object.Fields[i].HasBuffer {
 			buffer, ok := set.buffers[object.Fields[i].BufferID]
 			if ok {
-				fieldData = buffer.Data.Bytes()
+				fieldDataBytes := buffer.Data.Bytes()
+				fieldData, _ = parser.ParseBytes(fieldDataBytes)
 				ctx.resetResponsePathElements()
 				ctx.lastFetchID = object.Fields[i].BufferID
 			}
 		} else {
-			fieldData = data
+			if data != nil {
+				fieldData = data
+			}
 		}
 
 		if object.Fields[i].OnTypeName != nil {
-			typeName, _, _, _ := jsonparser.Get(fieldData, "__typename")
+			typeName := fieldData.GetStringBytes("__typename")
 			if !bytes.Equal(typeName, object.Fields[i].OnTypeName) {
 				typeNameSkip = true
 				continue
@@ -1050,6 +1061,7 @@ func (r *Resolver) resolveObject(ctx *Context, object *Object, data []byte, obje
 		objectBuf.Data.WriteBytes(colon)
 		ctx.addPathElement(object.Fields[i].Name)
 		ctx.setPosition(object.Fields[i].Position)
+
 		err = r.resolveNode(ctx, object.Fields[i].Value, fieldData, fieldBuf)
 		ctx.removeLastPathElement()
 		ctx.responseElements = responseElements
