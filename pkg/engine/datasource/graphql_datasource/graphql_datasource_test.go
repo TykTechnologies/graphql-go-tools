@@ -2918,7 +2918,7 @@ func runTestOnTestDefinition(operation, operationName string, expectedPlan plan.
 	return RunTest(testDefinition, operation, operationName, expectedPlan, config, extraChecks...)
 }
 
-func BenchmarkFederationBatching(b *testing.B) {
+func BenchmarkFederationBatchingMaster(b *testing.B) {
 
 	userService := FakeDataSource(`{"data":{"me": {"id": "1234","username": "Me","__typename": "User"}}}`)
 
