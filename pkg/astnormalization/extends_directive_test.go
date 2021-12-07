@@ -10,7 +10,7 @@ func TestExtendsDirective(t *testing.T) {
 		}
 		`, `
 		extend type User { field: String! }
-		`, registerNormalizeFunc(extendsDirective))
+		`, extendsDirective)
 	})
 	t.Run("delete extends directive", func(_ *testing.T) {
 		runManyOnDefinition(`
@@ -19,6 +19,6 @@ func TestExtendsDirective(t *testing.T) {
 		}
 		`, `
 		extend type User @directiv2 { field: String! }
-		`, registerNormalizeFunc(extendsDirective))
+		`, extendsDirective)
 	})
 }

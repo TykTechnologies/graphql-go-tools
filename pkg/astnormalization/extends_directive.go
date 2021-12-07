@@ -50,6 +50,17 @@ func (v *extendsDirectiveVisitor) EnterObjectTypeDefinition(ref int) {
 			v.document.UpdateRootNode(i, newRef, ast.NodeKindObjectTypeExtension)
 			// only remove @extends if the nodes was updated
 			v.document.ObjectTypeExtensions[newRef].Directives.RemoveDirectiveByName(v.document, "extends")
+			// update index
+			oldIndexNode := ast.Node{
+				Kind: ast.NodeKindObjectTypeDefinition,
+				Ref:  ref,
+			}
+
+			v.document.Index.ReplaceNode(v.document.ObjectTypeExtensionNameBytes(newRef), oldIndexNode, ast.Node{
+				Kind: ast.NodeKindObjectTypeExtension,
+				Ref:  newRef,
+			})
+
 			break
 		}
 	}
