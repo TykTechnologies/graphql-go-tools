@@ -70,7 +70,7 @@ func TestMergeSDLs(t *testing.T) {
 
 	t.Run("should merge all sdls successfully", runMergeTest(
 		federatedSchema,
-		accountSchema, productSchema, reviewSchema, likeSchema, disLikeSchema,
+		accountSchema, productSchema, reviewSchema, likeSchema, disLikeSchema, paymentSchema, onlinePaymentSchema, classicPaymentSchema,
 	))
 
 	t.Run("should merge product and review sdl and leave `extend type User` in the schema", runMergeTest(
@@ -145,6 +145,21 @@ const (
 			isDislike: Boolean!
 		}
 	`
+	paymentSchema = `
+		interface PaymentType {
+			name: String!
+		}
+	`
+	onlinePaymentSchema = `
+		interface PaymentType @extends {
+			email: String!
+		}
+	`
+	classicPaymentSchema = `
+		extend interface PaymentType {
+			number: String!
+		}
+	`
 	extendsDirectivesSchema = `
 		type Comment {
 			body: String!
@@ -154,6 +169,10 @@ const (
 		type User @extends @key(fields: "id") {
 			id: ID! @external
 			comments: [Comment]
+		}
+
+		interface PaymentType @extends {
+			name: String!
 		}
 	`
 	federatedSchema = `
@@ -191,6 +210,12 @@ const (
 			productId: ID!
 			userId: ID!
 			isDislike: Boolean!
+		}
+
+		interface PaymentType {
+			name: String!
+			email: String!
+			number: String!
 		}
 	`
 
@@ -241,6 +266,10 @@ const (
 		extend type User @key(fields: "id") {
 			id: ID! @external
 			comments: [Comment]
+		}
+
+		extend interface PaymentType {
+			name: String!
 		}
 	`
 )
