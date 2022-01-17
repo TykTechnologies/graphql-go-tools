@@ -114,16 +114,26 @@ func (r *Request) IsIntrospectionQuery() (result bool, err error) {
 		return false, report
 	}
 
-	if len(r.document.RootNodes) == 0 {
+	const undefinedRef = -1
+	var operationDefinitionRef = undefinedRef
+
+	for i := 0; i < len(r.document.RootNodes); i++ {
+		if r.document.RootNodes[i].Kind == ast.NodeKindOperationDefinition {
+			ref := r.document.RootNodes[i].Ref
+			name := r.document.OperationDefinitionNameString(ref)
+
+			if r.OperationName == name {
+				operationDefinitionRef = ref
+				break
+			}
+		}
+	}
+
+	if operationDefinitionRef == undefinedRef {
 		return
 	}
 
-	rootNode := r.document.RootNodes[0]
-	if rootNode.Kind != ast.NodeKindOperationDefinition {
-		return
-	}
-
-	operationDef := r.document.OperationDefinitions[rootNode.Ref]
+	operationDef := r.document.OperationDefinitions[operationDefinitionRef]
 	if operationDef.OperationType != ast.OperationTypeQuery {
 		return
 	}
@@ -136,18 +146,22 @@ func (r *Request) IsIntrospectionQuery() (result bool, err error) {
 		return
 	}
 
-	selection := r.document.Selections[selectionSet.SelectionRefs[0]]
-	if selection.Kind != ast.SelectionKindField {
-		return
+	for i := 0; i < len(selectionSet.SelectionRefs); i++ {
+		selection := r.document.Selections[selectionSet.SelectionRefs[i]]
+		if selection.Kind != ast.SelectionKindField {
+			continue
+		}
+
+		fieldName := r.document.FieldNameUnsafeString(selection.Ref)
+		switch fieldName {
+		case schemaIntrospectionFieldName, typeIntrospectionFieldName:
+			continue
+		default:
+			return
+		}
 	}
 
-	fieldName := r.document.FieldNameUnsafeString(selection.Ref)
-	switch fieldName {
-	case schemaIntrospectionFieldName, typeIntrospectionFieldName:
-		return true, nil
-	}
-
-	return false, nil
+	return true, nil
 }
 
 func (r *Request) OperationType() (OperationType, error) {
