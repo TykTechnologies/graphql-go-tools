@@ -114,8 +114,7 @@ func (r *Request) IsIntrospectionQuery() (result bool, err error) {
 		return false, report
 	}
 
-	const undefinedRef = -1
-	var operationDefinitionRef = undefinedRef
+	var operationDefinitionRef = ast.InvalidRef
 
 	for i := 0; i < len(r.document.RootNodes); i++ {
 		if r.document.RootNodes[i].Kind == ast.NodeKindOperationDefinition {
@@ -129,7 +128,7 @@ func (r *Request) IsIntrospectionQuery() (result bool, err error) {
 		}
 	}
 
-	if operationDefinitionRef == undefinedRef {
+	if operationDefinitionRef == ast.InvalidRef {
 		return
 	}
 
