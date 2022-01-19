@@ -115,10 +115,21 @@ func (r *Request) IsIntrospectionQuery() (result bool, err error) {
 	}
 
 	var operationDefinitionRef = ast.InvalidRef
+	var possibleOperationDefinitionRefs = make([]int, 0)
 
 	for i := 0; i < len(r.document.RootNodes); i++ {
 		if r.document.RootNodes[i].Kind == ast.NodeKindOperationDefinition {
-			ref := r.document.RootNodes[i].Ref
+			possibleOperationDefinitionRefs = append(possibleOperationDefinitionRefs, r.document.RootNodes[i].Ref)
+		}
+	}
+
+	if len(possibleOperationDefinitionRefs) == 0 {
+		return
+	} else if len(possibleOperationDefinitionRefs) == 1 {
+		operationDefinitionRef = possibleOperationDefinitionRefs[0]
+	} else {
+		for i := 0; i < len(possibleOperationDefinitionRefs); i++ {
+			ref := possibleOperationDefinitionRefs[i]
 			name := r.document.OperationDefinitionNameString(ref)
 
 			if r.OperationName == name {
