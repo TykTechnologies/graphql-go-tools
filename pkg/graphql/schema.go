@@ -313,7 +313,7 @@ func (s *Schema) findInterfaceImplementations(node ast.Node, childNodes *[]TypeF
 		return
 	}
 
-	implementingNodes := s.document.InterfaceTypeDefinitionImplementingRootNodes(node.Ref)
+	implementingNodes := s.document.InterfaceTypeDefinitionImplementedByRootNodes(node.Ref)
 	for i := 0; i < len(implementingNodes); i++ {
 		var typeName string
 		switch implementingNodes[i].Kind {

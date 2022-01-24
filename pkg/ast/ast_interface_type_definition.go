@@ -53,7 +53,8 @@ func (d *Document) InterfaceTypeDefinitionDescriptionString(ref int) string {
 	return unsafebytes.BytesToString(d.InterfaceTypeDefinitionDescriptionBytes(ref))
 }
 
-func (d *Document) InterfaceTypeDefinitionImplementingRootNodes(ref int) []Node {
+// InterfaceTypeDefinitionImplementedByRootNodes will return all RootNodes that implement the given interface type (by ref)
+func (d *Document) InterfaceTypeDefinitionImplementedByRootNodes(ref int) []Node {
 	interfaceTypeName := d.InterfaceTypeDefinitionNameBytes(ref)
 	implementingRootNodes := make(map[Node]bool)
 	for i := 0; i < len(d.RootNodes); i++ {
@@ -61,24 +62,24 @@ func (d *Document) InterfaceTypeDefinitionImplementingRootNodes(ref int) []Node 
 			continue
 		}
 
-		var refs []int
+		var rootNodeInterfaceRefs []int
 		switch d.RootNodes[i].Kind {
 		case NodeKindObjectTypeDefinition:
 			if len(d.ObjectTypeDefinitions[d.RootNodes[i].Ref].ImplementsInterfaces.Refs) == 0 {
 				continue
 			}
-			refs = d.ObjectTypeDefinitions[d.RootNodes[i].Ref].ImplementsInterfaces.Refs
+			rootNodeInterfaceRefs = d.ObjectTypeDefinitions[d.RootNodes[i].Ref].ImplementsInterfaces.Refs
 		case NodeKindInterfaceTypeDefinition:
 			if len(d.InterfaceTypeDefinitions[d.RootNodes[i].Ref].ImplementsInterfaces.Refs) == 0 {
 				continue
 			}
-			refs = d.InterfaceTypeDefinitions[d.RootNodes[i].Ref].ImplementsInterfaces.Refs
+			rootNodeInterfaceRefs = d.InterfaceTypeDefinitions[d.RootNodes[i].Ref].ImplementsInterfaces.Refs
 		default:
 			continue
 		}
 
-		for j := 0; j < len(refs); j++ {
-			implementedInterfaceTypeName := d.TypeNameBytes(refs[j])
+		for j := 0; j < len(rootNodeInterfaceRefs); j++ {
+			implementedInterfaceTypeName := d.TypeNameBytes(rootNodeInterfaceRefs[j])
 			if !interfaceTypeName.Equals(implementedInterfaceTypeName) {
 				continue
 			}
