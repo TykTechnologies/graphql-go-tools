@@ -168,6 +168,7 @@ func (o *OperationNormalizer) setupOperationWalkers() {
 	}
 
 	other := astvisitor.NewWalker(48)
+	inputCoercionForList(&other)
 	removeSelfAliasing(&other)
 	mergeInlineFragments(&other)
 	mergeFieldSelections(&other)
