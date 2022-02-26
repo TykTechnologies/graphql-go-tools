@@ -10,6 +10,13 @@ import (
 	"github.com/jensneuse/graphql-go-tools/pkg/pool"
 )
 
+type inflightFetch struct {
+	waitLoad chan struct{}
+	waitFree sync.WaitGroup
+	err      error
+	bufPair  BufPair
+}
+
 type Fetcher struct {
 	EnableSingleFlightLoader bool
 	hash64Pool               sync.Pool
@@ -47,29 +54,51 @@ func NewFetcher(enableSingleFlightLoader bool) *Fetcher {
 	}
 }
 
-func (f *Fetcher) Fetch(ctx *Context, fetch *SingleFetch, preparedInput *fastbuffer.FastBuffer, buf *BufPair) (err error) {
-	dataBuf := pool.BytesBuffer.Get()
-	defer pool.BytesBuffer.Put(dataBuf)
-
+func (f *Fetcher) Fetch(ctx *Context, fetch *SingleFetch, preparedInput *fastbuffer.FastBuffer, responseBuf *BufPair) (err error) {
 	if ctx.beforeFetchHook != nil {
 		ctx.beforeFetchHook.OnBeforeFetch(f.hookCtx(ctx), preparedInput.Bytes())
 	}
 
 	if !f.EnableSingleFlightLoader || fetch.DisallowSingleFlight {
-		err = fetch.DataSource.Load(ctx.Context, preparedInput.Bytes(), dataBuf)
-		extractResponse(dataBuf.Bytes(), buf, fetch.ProcessResponseConfig)
-
-		if ctx.afterFetchHook != nil {
-			if buf.HasData() {
-				ctx.afterFetchHook.OnData(f.hookCtx(ctx), buf.Data.Bytes(), false)
-			}
-			if buf.HasErrors() {
-				ctx.afterFetchHook.OnError(f.hookCtx(ctx), buf.Errors.Bytes(), false)
-			}
-		}
-		return
+		return f.handleFetch(ctx, fetch, preparedInput, responseBuf)
 	}
 
+	return f.handleSingleFlight(ctx, fetch, preparedInput, responseBuf)
+}
+
+func (f *Fetcher) handleAfterFetchHook(ctx *Context, buf *BufPair, singleFlight bool) {
+	if ctx.afterFetchHook != nil {
+		if buf.HasData() {
+			ctx.afterFetchHook.OnData(f.hookCtx(ctx), buf.Data.Bytes(), singleFlight)
+		}
+		if buf.HasErrors() {
+			ctx.afterFetchHook.OnError(f.hookCtx(ctx), buf.Errors.Bytes(), singleFlight)
+		}
+	}
+}
+
+func (f *Fetcher) handleFetch(ctx *Context, fetch *SingleFetch, preparedInput *fastbuffer.FastBuffer, responseBuf *BufPair) (err error) {
+	dataBuf := pool.BytesBuffer.Get()
+	defer pool.BytesBuffer.Put(dataBuf)
+
+	err = fetch.DataSource.Load(ctx.Context, preparedInput.Bytes(), dataBuf)
+	extractResponse(dataBuf.Bytes(), responseBuf, fetch.ProcessResponseConfig)
+
+	f.handleAfterFetchHook(ctx, responseBuf, false)
+
+	return err
+}
+
+func (f *Fetcher) writeSingleFlightResult(inflightBuf, responseBuf *BufPair) {
+	if inflightBuf.HasData() {
+		responseBuf.Data.WriteBytes(inflightBuf.Data.Bytes())
+	}
+	if inflightBuf.HasErrors() {
+		responseBuf.Errors.WriteBytes(inflightBuf.Errors.Bytes())
+	}
+}
+
+func (f *Fetcher) handleSingleFlight(ctx *Context, fetch *SingleFetch, preparedInput *fastbuffer.FastBuffer, responseBuf *BufPair) (err error) {
 	hash64 := f.getHash64()
 	_, _ = hash64.Write(preparedInput.Bytes())
 	fetchID := hash64.Sum64()
@@ -81,47 +110,28 @@ func (f *Fetcher) Fetch(ctx *Context, fetch *SingleFetch, preparedInput *fastbuf
 		inflight.waitFree.Add(1)
 		defer inflight.waitFree.Done()
 		f.inflightFetchMu.Unlock()
-		inflight.waitLoad.Wait()
-		if inflight.bufPair.HasData() {
-			if ctx.afterFetchHook != nil {
-				ctx.afterFetchHook.OnData(f.hookCtx(ctx), inflight.bufPair.Data.Bytes(), true)
-			}
-			buf.Data.WriteBytes(inflight.bufPair.Data.Bytes())
+
+		select {
+		case <-ctx.Context.Done():
+			return ctx.Context.Err()
+		case <-inflight.waitLoad:
+			break
 		}
-		if inflight.bufPair.HasErrors() {
-			if ctx.afterFetchHook != nil {
-				ctx.afterFetchHook.OnError(f.hookCtx(ctx), inflight.bufPair.Errors.Bytes(), true)
-			}
-			buf.Errors.WriteBytes(inflight.bufPair.Errors.Bytes())
-		}
+
+		f.handleAfterFetchHook(ctx, &inflight.bufPair, true)
+		f.writeSingleFlightResult(&inflight.bufPair, responseBuf)
 		return inflight.err
 	}
 
 	inflight = f.getInflightFetch()
-	inflight.waitLoad.Add(1)
+	inflight.waitLoad = make(chan struct{})
 	f.inflightFetches[fetchID] = inflight
-
 	f.inflightFetchMu.Unlock()
 
-	err = fetch.DataSource.Load(ctx.Context, preparedInput.Bytes(), dataBuf)
-	extractResponse(dataBuf.Bytes(), &inflight.bufPair, fetch.ProcessResponseConfig)
+	err = f.handleFetch(ctx, fetch, preparedInput, &inflight.bufPair)
 	inflight.err = err
-
-	if inflight.bufPair.HasData() {
-		if ctx.afterFetchHook != nil {
-			ctx.afterFetchHook.OnData(f.hookCtx(ctx), inflight.bufPair.Data.Bytes(), false)
-		}
-		buf.Data.WriteBytes(inflight.bufPair.Data.Bytes())
-	}
-
-	if inflight.bufPair.HasErrors() {
-		if ctx.afterFetchHook != nil {
-			ctx.afterFetchHook.OnError(f.hookCtx(ctx), inflight.bufPair.Errors.Bytes(), true)
-		}
-		buf.Errors.WriteBytes(inflight.bufPair.Errors.Bytes())
-	}
-
-	inflight.waitLoad.Done()
+	f.writeSingleFlightResult(&inflight.bufPair, responseBuf)
+	close(inflight.waitLoad)
 
 	f.inflightFetchMu.Lock()
 	delete(f.inflightFetches, fetchID)

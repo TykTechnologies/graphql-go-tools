@@ -15,16 +15,30 @@ import (
 )
 
 const (
-	PATH        = "path"
-	URL         = "url"
-	BASEURL     = "base_url"
-	METHOD      = "method"
-	BODY        = "body"
-	HEADER      = "header"
-	QUERYPARAMS = "query_params"
+	PATH                    = "path"
+	URL                     = "url"
+	BASEURL                 = "base_url"
+	METHOD                  = "method"
+	BODY                    = "body"
+	HEADER                  = "header"
+	QUERYPARAMS             = "query_params"
+	SHOWSTATUS              = "show_status"
+	SHOWRESPONSEINEXTENSION = "show_response_in_extension"
 
 	SCHEME = "scheme"
 	HOST   = "host"
+)
+
+var IntFlagBytes = []byte("1")
+
+const (
+	RequestInputUrlKeyIdx                     = 0
+	RequestInputMethodKeyIdx                  = 1
+	RequestInputBodyKeyIdx                    = 2
+	RequestInputHeadersKeyIdx                 = 3
+	RequestInputQueryParamsKeyIdx             = 4
+	RequestInputShowStatusIdx                 = 5
+	RequestInputShowResponseAsExtensionKeyIdx = 6
 )
 
 var (
@@ -34,6 +48,8 @@ var (
 		{BODY},
 		{HEADER},
 		{QUERYPARAMS},
+		{SHOWSTATUS},
+		{SHOWRESPONSEINEXTENSION},
 	}
 	subscriptionInputPaths = [][]string{
 		{URL},
@@ -93,6 +109,16 @@ func SetInputURL(input, url []byte) []byte {
 		return input
 	}
 	out, _ := sjson.SetRawBytes(input, URL, wrapQuotesIfString(url))
+	return out
+}
+
+func SetInputShowStatus(input []byte) []byte {
+	out, _ := sjson.SetRawBytes(input, SHOWSTATUS, IntFlagBytes)
+	return out
+}
+
+func SetInputShowResponseInExtensions(input []byte) []byte {
+	out, _ := sjson.SetRawBytes(input, SHOWRESPONSEINEXTENSION, IntFlagBytes)
 	return out
 }
 
@@ -161,19 +187,23 @@ func SetInputPath(input, path []byte) []byte {
 	return out
 }
 
-func requestInputParams(input []byte) (url, method, body, headers, queryParams []byte) {
+func RequestInputParams(input []byte) (url, method, body, headers, queryParams []byte, showStatus, showResponseInExtension bool) {
 	jsonparser.EachKey(input, func(i int, bytes []byte, valueType jsonparser.ValueType, err error) {
 		switch i {
-		case 0:
+		case RequestInputUrlKeyIdx:
 			url = bytes
-		case 1:
+		case RequestInputMethodKeyIdx:
 			method = bytes
-		case 2:
+		case RequestInputBodyKeyIdx:
 			body = bytes
-		case 3:
+		case RequestInputHeadersKeyIdx:
 			headers = bytes
-		case 4:
+		case RequestInputQueryParamsKeyIdx:
 			queryParams = bytes
+		case RequestInputShowStatusIdx:
+			showStatus = true
+		case RequestInputShowResponseAsExtensionKeyIdx:
+			showResponseInExtension = true
 		}
 	}, inputPaths...)
 	return

@@ -34,12 +34,17 @@ var (
 )
 
 func Do(client *http.Client, ctx context.Context, requestInput []byte, out io.Writer) (err error) {
+	_, err = DoWithStatus(client, ctx, requestInput, out)
+	return err
+}
 
-	url, method, body, headers, queryParams := requestInputParams(requestInput)
+func DoWithStatus(client *http.Client, ctx context.Context, requestInput []byte, out io.Writer) (status int, err error) {
+
+	url, method, body, headers, queryParams, _, _ := RequestInputParams(requestInput)
 
 	request, err := http.NewRequestWithContext(ctx, string(method), string(url), bytes.NewReader(body))
 	if err != nil {
-		return err
+		return
 	}
 
 	if headers != nil {
@@ -56,7 +61,7 @@ func Do(client *http.Client, ctx context.Context, requestInput []byte, out io.Wr
 			return err
 		})
 		if err != nil {
-			return err
+			return
 		}
 	}
 
@@ -85,7 +90,7 @@ func Do(client *http.Client, ctx context.Context, requestInput []byte, out io.Wr
 			}
 		})
 		if err != nil {
-			return err
+			return
 		}
 		request.URL.RawQuery = query.Encode()
 	}
@@ -95,16 +100,18 @@ func Do(client *http.Client, ctx context.Context, requestInput []byte, out io.Wr
 
 	response, err := client.Do(request)
 	if err != nil {
-		return err
+		return
 	}
 	defer response.Body.Close()
 
 	respReader, err := respBodyReader(request, response)
 	if err != nil {
-		return err
+		return
 	}
 
 	_, err = io.Copy(out, respReader)
+	status = response.StatusCode
+
 	return
 }
 

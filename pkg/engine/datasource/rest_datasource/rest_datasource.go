@@ -9,10 +9,14 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/tidwall/sjson"
+
 	"github.com/jensneuse/graphql-go-tools/pkg/ast"
 	"github.com/jensneuse/graphql-go-tools/pkg/engine/datasource/httpclient"
 	"github.com/jensneuse/graphql-go-tools/pkg/engine/plan"
+	"github.com/jensneuse/graphql-go-tools/pkg/engine/resolve"
 	"github.com/jensneuse/graphql-go-tools/pkg/lexer/literal"
+	"github.com/jensneuse/graphql-go-tools/pkg/pool"
 )
 
 type Planner struct {
@@ -49,9 +53,15 @@ func (f *Factory) Planner(ctx context.Context) plan.DataSourcePlanner {
 	}
 }
 
+type UnsuccesfullResponseConfig struct {
+	ShowStatus               bool
+	ShowResponseInExtensions bool
+}
+
 type Configuration struct {
-	Fetch        FetchConfiguration
-	Subscription SubscriptionConfiguration
+	Fetch                FetchConfiguration
+	Subscription         SubscriptionConfiguration
+	UnsuccesfullResponse UnsuccesfullResponseConfig
 }
 
 func ConfigJSON(config Configuration) json.RawMessage {
@@ -94,6 +104,14 @@ func (p *Planner) configureInput() []byte {
 	input = httpclient.SetInputMethod(input, []byte(p.config.Fetch.Method))
 	input = httpclient.SetInputBody(input, []byte(p.config.Fetch.Body))
 
+	if p.config.UnsuccesfullResponse.ShowStatus {
+		input = httpclient.SetInputShowStatus(input)
+	}
+
+	if p.config.UnsuccesfullResponse.ShowResponseInExtensions {
+		input = httpclient.SetInputShowResponseInExtensions(input)
+	}
+
 	header, err := json.Marshal(p.config.Fetch.Header)
 	if err == nil && len(header) != 0 && !bytes.Equal(header, literal.NULL) {
 		input = httpclient.SetInputHeader(input, header)
@@ -115,6 +133,9 @@ func (p *Planner) ConfigureFetch() plan.FetchConfiguration {
 			client: p.client,
 		},
 		DisallowSingleFlight: p.config.Fetch.Method != "GET",
+		ProcessResponseConfig: resolve.ProcessResponseConfig{
+			ExtractGraphqlResponse: true, // have to be enabled as we are wrapping response into data and errors
+		},
 	}
 }
 
@@ -167,5 +188,44 @@ type Source struct {
 }
 
 func (s *Source) Load(ctx context.Context, input []byte, w io.Writer) (err error) {
-	return httpclient.Do(s.client, ctx, input, w)
+	var response []byte
+
+	_, _, _, _, _, showStatus, showResponseInExtension := httpclient.RequestInputParams(input)
+
+	responseBuf := pool.BytesBuffer.Get()
+	defer pool.BytesBuffer.Put(responseBuf)
+
+	bufPair := resolve.GetBufPair()
+	defer resolve.FreeBufPair(bufPair)
+
+	status, err := httpclient.DoWithStatus(s.client, ctx, input, responseBuf)
+
+	if status != http.StatusOK {
+		var extensions []byte
+
+		if showStatus {
+			extensions, _ = sjson.SetBytes(extensions, "CODE", status)
+		}
+
+		if showResponseInExtension {
+			extensions, _ = sjson.SetRawBytes(extensions, "UPSTREAM_RESPONSE", responseBuf.Bytes())
+		}
+
+		bufPair.WriteErr(nil, nil, nil, extensions)
+
+	} else {
+		bufPair.Data.WriteBytes(responseBuf.Bytes())
+	}
+
+	if bufPair.HasData() {
+		response, _ = sjson.SetRawBytes(response, "data", bufPair.Data.Bytes())
+	}
+
+	if bufPair.HasErrors() {
+		response, _ = sjson.SetRawBytes(response, "errors", bufPair.Errors.Bytes())
+	}
+
+	_, err = w.Write(response)
+
+	return
 }
