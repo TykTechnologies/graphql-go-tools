@@ -42,8 +42,6 @@ func TestExtendUnionType(t *testing.T) {
 		`)
 	})
 
-	// When federating, duplicate value types must be identical or the federation will fail.
-	// Consequently, when extending, all duplicate value types should also be extended.
 	t.Run("Duplicate unions are each extended", func(t *testing.T) {
 		runAndExpectError(t, newExtendUnionTypeDefinition(), `
 			type Dog {

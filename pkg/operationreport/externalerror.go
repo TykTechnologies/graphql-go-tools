@@ -280,7 +280,7 @@ func ErrSharedTypesMustNotBeExtended(typeName string) (err ExternalError) {
 }
 
 func ErrFieldsValuesOrMembersMustBeUnique(parentType, childType, parentName, childName string) (err ExternalError) {
-	err.Message = fmt.Sprintf("the %s named '%s' must have unique %ss, but the %s named '%s' is duplicated", parentType, parentName, childType, childType, childName)
+	err.Message = fmt.Sprintf("the %[1]s named '%[2]s' must have unique %[3]ss, but the %[3]s named '%[4]s' is duplicated", parentType, parentName, childType, childName)
 	return err
 }
 
