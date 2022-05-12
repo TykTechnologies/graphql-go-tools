@@ -37,18 +37,35 @@ func (d *Document) UnionTypeExtensionHasDirectives(ref int) bool {
 	return d.UnionTypeExtensions[ref].HasDirectives
 }
 
-func (d *Document) ExtendUnionTypeDefinitionByUnionTypeExtension(unionTypeDefinitionRef, unionTypeExtensionRef int) {
+func (d *Document) ExtendUnionTypeDefinitionByUnionTypeExtension(unionTypeDefinitionRef, unionTypeExtensionRef int) (string, string) {
 	if d.UnionTypeExtensionHasDirectives(unionTypeExtensionRef) {
 		d.UnionTypeDefinitions[unionTypeDefinitionRef].Directives.Refs = append(d.UnionTypeDefinitions[unionTypeDefinitionRef].Directives.Refs, d.UnionTypeExtensions[unionTypeExtensionRef].Directives.Refs...)
 		d.UnionTypeDefinitions[unionTypeDefinitionRef].HasDirectives = true
 	}
 
 	if d.UnionTypeExtensionHasUnionMemberTypes(unionTypeExtensionRef) {
-		d.UnionTypeDefinitions[unionTypeDefinitionRef].UnionMemberTypes.Refs = append(d.UnionTypeDefinitions[unionTypeDefinitionRef].UnionMemberTypes.Refs, d.UnionTypeExtensions[unionTypeExtensionRef].UnionMemberTypes.Refs...)
-		d.UnionTypeDefinitions[unionTypeDefinitionRef].HasUnionMemberTypes = true
+		memberSet := make(map[string]bool)
+		union := &d.UnionTypeDefinitions[unionTypeDefinitionRef]
+		for _, memberRef := range union.UnionMemberTypes.Refs {
+			name := d.TypeNameString(memberRef)
+			if memberSet[name] {
+				return d.UnionTypeDefinitionNameString(unionTypeDefinitionRef), name
+			}
+			memberSet[name] = true
+		}
+		for _, memberRef := range d.UnionTypeExtensions[unionTypeExtensionRef].UnionMemberTypes.Refs {
+			name := d.TypeNameString(memberRef)
+			if memberSet[name] {
+				return d.UnionTypeDefinitionNameString(unionTypeDefinitionRef), name
+			}
+			memberSet[name] = true
+			union.UnionMemberTypes.Refs = append(union.UnionMemberTypes.Refs, memberRef)
+		}
+		union.HasUnionMemberTypes = true
 	}
 
 	d.Index.MergedTypeExtensions = append(d.Index.MergedTypeExtensions, Node{Ref: unionTypeExtensionRef, Kind: NodeKindUnionTypeExtension})
+	return "", ""
 }
 
 func (d *Document) ImportAndExtendUnionTypeDefinitionByUnionTypeExtension(unionTypeExtensionRef int) {

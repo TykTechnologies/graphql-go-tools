@@ -273,3 +273,18 @@ func ErrEntitiesMustNotBeSharedTypes(typeName string) (err ExternalError) {
 	err.Message = fmt.Sprintf("entities must not be shared types, but the entity named '%s' is duplicated in other subgraph(s)", typeName)
 	return err
 }
+
+func ErrSharedTypesMustNotBeExtended(typeName string) (err ExternalError) {
+	err.Message = fmt.Sprintf("the type named '%s' cannot be extended because it is a shared type", typeName)
+	return err
+}
+
+func ErrFieldsValuesOrMembersMustBeUnique(parentType, childType, parentName, childName string) (err ExternalError) {
+	err.Message = fmt.Sprintf("the %s named '%s' must have unique %ss, but the %s named '%s' is duplicated", parentType, parentName, childType, childType, childName)
+	return err
+}
+
+func ErrUnresolvedExtensionOrphansMustBeUnique(extensionName string) (err ExternalError) {
+	err.Message = fmt.Sprintf("the unresolved extension orphan named '%s' must be unique for promotion to a type", extensionName)
+	return err
+}

@@ -52,7 +52,11 @@ var runAndExpectError = func(t *testing.T, visitor Visitor, operation, expectedE
 
 	var got string
 	if report.HasErrors() {
-		got = report.Error()
+		if report.InternalErrors == nil {
+			got = report.ExternalErrors[0].Message
+		} else {
+			got = report.InternalErrors[0].Error()
+		}
 	}
 
 	assert.Equal(t, expectedError, got)
@@ -704,4 +708,8 @@ func NonIdenticalSharedTypeMergeErrorMessage(typeName string) string {
 
 func DuplicateEntityMergeErrorMessage(typeName string) string {
 	return fmt.Sprintf("merge ast: walk: external: entities must not be shared types, but the entity named '%s' is duplicated in other subgraph(s), locations: [], path: []", typeName)
+}
+
+func SharedTypeExtensionErrorMessage(typeName string) string {
+	return fmt.Sprintf("the type named '%s' cannot be extended because it is a shared type", typeName)
 }

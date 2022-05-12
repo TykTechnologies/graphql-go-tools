@@ -1,6 +1,9 @@
 package astnormalization
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestExtendUnionType(t *testing.T) {
 	t.Run("extend union type by directive", func(t *testing.T) {
@@ -59,4 +62,15 @@ func TestExtendUnionType(t *testing.T) {
 					union Mammal @deprecated(reason: "some reason") = Dog
 					`)
 	})
+
+	t.Run("Extending a union with an existing member returns an error", func(t *testing.T) {
+		runAndExpectError(t, extendUnionTypeDefinition, testDefinition, `
+			union CatOrDog = Cat | Dog
+			extend union CatOrDog = Cat
+		`, DuplicateUnionMemberErrorMessage("CatOrDog", "Cat"))
+	})
+}
+
+func DuplicateUnionMemberErrorMessage(unionName, memberName string) string {
+	return fmt.Sprintf("the union named '%s' must have unique members, but the member named '%s' is duplicated", unionName, memberName)
 }

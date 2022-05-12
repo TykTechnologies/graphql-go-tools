@@ -3,6 +3,7 @@ package astnormalization
 import (
 	"github.com/jensneuse/graphql-go-tools/pkg/ast"
 	"github.com/jensneuse/graphql-go-tools/pkg/astvisitor"
+	"github.com/jensneuse/graphql-go-tools/pkg/operationreport"
 )
 
 func extendUnionTypeDefinition(walker *astvisitor.Walker) {
@@ -42,7 +43,10 @@ func (e *extendUnionTypeDefinitionVisitor) EnterUnionTypeExtension(ref int) {
 		if nodes[i].Kind != ast.NodeKindUnionTypeDefinition {
 			continue
 		}
-		e.operation.ExtendUnionTypeDefinitionByUnionTypeExtension(nodes[i].Ref, ref)
+		unionName, memberName := e.operation.ExtendUnionTypeDefinitionByUnionTypeExtension(nodes[i].Ref, ref)
+		if unionName != "" {
+			e.Walker.StopWithExternalErr(operationreport.ErrFieldsValuesOrMembersMustBeUnique("union", "member", unionName, memberName))
+		}
 		return
 	}
 
