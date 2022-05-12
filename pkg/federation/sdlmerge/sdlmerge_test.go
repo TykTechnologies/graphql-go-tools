@@ -42,7 +42,6 @@ var run = func(t *testing.T, visitor Visitor, operation, expectedOutput string) 
 }
 
 var runAndExpectError = func(t *testing.T, visitor Visitor, operation, expectedError string) {
-
 	operationDocument := unsafeparser.ParseGraphqlDocumentString(operation)
 	report := operationreport.Report{}
 	walker := astvisitor.NewWalker(48)
@@ -111,13 +110,18 @@ func TestMergeSDLs(t *testing.T) {
 	))
 
 	t.Run("Non-identical duplicate enums should return an error", runMergeTestAndExpectError(
-		FederatingFieldlessValueTypeMergeErrorMessage("Satisfaction"),
+		NonIdenticalSharedTypeMergeErrorMessage("Satisfaction"),
 		productSchema, negativeTestingLikeSchema,
 	))
 
 	t.Run("Non-identical duplicate unions should return an error", runMergeTestAndExpectError(
-		FederatingFieldlessValueTypeMergeErrorMessage("AlphaNumeric"),
+		NonIdenticalSharedTypeMergeErrorMessage("AlphaNumeric"),
 		accountSchema, negativeTestingReviewSchema,
+	))
+
+	t.Run("Entity duplicates should return an error", runMergeTestAndExpectError(
+		DuplicateEntityMergeErrorMessage("User"),
+		accountSchema, negativeTestingAccountSchema,
 	))
 }
 
@@ -132,8 +136,33 @@ const (
 		scalar DateTime
 
 		scalar CustomScalar
-	
+
 		type User @key(fields: "id") {
+			id: ID!
+			username: String!
+			created: DateTime!
+			reputation: CustomScalar!
+		}
+
+		enum Satisfaction {
+			HAPPY,
+			NEUTRAL,
+			UNHAPPY,
+		}
+	`
+
+	negativeTestingAccountSchema = `
+		extend type Query {
+			me: User
+		}
+
+		union AlphaNumeric = Int | String | Float
+
+		scalar DateTime
+
+		scalar CustomScalar
+
+		type User {
 			id: ID!
 			username: String!
 			created: DateTime!
@@ -149,9 +178,9 @@ const (
 
 	productSchema = `
 		enum Satisfaction {
+			UNHAPPY,
 			HAPPY,
 			NEUTRAL,
-			UNHAPPY,
 		}
 
 		scalar CustomScalar
@@ -166,31 +195,59 @@ const (
 			GROCERIES,
 		}
 
+		interface ProductInfo {
+			departments: [Department!]!
+			averageSatisfaction: Satisfaction!
+		}
+
 		scalar BigInt
 		
-		type Product @key(fields: "upc") {
+		type Product implements ProductInfo @key(fields: "upc") {
 			upc: String!
 			name: String!
 			price: Int!
 			worth: BigInt!
 			reputation: CustomScalar!
+			departments: [Department!]!
+			averageSatisfaction: Satisfaction!
 		}
+
+		union AlphaNumeric = Int | String | Float
 	`
 	reviewSchema = `
 		scalar DateTime
 
-		type Review {
+		input ReviewInput {
 			body: String!
 			author: User! @provides(fields: "username")
 			product: Product!
+			updated: DateTime!
+			inputType: AlphaNumeric!
+		}
+
+		type Review {
+			id: ID!
 			created: DateTime!
+			body: String!
+			author: User! @provides(fields: "username")
+			product: Product!
+			updated: DateTime!
 			inputType: AlphaNumeric!
 		}
 		
+		type Query {
+			getReview(id: ID!): Review
+		}
+
+		type Mutation {
+			createReview(input: ReviewInput): Review
+			updateReview(id: ID!, input: ReviewInput): Review
+		}
+		
 		enum Department {
+			GROCERIES,
 			COSMETICS,
 			ELECTRONICS,
-			GROCERIES,
 		}
 
 		extend type User @key(fields: "id") {
@@ -205,8 +262,6 @@ const (
 			sales: BigInt!
 		}
 
-		union AlphaNumeric = Int | String | Float
-		
 		enum Satisfaction {
 			HAPPY,
 			NEUTRAL,
@@ -216,17 +271,46 @@ const (
 		extend type Subscription {
 			review: Review!
 		}
+
+		interface ProductInfo {
+			departments: [Department!]!
+			averageSatisfaction: Satisfaction!
+		}
 	`
 
 	negativeTestingReviewSchema = `
 		scalar DateTime
 
-		type Review {
+		input ReviewInput {
 			body: String!
 			author: User! @provides(fields: "username")
 			product: Product!
-			created: DateTime!
+			updated: DateTime!
 			inputType: AlphaNumeric!
+		}
+
+		type Review {
+			id: ID!
+			created: DateTime!
+			body: String!
+			author: User! @provides(fields: "username")
+			product: Product!
+			updated: DateTime!
+			inputType: AlphaNumeric!
+		}
+		
+		type Query {
+			getReview(id: ID!): Review
+		}
+
+		type Mutation {
+			createReview(input: ReviewInput): Review
+			updateReview(id: ID!, input: ReviewInput): Review
+		}
+
+		interface ProductInfo {
+			departments: [Department!]!
+			averageSatisfaction: Satisfaction!
 		}
 		
 		enum Department {
@@ -329,6 +413,10 @@ const (
 		}
 	`
 	onlinePaymentSchema = `
+		extend enum Satisfaction {
+			UNHAPPY
+		}
+
 		scalar DateTime
 
 		union AlphaNumeric = Int | String | Float
@@ -340,11 +428,12 @@ const (
 			date: DateTime!
 			amount: BigInt!
 		}
+		
+		extend union AlphaNumeric = Float
 
 		enum Satisfaction {
-			HAPPY,
-			NEUTRAL,
-			UNHAPPY,
+			HAPPY
+			NEUTRAL
 		}
 	`
 	classicPaymentSchema = `
@@ -381,8 +470,14 @@ const (
 		type Query {
 			me: User
 			topProducts(first: Int = 5): [Product]
+			getReview(id: ID!): Review
 			likesCount(productID: ID!): Int!
 			likes(productID: ID!): [Like]!
+		}
+
+		type Mutation {
+			createReview(input: ReviewInput): Review
+			updateReview(id: ID!, input: ReviewInput): Review
 		}
 		
 		type Subscription {
@@ -414,24 +509,41 @@ const (
 			ELECTRONICS,
 			GROCERIES,
 		}
+
+		interface ProductInfo {
+			departments: [Department!]!
+			averageSatisfaction: Satisfaction!
+		}
 		
 		scalar BigInt
 		
-		type Product {
+		type Product implements ProductInfo {
 			upc: String!
 			name: String!
 			price: Int!
 			worth: BigInt!
 			reputation: CustomScalar!
+			departments: [Department!]!
+			averageSatisfaction: Satisfaction!
 			reviews: [Review]
 			sales: BigInt!
 		}
+
+		input ReviewInput {
+			body: String!
+			author: User! @provides(fields: "username")
+			product: Product!
+			updated: DateTime!
+			inputType: AlphaNumeric!
+		}
 		
 		type Review {
+			id: ID!
+			created: DateTime!
 			body: String!
 			author: User!
 			product: Product!
-			created: DateTime!
+			updated: DateTime!
 			inputType: AlphaNumeric!
 		}
 
@@ -456,6 +568,12 @@ const (
 	productAndReviewFederatedSchema = `
 		type Query {
 			topProducts(first: Int = 5): [Product]
+			getReview(id: ID!): Review
+		}
+
+		type Mutation {
+			createReview(input: ReviewInput): Review
+			updateReview(id: ID!, input: ReviewInput): Review
 		}
 
 		type Subscription {
@@ -463,9 +581,9 @@ const (
 		}
 		
 		enum Satisfaction {
+			UNHAPPY,
 			HAPPY,
 			NEUTRAL,
-			UNHAPPY,
 		}
 		
 		scalar CustomScalar
@@ -476,25 +594,42 @@ const (
 			GROCERIES,
 		}
 
+		interface ProductInfo {
+			departments: [Department!]!
+			averageSatisfaction: Satisfaction!
+		}
+
 		scalar BigInt
 
-		type Product {
+		type Product implements ProductInfo {
 			upc: String!
 			name: String!
 			price: Int!
 			worth: BigInt!
 			reputation: CustomScalar!
+			departments: [Department!]!
+			averageSatisfaction: Satisfaction!
 			reviews: [Review]
 			sales: BigInt!
 		}
 		
 		scalar DateTime
 
+		input ReviewInput {
+			body: String!
+			author: User! @provides(fields: "username")
+			product: Product!
+			updated: DateTime!
+			inputType: AlphaNumeric!
+		}
+
 		type Review {
+			id: ID!
+			created: DateTime!
 			body: String!
 			author: User!
 			product: Product!
-			created: DateTime!
+			updated: DateTime!
 			inputType: AlphaNumeric!
 		}
 		
@@ -512,9 +647,9 @@ const (
 		}
 
 		enum Satisfaction {
+			UNHAPPY,
 			HAPPY,
 			NEUTRAL,
-			UNHAPPY,
 		}
 
 		scalar CustomScalar
@@ -525,15 +660,24 @@ const (
 			GROCERIES,
 		}
 
+		interface ProductInfo {
+			departments: [Department!]!
+			averageSatisfaction: Satisfaction!
+		}
+
 		scalar BigInt
 		
-		type Product {
+		type Product implements ProductInfo {
 			upc: String!
 			name: String!
 			price: Int!
 			worth: BigInt!
 			reputation: CustomScalar!
+			departments: [Department!]!
+			averageSatisfaction: Satisfaction!
 		}
+
+		union AlphaNumeric = Int | String | Float
 
 		scalar DateTime
 
@@ -556,10 +700,10 @@ const (
 	`
 )
 
-func FederatingFieldlessValueTypeErrorMessage(typeName string) string {
-	return fmt.Sprintf("external: the value type named '%s' must be identical in any subgraphs to federate, locations: [], path: []", typeName)
+func NonIdenticalSharedTypeMergeErrorMessage(typeName string) string {
+	return fmt.Sprintf("merge ast: walk: external: the shared type named '%s' must be identical in any subgraphs to federate, locations: [], path: []", typeName)
 }
 
-func FederatingFieldlessValueTypeMergeErrorMessage(typeName string) string {
-	return fmt.Sprintf("merge ast: walk: external: the value type named '%s' must be identical in any subgraphs to federate, locations: [], path: []", typeName)
+func DuplicateEntityMergeErrorMessage(typeName string) string {
+	return fmt.Sprintf("merge ast: walk: external: entities must not be shared types, but the entity named '%s' is duplicated in other subgraph(s), locations: [], path: []", typeName)
 }
