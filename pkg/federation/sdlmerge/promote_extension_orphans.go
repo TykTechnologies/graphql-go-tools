@@ -18,7 +18,7 @@ func newPromoteExtensionOrphansVisitor() *promoteExtensionOrphansVisitor {
 	return &promoteExtensionOrphansVisitor{
 		nil,
 		nil,
-		make(map[string]bool, 0),
+		make(map[string]bool),
 		nil,
 		ast.InvalidRef,
 	}
