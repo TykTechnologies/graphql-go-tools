@@ -418,7 +418,7 @@ func TestExecutionEngineV2_Execute(t *testing.T) {
 		},
 	))
 
-	t.Run("execute with .object placeholder", runWithoutError(
+	t.Run("execute with .object and .arguments placeholder", runWithoutError(
 		ExecutionEngineV2TestCase{
 			schema: func(t *testing.T) *Schema {
 				t.Helper()
