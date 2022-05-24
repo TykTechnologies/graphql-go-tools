@@ -63,7 +63,9 @@ func (i *InputTemplate) renderObjectVariable(ctx context.Context, variables []by
 		value = variables[offset-len(value)-2 : offset]
 		switch segment.Renderer.GetKind() {
 		case VariableRendererKindPlain:
-			segment.Renderer.(*PlainVariableRenderer).rootValueType.Value = valueType
+			if plainRenderer, ok := (segment.Renderer).(*PlainVariableRenderer); ok {
+				plainRenderer.rootValueType.Value = valueType
+			}
 		}
 	}
 	return segment.Renderer.RenderVariable(ctx, value, preparedInput)
@@ -77,6 +79,12 @@ func (i *InputTemplate) renderContextVariable(ctx *Context, segment TemplateSegm
 	}
 	if valueType == jsonparser.String {
 		value = ctx.Variables[offset-len(value)-2 : offset]
+		switch segment.Renderer.GetKind() {
+		case VariableRendererKindPlain:
+			if plainRenderer, ok := (segment.Renderer).(*PlainVariableRenderer); ok {
+				plainRenderer.rootValueType.Value = valueType
+			}
+		}
 	}
 	return segment.Renderer.RenderVariable(ctx, value, preparedInput)
 }
