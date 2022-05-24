@@ -3527,6 +3527,9 @@ func TestInputTemplate_Render(t *testing.T) {
 	t.Run("boolean scalar", func(t *testing.T) {
 		runTest(t, `{"foo":true}`, []string{"foo"}, `{"type":"boolean"}`, false, "true")
 	})
+	t.Run("nested string", func(t *testing.T) {
+		runTest(t, `{"foo":{"bar":"value"}}`, []string{"foo", "bar"}, `{"type":"string"}`, false, `"value"`)
+	})
 	t.Run("json object pass through", func(t *testing.T) {
 		runTest(t, `{"foo":{"bar":"baz"}}`, []string{"foo"}, `{"type":"object","properties":{"bar":{"type":"string"}}}`, false, `{"bar":"baz"}`)
 	})
