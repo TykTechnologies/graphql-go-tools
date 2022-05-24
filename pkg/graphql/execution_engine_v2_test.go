@@ -527,6 +527,10 @@ func TestExecutionEngineV2_Execute(t *testing.T) {
 							Name:       "id",
 							SourceType: plan.FieldArgumentSource,
 						},
+						{
+							Name:       "metadata",
+							SourceType: plan.FieldArgumentSource,
+						},
 					},
 				},
 				{
