@@ -52,9 +52,6 @@ const (
 	Invalid
 )
 
-// Rule is hook to register callback functions on the Walker
-type Rule func(walker *astvisitor.Walker)
-
 // OperationValidator orchestrates the validation process of Operations
 type OperationValidator struct {
 	walker astvisitor.Walker
