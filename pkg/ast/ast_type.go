@@ -27,8 +27,22 @@ type Type struct {
 	OfType   int
 }
 
+func (d *Document) BaseTypeNameBytes(ref int) ByteSlice {
+	if kind := d.Types[ref].TypeKind; kind == TypeKindNonNull || kind == TypeKindList {
+		return d.TypeNameBytes(d.Types[ref].OfType)
+	}
+	return d.TypeNameBytes(ref)
+}
+
 func (d *Document) TypeNameBytes(ref int) ByteSlice {
 	return d.Input.ByteSlice(d.Types[ref].Name)
+}
+
+func (d *Document) BaseTypeNameString(ref int) string {
+	if kind := d.Types[ref].TypeKind; kind == TypeKindNonNull || kind == TypeKindList {
+		return d.TypeNameString(d.Types[ref].OfType)
+	}
+	return d.TypeNameString(ref)
 }
 
 func (d *Document) TypeNameString(ref int) string {
