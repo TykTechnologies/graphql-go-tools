@@ -2,7 +2,6 @@ package astnormalization
 
 import (
 	"errors"
-	"fmt"
 	"github.com/buger/jsonparser"
 	"github.com/jensneuse/graphql-go-tools/pkg/ast"
 	"github.com/jensneuse/graphql-go-tools/pkg/astvisitor"
@@ -36,7 +35,6 @@ func (in *inputFieldDefaultInjectionVisitor) EnterDocument(operation, definition
 
 func (in *inputFieldDefaultInjectionVisitor) EnterVariableDefinition(ref int) {
 	in.variableName = in.operation.VariableDefinitionNameString(ref)
-	in.variableTree = append(in.variableTree, in.variableName)
 
 	if _, _, _, err := jsonparser.Get(in.operation.Input.Variables, in.variableName); err == jsonparser.KeyPathNotFoundError {
 		in.StopWithInternalErr(errors.New("variable not defined in input"))
@@ -53,40 +51,11 @@ func (in *inputFieldDefaultInjectionVisitor) EnterVariableDefinition(ref int) {
 		return
 	}
 
-	// TODO check in nested input values
-	inputDef := in.definition.InputObjectTypeDefinitions[node.Ref]
-	for _, i := range inputDef.InputFieldsDefinition.Refs {
-		valDef := in.definition.InputValueDefinitions[i]
-		if in.definition.Types[valDef.Type].TypeKind != ast.TypeKindNonNull {
-			continue
-		}
-		if !valDef.DefaultValue.IsDefined {
-			continue
-		}
-		_, _, _, err := jsonparser.Get(in.operation.Input.Variables, in.variableName, in.definition.InputValueDefinitionNameString(i))
-		if err == nil {
-			return
-		}
-		if err != jsonparser.KeyPathNotFoundError {
-			in.StopWithInternalErr(err)
-		}
-		defVal, err := in.definition.ValueToJSON(valDef.DefaultValue.Value)
-		if err != nil {
-			in.StopWithInternalErr(err)
-		}
-
-		newVariables, err := jsonparser.Set(in.operation.Input.Variables, defVal, append(in.variableTree, in.definition.InputValueDefinitionNameString(i))...)
-		if err != nil {
-			in.StopWithInternalErr(err)
-		}
-		in.operation.Input.Variables = newVariables
-
-	}
-
-	fmt.Println(node)
+	in.recursiveInjectInputFields(node.Ref, in.variableName)
 }
 
-func (in *inputFieldDefaultInjectionVisitor) recursiveInjectInputFields(inputObjectRef int) {
+func (in *inputFieldDefaultInjectionVisitor) recursiveInjectInputFields(inputObjectRef int, fieldName string) {
+	in.variableTree = append(in.variableTree, fieldName)
 	objectDef := in.definition.InputObjectTypeDefinitions[inputObjectRef]
 	if !objectDef.HasInputFieldsDefinition {
 		return
@@ -96,19 +65,43 @@ func (in *inputFieldDefaultInjectionVisitor) recursiveInjectInputFields(inputObj
 		if in.definition.Types[valDef.Type].TypeKind != ast.TypeKindNonNull {
 			continue
 		}
-		if !valDef.DefaultValue.IsDefined {
-			continue
-		}
 		_, _, _, err := jsonparser.Get(in.operation.Input.Variables, in.variableName, in.definition.InputValueDefinitionNameString(i))
 		if err != nil && err != jsonparser.KeyPathNotFoundError {
 			in.StopWithInternalErr(err)
 		}
-		if err == jsonparser.KeyPathNotFoundError {
-			fmt.Println("not found")
+
+		keys := append(in.variableTree, in.definition.InputValueDefinitionNameString(i))
+		if valDef.DefaultValue.IsDefined {
+			defVal, err := in.definition.ValueToJSON(valDef.DefaultValue.Value)
+			if err != nil {
+				in.StopWithInternalErr(err)
+			}
+
+			newVariables, err := jsonparser.Set(in.operation.Input.Variables, defVal, keys...)
+			if err != nil {
+				in.StopWithInternalErr(err)
+			}
+			in.operation.Input.Variables = newVariables
+		}
+
+		// check if nested input field and if variable value for it exists
+		if in.definition.TypeIsScalar(valDef.Type, in.definition) || in.definition.TypeIsEnum(valDef.Type, in.definition) {
+			continue
+		}
+
+		typeName := in.definition.BaseTypeNameBytes(valDef.Type)
+		node, found := in.definition.Index.FirstNodeByNameBytes(typeName)
+		if !found {
+			in.StopWithInternalErr(errors.New("node not found"))
+		}
+		if _, _, _, err := jsonparser.Get(in.operation.Input.Variables, keys...); err != jsonparser.KeyPathNotFoundError {
+			in.recursiveInjectInputFields(node.Ref, keys[len(keys)-1])
 		}
 	}
+	in.variableTree = in.variableTree[:len(in.variableTree)-1]
 }
 
 func (in *inputFieldDefaultInjectionVisitor) LeaveVariableDefinition(ref int) {
-	//TODO implement me
+	in.variableName = ""
+	in.variableTree = make([]string, 0)
 }

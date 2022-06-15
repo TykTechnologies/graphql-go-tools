@@ -6,17 +6,32 @@ import (
 )
 
 const testInputDefaultSchema = `
+enum TestEnum {
+  ValueOne
+  ValueTwo
+}
+
 schema {
-    mutation: Mutation
+  mutation: Mutation
 }
 
 type Mutation {
-    testDefaultValueSimple(data: SimpleTestInput!): String!
+  testDefaultValueSimple(data: SimpleTestInput!): String!
+  testNestedInputField(data: InputWithNestedField!): String!
 }
 
 input SimpleTestInput {
-    firstField: String!
-    secondField: Int! = 1
+  firstField: String!
+  secondField: Int! = 1
+}
+
+input InputWithNestedField {
+  nested: LowerLevelInput!
+}
+
+input LowerLevelInput {
+  firstField: Int!
+  secondField: TestEnum! = ValueOne
 }
 `
 
@@ -31,5 +46,17 @@ func TestInputDefaultValueExtraction(t *testing.T) {
 			mutation testDefaultValueSimple($a: SimpleTestInput!) {
   				testDefaultValueSimple(data: $a)
 			}`, `{"a":{"firstField":"test"}}`, `{"a":{"firstField":"test","secondField":1}}`)
+	})
+
+	t.Run("nested input field with default values", func(t *testing.T) {
+		runWithVariablesAssert(t, func(walker *astvisitor.Walker) {
+			injectInputFieldDefaults(walker)
+		}, testInputDefaultSchema, `
+			mutation testNestedInputField($a: InputWithNestedField) {
+			  testNestedInputField(data: $a)
+			}`, "", `
+			mutation testNestedInputField($a: InputWithNestedField) {
+  				testNestedInputField(data: $a)
+			}`, `{"a":{"nested":{}}}`, `{"a":{"nested":{"secondField":"ValueOne"}}}`)
 	})
 }
