@@ -1,7 +1,6 @@
 package astnormalization
 
 import (
-	"errors"
 	"github.com/buger/jsonparser"
 	"github.com/jensneuse/graphql-go-tools/pkg/ast"
 	"github.com/jensneuse/graphql-go-tools/pkg/astvisitor"
@@ -31,13 +30,11 @@ func (in *inputFieldDefaultInjectionVisitor) EnterDocument(operation, definition
 	in.operation, in.definition = operation, definition
 }
 
-// TODO fix internal and external errors
-
 func (in *inputFieldDefaultInjectionVisitor) EnterVariableDefinition(ref int) {
 	in.variableName = in.operation.VariableDefinitionNameString(ref)
 
 	if _, _, _, err := jsonparser.Get(in.operation.Input.Variables, in.variableName); err == jsonparser.KeyPathNotFoundError {
-		in.StopWithInternalErr(errors.New("variable not defined in input"))
+		return
 	} else if err != nil {
 		in.StopWithInternalErr(err)
 	}
@@ -45,7 +42,7 @@ func (in *inputFieldDefaultInjectionVisitor) EnterVariableDefinition(ref int) {
 	typeName := in.operation.BaseTypeNameBytes(ref)
 	node, found := in.definition.Index.FirstNodeByNameBytes(typeName)
 	if !found {
-		in.StopWithInternalErr(errors.New("invalid variable type"))
+		return
 	}
 	if node.Kind != ast.NodeKindInputObjectTypeDefinition {
 		return
@@ -67,7 +64,7 @@ func (in *inputFieldDefaultInjectionVisitor) recursiveInjectInputFields(inputObj
 		}
 		_, _, _, err := jsonparser.Get(in.operation.Input.Variables, in.variableName, in.definition.InputValueDefinitionNameString(i))
 		if err != nil && err != jsonparser.KeyPathNotFoundError {
-			in.StopWithInternalErr(err)
+			return
 		}
 
 		keys := append(in.variableTree, in.definition.InputValueDefinitionNameString(i))
@@ -92,7 +89,7 @@ func (in *inputFieldDefaultInjectionVisitor) recursiveInjectInputFields(inputObj
 		typeName := in.definition.BaseTypeNameBytes(valDef.Type)
 		node, found := in.definition.Index.FirstNodeByNameBytes(typeName)
 		if !found {
-			in.StopWithInternalErr(errors.New("node not found"))
+			return
 		}
 		if _, _, _, err := jsonparser.Get(in.operation.Input.Variables, keys...); err != jsonparser.KeyPathNotFoundError {
 			in.recursiveInjectInputFields(node.Ref, keys[len(keys)-1])
