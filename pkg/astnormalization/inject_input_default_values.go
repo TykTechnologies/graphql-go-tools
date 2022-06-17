@@ -33,12 +33,14 @@ func (in *inputFieldDefaultInjectionVisitor) EnterDocument(operation, definition
 func (in *inputFieldDefaultInjectionVisitor) EnterVariableDefinition(ref int) {
 	in.variableName = in.operation.VariableDefinitionNameString(ref)
 
-	if _, _, _, err := jsonparser.Get(in.operation.Input.Variables, in.variableName); err == jsonparser.KeyPathNotFoundError {
-		return
-	} else if err != nil {
+	exists, err := in.variableKeyExists(in.variableName)
+	if err != nil {
 		in.StopWithInternalErr(err)
+		return
 	}
-
+	if !exists {
+		return
+	}
 	typeName := in.operation.BaseTypeNameBytes(ref)
 	node, found := in.definition.Index.FirstNodeByNameBytes(typeName)
 	if !found {
@@ -82,11 +84,13 @@ func (in *inputFieldDefaultInjectionVisitor) recursiveInjectInputFields(inputObj
 		defVal, err := in.definition.ValueToJSON(valDef.DefaultValue.Value)
 		if err != nil {
 			in.StopWithInternalErr(err)
+			return
 		}
 
 		newVariables, err := jsonparser.Set(in.operation.Input.Variables, defVal, keys...)
 		if err != nil {
 			in.StopWithInternalErr(err)
+			return
 		}
 		in.operation.Input.Variables = newVariables
 	}

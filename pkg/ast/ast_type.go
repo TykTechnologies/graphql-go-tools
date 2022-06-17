@@ -28,10 +28,11 @@ type Type struct {
 }
 
 func (d *Document) BaseTypeNameBytes(ref int) ByteSlice {
-	if kind := d.Types[ref].TypeKind; kind == TypeKindNonNull || kind == TypeKindList {
-		return d.TypeNameBytes(d.Types[ref].OfType)
+	nestedType := d.Types[ref].OfType
+	if nestedType == -1 {
+		return d.TypeNameBytes(ref)
 	}
-	return d.TypeNameBytes(ref)
+	return d.BaseTypeNameBytes(nestedType)
 }
 
 func (d *Document) TypeNameBytes(ref int) ByteSlice {
@@ -39,10 +40,11 @@ func (d *Document) TypeNameBytes(ref int) ByteSlice {
 }
 
 func (d *Document) BaseTypeNameString(ref int) string {
-	if kind := d.Types[ref].TypeKind; kind == TypeKindNonNull || kind == TypeKindList {
-		return d.TypeNameString(d.Types[ref].OfType)
+	nestedType := d.Types[ref].OfType
+	if nestedType == -1 {
+		return d.TypeNameString(ref)
 	}
-	return d.TypeNameString(ref)
+	return d.BaseTypeNameString(nestedType)
 }
 
 func (d *Document) TypeNameString(ref int) string {
