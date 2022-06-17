@@ -8,8 +8,8 @@ import (
 
 func injectInputFieldDefaults(walker *astvisitor.Walker) *inputFieldDefaultInjectionVisitor {
 	visitor := &inputFieldDefaultInjectionVisitor{
-		Walker:       walker,
-		variableTree: make([]string, 0),
+		Walker:   walker,
+		jsonPath: make([]string, 0),
 	}
 	walker.RegisterEnterDocumentVisitor(visitor)
 	walker.RegisterVariableDefinitionVisitor(visitor)
@@ -23,26 +23,26 @@ type inputFieldDefaultInjectionVisitor struct {
 	definition *ast.Document
 
 	variableName string
-	variableTree []string
+	jsonPath     []string
 }
 
-func (in *inputFieldDefaultInjectionVisitor) EnterDocument(operation, definition *ast.Document) {
-	in.operation, in.definition = operation, definition
+func (v *inputFieldDefaultInjectionVisitor) EnterDocument(operation, definition *ast.Document) {
+	v.operation, v.definition = operation, definition
 }
 
-func (in *inputFieldDefaultInjectionVisitor) EnterVariableDefinition(ref int) {
-	in.variableName = in.operation.VariableDefinitionNameString(ref)
+func (v *inputFieldDefaultInjectionVisitor) EnterVariableDefinition(ref int) {
+	v.variableName = v.operation.VariableDefinitionNameString(ref)
 
-	exists, err := in.variableKeyExists(in.variableName)
+	exists, err := v.variableKeyExists(v.variableName)
 	if err != nil {
-		in.StopWithInternalErr(err)
+		v.StopWithInternalErr(err)
 		return
 	}
 	if !exists {
 		return
 	}
-	typeName := in.operation.BaseTypeNameBytes(ref)
-	node, found := in.definition.Index.FirstNodeByNameBytes(typeName)
+	typeName := v.operation.ResolveTypeNameBytes(ref)
+	node, found := v.definition.Index.FirstNodeByNameBytes(typeName)
 	if !found {
 		return
 	}
@@ -50,30 +50,27 @@ func (in *inputFieldDefaultInjectionVisitor) EnterVariableDefinition(ref int) {
 		return
 	}
 
-	in.recursiveInjectInputFields(node.Ref, in.variableName)
+	v.recursiveInjectInputFields(node.Ref, v.variableName)
 }
 
-func (in *inputFieldDefaultInjectionVisitor) recursiveInjectInputFields(inputObjectRef int, fieldName string) {
-	in.variableTree = append(in.variableTree, fieldName)
-	objectDef := in.definition.InputObjectTypeDefinitions[inputObjectRef]
+func (v *inputFieldDefaultInjectionVisitor) recursiveInjectInputFields(inputObjectRef int, fieldName string) {
+	v.jsonPath = append(v.jsonPath, fieldName)
+	objectDef := v.definition.InputObjectTypeDefinitions[inputObjectRef]
 	if !objectDef.HasInputFieldsDefinition {
 		return
 	}
 	for _, i := range objectDef.InputFieldsDefinition.Refs {
-		valDef := in.definition.InputValueDefinitions[i]
-		if in.definition.Types[valDef.Type].TypeKind != ast.TypeKindNonNull {
-			continue
-		}
-		keys := append(in.variableTree, in.definition.InputValueDefinitionNameString(i))
-		exists, err := in.variableKeyExists(keys...)
-		typeScalarEnum := in.definition.TypeIsScalar(valDef.Type, in.definition) || in.definition.TypeIsEnum(valDef.Type, in.definition)
+		valDef := v.definition.InputValueDefinitions[i]
+		keys := append(v.jsonPath, v.definition.InputValueDefinitionNameString(i))
+		isTypeScalarOrEnum := v.definition.TypeIsScalar(valDef.Type, v.definition) || v.definition.TypeIsEnum(valDef.Type, v.definition)
+		exists, err := v.variableKeyExists(keys...)
 		if err != nil {
-			in.StopWithInternalErr(err)
+			v.StopWithInternalErr(err)
 			return
 		}
-		if exists && !typeScalarEnum {
-			if node, found := in.definition.Index.FirstNodeByNameBytes(in.definition.BaseTypeNameBytes(valDef.Type)); found {
-				in.recursiveInjectInputFields(node.Ref, keys[len(keys)-1])
+		if exists && !isTypeScalarOrEnum {
+			if node, found := v.definition.Index.FirstNodeByNameBytes(v.definition.ResolveTypeNameBytes(valDef.Type)); found {
+				v.recursiveInjectInputFields(node.Ref, keys[len(keys)-1])
 			} else {
 				continue
 			}
@@ -81,24 +78,24 @@ func (in *inputFieldDefaultInjectionVisitor) recursiveInjectInputFields(inputObj
 		if !valDef.DefaultValue.IsDefined {
 			continue
 		}
-		defVal, err := in.definition.ValueToJSON(valDef.DefaultValue.Value)
+		defVal, err := v.definition.ValueToJSON(valDef.DefaultValue.Value)
 		if err != nil {
-			in.StopWithInternalErr(err)
+			v.StopWithInternalErr(err)
 			return
 		}
 
-		newVariables, err := jsonparser.Set(in.operation.Input.Variables, defVal, keys...)
+		newVariables, err := jsonparser.Set(v.operation.Input.Variables, defVal, keys...)
 		if err != nil {
-			in.StopWithInternalErr(err)
+			v.StopWithInternalErr(err)
 			return
 		}
-		in.operation.Input.Variables = newVariables
+		v.operation.Input.Variables = newVariables
 	}
-	in.variableTree = in.variableTree[:len(in.variableTree)-1]
+	v.jsonPath = v.jsonPath[:len(v.jsonPath)-1]
 }
 
-func (in *inputFieldDefaultInjectionVisitor) variableKeyExists(keys ...string) (exists bool, retErr error) {
-	_, _, _, err := jsonparser.Get(in.operation.Input.Variables, keys...)
+func (v *inputFieldDefaultInjectionVisitor) variableKeyExists(keys ...string) (exists bool, retErr error) {
+	_, _, _, err := jsonparser.Get(v.operation.Input.Variables, keys...)
 	switch err {
 	case jsonparser.KeyPathNotFoundError:
 		return false, nil
@@ -109,7 +106,7 @@ func (in *inputFieldDefaultInjectionVisitor) variableKeyExists(keys ...string) (
 	}
 }
 
-func (in *inputFieldDefaultInjectionVisitor) LeaveVariableDefinition(ref int) {
-	in.variableName = ""
-	in.variableTree = make([]string, 0)
+func (v *inputFieldDefaultInjectionVisitor) LeaveVariableDefinition(ref int) {
+	v.variableName = ""
+	v.jsonPath = make([]string, 0)
 }

@@ -27,24 +27,8 @@ type Type struct {
 	OfType   int
 }
 
-func (d *Document) BaseTypeNameBytes(ref int) ByteSlice {
-	nestedType := d.Types[ref].OfType
-	if nestedType == -1 {
-		return d.TypeNameBytes(ref)
-	}
-	return d.BaseTypeNameBytes(nestedType)
-}
-
 func (d *Document) TypeNameBytes(ref int) ByteSlice {
 	return d.Input.ByteSlice(d.Types[ref].Name)
-}
-
-func (d *Document) BaseTypeNameString(ref int) string {
-	nestedType := d.Types[ref].OfType
-	if nestedType == -1 {
-		return d.TypeNameString(ref)
-	}
-	return d.BaseTypeNameString(nestedType)
 }
 
 func (d *Document) TypeNameString(ref int) string {
