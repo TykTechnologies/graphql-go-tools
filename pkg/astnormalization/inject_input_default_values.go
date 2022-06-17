@@ -62,40 +62,47 @@ func (in *inputFieldDefaultInjectionVisitor) recursiveInjectInputFields(inputObj
 		if in.definition.Types[valDef.Type].TypeKind != ast.TypeKindNonNull {
 			continue
 		}
-		_, _, _, err := jsonparser.Get(in.operation.Input.Variables, in.variableName, in.definition.InputValueDefinitionNameString(i))
-		if err != nil && err != jsonparser.KeyPathNotFoundError {
+		keys := append(in.variableTree, in.definition.InputValueDefinitionNameString(i))
+		exists, err := in.variableKeyExists(keys...)
+		typeScalarEnum := in.definition.TypeIsScalar(valDef.Type, in.definition) || in.definition.TypeIsEnum(valDef.Type, in.definition)
+		if err != nil {
+			in.StopWithInternalErr(err)
 			return
 		}
-
-		keys := append(in.variableTree, in.definition.InputValueDefinitionNameString(i))
-		if valDef.DefaultValue.IsDefined {
-			defVal, err := in.definition.ValueToJSON(valDef.DefaultValue.Value)
-			if err != nil {
-				in.StopWithInternalErr(err)
+		if exists && !typeScalarEnum {
+			if node, found := in.definition.Index.FirstNodeByNameBytes(in.definition.BaseTypeNameBytes(valDef.Type)); found {
+				in.recursiveInjectInputFields(node.Ref, keys[len(keys)-1])
+			} else {
+				continue
 			}
-
-			newVariables, err := jsonparser.Set(in.operation.Input.Variables, defVal, keys...)
-			if err != nil {
-				in.StopWithInternalErr(err)
-			}
-			in.operation.Input.Variables = newVariables
 		}
-
-		// check if nested input field and if variable value for it exists
-		if in.definition.TypeIsScalar(valDef.Type, in.definition) || in.definition.TypeIsEnum(valDef.Type, in.definition) {
+		if !valDef.DefaultValue.IsDefined {
 			continue
 		}
+		defVal, err := in.definition.ValueToJSON(valDef.DefaultValue.Value)
+		if err != nil {
+			in.StopWithInternalErr(err)
+		}
 
-		typeName := in.definition.BaseTypeNameBytes(valDef.Type)
-		node, found := in.definition.Index.FirstNodeByNameBytes(typeName)
-		if !found {
-			return
+		newVariables, err := jsonparser.Set(in.operation.Input.Variables, defVal, keys...)
+		if err != nil {
+			in.StopWithInternalErr(err)
 		}
-		if _, _, _, err := jsonparser.Get(in.operation.Input.Variables, keys...); err != jsonparser.KeyPathNotFoundError {
-			in.recursiveInjectInputFields(node.Ref, keys[len(keys)-1])
-		}
+		in.operation.Input.Variables = newVariables
 	}
 	in.variableTree = in.variableTree[:len(in.variableTree)-1]
+}
+
+func (in *inputFieldDefaultInjectionVisitor) variableKeyExists(keys ...string) (exists bool, retErr error) {
+	_, _, _, err := jsonparser.Get(in.operation.Input.Variables, keys...)
+	switch err {
+	case jsonparser.KeyPathNotFoundError:
+		return false, nil
+	case nil:
+		return true, nil
+	default:
+		return false, err
+	}
 }
 
 func (in *inputFieldDefaultInjectionVisitor) LeaveVariableDefinition(ref int) {
