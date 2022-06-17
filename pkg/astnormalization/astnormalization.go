@@ -180,11 +180,9 @@ func (o *OperationNormalizer) setupOperationWalkers() {
 	if o.options.removeUnusedVariables {
 		deleteUnusedVariables(&other)
 	}
+	injectInputFieldDefaults(&other)
 
-	inputDefaultInjectorWalker := astvisitor.NewWalker(48)
-	injectInputFieldDefaults(&inputDefaultInjectorWalker)
-
-	o.operationWalkers = append(o.operationWalkers, &fragmentInline, &extractVariablesWalker, &other, &inputDefaultInjectorWalker)
+	o.operationWalkers = append(o.operationWalkers, &fragmentInline, &extractVariablesWalker, &other)
 
 }
 
