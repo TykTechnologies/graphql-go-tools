@@ -25,6 +25,7 @@ type Mutation {
   mutationWithListInput(in: InputHasList): String
   mutationWithMultiNestedInput(in: MultiNestedInput): String
   mutationComplexNestedListInput(in: ComplexNestedListInput): String
+  mutationSimpleInputList(in: [SimpleTestInput]): String
 }
 
 input MultiNestedInput {
@@ -195,5 +196,17 @@ func TestInputDefaultValueExtraction(t *testing.T) {
 			  mutationComplexNestedListInput(data: $a)
 			}
 `, `{"a":{"nested":[[[{"firstField":2}]]]}}`, `{"a":{"nested":[[[{"firstField":2,"secondField":"ValueOne"}]]]}}`)
+	})
+
+	t.Run("simple list nested input", func(t *testing.T) {
+		runWithVariablesAssert(t, func(walker *astvisitor.Walker) {
+			injectInputFieldDefaults(walker)
+		}, testInputDefaultSchema, `
+			mutation mutationSimpleInputList($a: [SimpleTestInput]) {
+			  mutationSimpleInputList(data: $a)
+			}`, "", `
+			mutation mutationSimpleInputList($a: [SimpleTestInput]) {
+			  mutationSimpleInputList(data: $a)
+			}`, `{"a":[{"thirdField":1}]}`, `{"a":[{"thirdField":1,"firstField":"firstField","secondField":1}]}`)
 	})
 }

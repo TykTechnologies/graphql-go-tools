@@ -44,21 +44,15 @@ func (v *inputFieldDefaultInjectionVisitor) EnterVariableDefinition(ref int) {
 		return
 	}
 
-	typeName := v.operation.ResolveTypeNameBytes(ref)
-	node, found := v.definition.Index.FirstNodeByNameBytes(typeName)
-	if !found {
+	typeRef := v.operation.VariableDefinitions[ref].Type
+	if v.operation.TypeIsScalar(typeRef, v.operation) || v.operation.TypeIsEnum(typeRef, v.operation) {
 		return
 	}
-	if node.Kind != ast.NodeKindInputObjectTypeDefinition {
-		return
-	}
-
-	newVal, err := v.recursiveInjectInputFields(node.Ref, variableVal)
+	newVal, err := v.processObjectOrListInput(typeRef, variableVal, v.operation)
 	if err != nil {
 		v.StopWithInternalErr(err)
 		return
 	}
-
 	newVariables, err := jsonparser.Set(v.operation.Input.Variables, newVal, v.variableName)
 	if err != nil {
 		v.StopWithInternalErr(err)
@@ -99,7 +93,7 @@ func (v *inputFieldDefaultInjectionVisitor) recursiveInjectInputFields(inputObje
 			} else {
 				continue
 			}
-			fieldValue, err := v.processNonScalarField(valDef.Type, valToUse)
+			fieldValue, err := v.processObjectOrListInput(valDef.Type, valToUse, v.definition)
 			if err != nil {
 				return nil, err
 			}
@@ -129,22 +123,21 @@ func (v *inputFieldDefaultInjectionVisitor) recursiveInjectInputFields(inputObje
 	return finalVal, nil
 }
 
-func (v *inputFieldDefaultInjectionVisitor) processNonScalarField(fieldType int, defaultValue []byte) ([]byte, error) {
+func (v *inputFieldDefaultInjectionVisitor) processObjectOrListInput(fieldType int, defaultValue []byte, typeDoc *ast.Document) ([]byte, error) {
 	finalVal := defaultValue
-	fieldIsList := v.definition.TypeIsList(fieldType)
+	fieldIsList := typeDoc.TypeIsList(fieldType)
 	varVal, valType, _, err := jsonparser.Get(defaultValue)
 	if err != nil {
 		return nil, err
 
 	}
-	node, found := v.definition.Index.FirstNodeByNameBytes(v.definition.ResolveTypeNameBytes(fieldType))
+	node, found := v.definition.Index.FirstNodeByNameBytes(typeDoc.ResolveTypeNameBytes(fieldType))
 	if !found {
 		return nil, nil
 	}
 	valIsList := valType == jsonparser.Array
 	if fieldIsList && valIsList {
-		// check if is nested list
-		_, err := jsonparser.ArrayEach(varVal, v.jsonWalker(v.definition.ResolveListOrNameType(fieldType), defaultValue, &node, &finalVal))
+		_, err := jsonparser.ArrayEach(varVal, v.jsonWalker(typeDoc.ResolveListOrNameType(fieldType), defaultValue, &node, typeDoc, &finalVal))
 		if err != nil {
 			return nil, nil
 		}
@@ -159,15 +152,15 @@ func (v *inputFieldDefaultInjectionVisitor) processNonScalarField(fieldType int,
 	return finalVal, nil
 }
 
-func (v *inputFieldDefaultInjectionVisitor) jsonWalker(fieldType int, defaultValue []byte, node *ast.Node, finalVal *[]byte) func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+func (v *inputFieldDefaultInjectionVisitor) jsonWalker(fieldType int, defaultValue []byte, node *ast.Node, typeDoc *ast.Document, finalVal *[]byte) func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
 	i := 0
-	listOfList := v.definition.TypeIsList(v.definition.Types[fieldType].OfType)
+	listOfList := typeDoc.TypeIsList(typeDoc.Types[fieldType].OfType)
 	return func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
 		if err != nil {
 			return
 		}
 		if listOfList && dataType == jsonparser.Array {
-			newVal, err := v.processNonScalarField(v.definition.Types[fieldType].OfType, value)
+			newVal, err := v.processObjectOrListInput(typeDoc.Types[fieldType].OfType, value, typeDoc)
 			if err != nil {
 				return
 			}
