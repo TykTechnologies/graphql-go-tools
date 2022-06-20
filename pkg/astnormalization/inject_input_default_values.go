@@ -1,6 +1,7 @@
 package astnormalization
 
 import (
+	"errors"
 	"fmt"
 	"github.com/buger/jsonparser"
 	"github.com/jensneuse/graphql-go-tools/pkg/ast"
@@ -86,24 +87,20 @@ func (v *inputFieldDefaultInjectionVisitor) recursiveInjectInputFields(inputObje
 		existsInVal := err != jsonparser.KeyPathNotFoundError
 
 		if !isTypeScalarOrEnum {
-			node, found := v.definition.Index.FirstNodeByNameBytes(v.definition.ResolveTypeNameBytes(valDef.Type))
-			if !found {
-				continue
-			}
-			var (
-				fieldValue []byte
-				retErr     error
-			)
-			if !hasDefault {
-				fieldValue, retErr = v.recursiveInjectInputFields(node.Ref, varVal)
-			} else {
+			var valToUse []byte
+			if existsInVal {
+				valToUse = varVal
+			} else if hasDefault {
 				defVal, err := v.definition.ValueToJSON(valDef.DefaultValue.Value)
 				if err != nil {
 					return nil, err
 				}
-				fieldValue, retErr = v.processNonScalarFieldWithDefault(valDef.Type, defVal)
+				valToUse = defVal
+			} else {
+				continue
 			}
-			if retErr != nil {
+			fieldValue, err := v.processNonScalarField(valDef.Type, valToUse)
+			if err != nil {
 				return nil, err
 			}
 			finalVal, err = jsonparser.Set(finalVal, fieldValue, fieldName)
@@ -132,7 +129,7 @@ func (v *inputFieldDefaultInjectionVisitor) recursiveInjectInputFields(inputObje
 	return finalVal, nil
 }
 
-func (v *inputFieldDefaultInjectionVisitor) processNonScalarFieldWithDefault(fieldType int, defaultValue []byte) ([]byte, error) {
+func (v *inputFieldDefaultInjectionVisitor) processNonScalarField(fieldType int, defaultValue []byte) ([]byte, error) {
 	finalVal := defaultValue
 	fieldIsList := v.definition.TypeIsList(fieldType)
 	varVal, valType, _, err := jsonparser.Get(defaultValue)
@@ -146,10 +143,22 @@ func (v *inputFieldDefaultInjectionVisitor) processNonScalarFieldWithDefault(fie
 	}
 	valIsList := valType == jsonparser.Array
 	if fieldIsList && valIsList {
+		// check if is nested list
+		listOfList := v.definition.TypeIsList(v.definition.Types[fieldType].OfType)
 		i := 0
 		_, err := jsonparser.ArrayEach(varVal, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
 			if err != nil {
 				return
+			}
+			if listOfList && dataType == jsonparser.Array {
+				newVal, err := v.processNonScalarField(v.definition.Types[fieldType].OfType, value)
+				if err != nil {
+					return
+				}
+				finalVal, err = jsonparser.Set(defaultValue, newVal, fmt.Sprintf("[%d]", i))
+				if err != nil {
+					return
+				}
 			}
 			if dataType == jsonparser.Object {
 				newVal, err := v.recursiveInjectInputFields(node.Ref, value)
@@ -171,9 +180,27 @@ func (v *inputFieldDefaultInjectionVisitor) processNonScalarFieldWithDefault(fie
 		if err != nil {
 			return nil, nil
 		}
+	} else {
+		return nil, errors.New("mismatched input value")
 	}
-
 	return finalVal, nil
+}
+
+func (v *inputFieldDefaultInjectionVisitor) calculateNestingDepth(typeRef int) int {
+	var nestingDepth int
+	for typeRef != ast.InvalidRef {
+		first := v.definition.Types[typeRef]
+
+		typeRef = first.OfType
+
+		switch first.TypeKind {
+		case ast.TypeKindList:
+			nestingDepth++
+		default:
+			continue
+		}
+	}
+	return nestingDepth
 }
 
 func (v *inputFieldDefaultInjectionVisitor) LeaveVariableDefinition(ref int) {

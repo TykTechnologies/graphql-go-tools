@@ -23,6 +23,16 @@ type Mutation {
   ): String
   mutationNestedMissing(in: InputWithDefaultFieldsNested): String
   mutationWithListInput(in: InputHasList): String
+  mutationWithMultiNestedInput(in: MultiNestedInput): String
+  mutationComplexNestedListInput(in: ComplexNestedListInput): String
+}
+
+input MultiNestedInput {
+  nested: [[LowerLevelInput]] = [[{ firstField: 1 }]]
+}
+
+input ComplexNestedListInput {
+  nested: [[[LowerLevelInput]]]
 }
 
 input InputHasList {
@@ -99,7 +109,7 @@ func TestInputDefaultValueExtraction(t *testing.T) {
 		)
 	})
 
-	t.Run("default field object omitting nested default field", func(t *testing.T) {
+	t.Run("default field object is partial", func(t *testing.T) {
 		runWithVariablesAssert(t, func(walker *astvisitor.Walker) {
 			injectInputFieldDefaults(walker)
 		}, testInputDefaultSchema, `
@@ -109,6 +119,18 @@ func TestInputDefaultValueExtraction(t *testing.T) {
 			mutation($a: InputWithDefaultFieldsNested){
 				mutationNestedMissing(in: $a)
 			}`, `{"a":{"first":"test"}}`, `{"a":{"first":"test","nested":{"firstField":0,"secondField":"ValueOne"}}}`)
+	})
+
+	t.Run("variable for input field as object is partial", func(t *testing.T) {
+		runWithVariablesAssert(t, func(walker *astvisitor.Walker) {
+			injectInputFieldDefaults(walker)
+		}, testInputDefaultSchema, `
+			mutation($a: InputWithDefaultFieldsNested){
+				mutationNestedMissing(in: $a)
+			}`, "", `
+			mutation($a: InputWithDefaultFieldsNested){
+				mutationNestedMissing(in: $a)
+			}`, `{"a":{"first":"test","nested":{"firstField":1}}}`, `{"a":{"first":"test","nested":{"firstField":1,"secondField":"ValueOne"}}}`)
 	})
 
 	t.Run("run with extract variables", func(t *testing.T) {
@@ -146,5 +168,44 @@ func TestInputDefaultValueExtraction(t *testing.T) {
 			  mutationWithListInput(data: $a)
 			}
 `, `{"a":{}}`, `{"a":{"firstList":[{"firstField":1,"secondField":"ValueOne"},{"firstField":1,"secondField":"ValueOne"}]}}`)
+	})
+
+	t.Run("list object partial value", func(t *testing.T) {
+		runWithVariablesAssert(t, func(walker *astvisitor.Walker) {
+			injectInputFieldDefaults(walker)
+		}, testInputDefaultSchema, `
+			mutation mutationWithListInput($a: InputHasList) {
+			  mutationWithListInput(data: $a)
+			}`, "", `
+			mutation mutationWithListInput($a: InputHasList) {
+			  mutationWithListInput(data: $a)
+			}
+`, `{"a":{"firstList":[{"firstField":10}]}}`, `{"a":{"firstList":[{"firstField":10,"secondField":"ValueOne"}]}}`)
+	})
+
+	t.Run("nested list default value", func(t *testing.T) {
+		runWithVariablesAssert(t, func(walker *astvisitor.Walker) {
+			injectInputFieldDefaults(walker)
+		}, testInputDefaultSchema, `
+			mutation mutationWithMultiNestedInput($a: MultiNestedInput) {
+			  mutationWithMultiNestedInput(data: $a)
+			}`, "", `
+			mutation mutationWithMultiNestedInput($a: MultiNestedInput) {
+			  mutationWithMultiNestedInput(data: $a)
+			}
+`, `{"a":{}}`, `{"a":{"nested":[[{"firstField":1,"secondField":"ValueOne"}]]}}`)
+	})
+
+	t.Run("complex nested list partial in variable", func(t *testing.T) {
+		runWithVariablesAssert(t, func(walker *astvisitor.Walker) {
+			injectInputFieldDefaults(walker)
+		}, testInputDefaultSchema, `
+			mutation mutationComplexNestedListInput($a: ComplexNestedListInput) {
+			  mutationComplexNestedListInput(data: $a)
+			}`, "", `
+			mutation mutationComplexNestedListInput($a: ComplexNestedListInput) {
+			  mutationComplexNestedListInput(data: $a)
+			}
+`, `{"a":{"nested":[[[{"firstField":2}]]]}}`, `{"a":{"nested":[[[{"firstField":2,"secondField":"ValueOne"}]]]}}`)
 	})
 }
