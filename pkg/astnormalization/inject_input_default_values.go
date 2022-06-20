@@ -144,35 +144,7 @@ func (v *inputFieldDefaultInjectionVisitor) processNonScalarField(fieldType int,
 	valIsList := valType == jsonparser.Array
 	if fieldIsList && valIsList {
 		// check if is nested list
-		listOfList := v.definition.TypeIsList(v.definition.Types[fieldType].OfType)
-		i := 0
-		_, err := jsonparser.ArrayEach(varVal, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-			if err != nil {
-				return
-			}
-			if listOfList && dataType == jsonparser.Array {
-				newVal, err := v.processNonScalarField(v.definition.Types[fieldType].OfType, value)
-				if err != nil {
-					return
-				}
-				finalVal, err = jsonparser.Set(defaultValue, newVal, fmt.Sprintf("[%d]", i))
-				if err != nil {
-					return
-				}
-			} else if !listOfList && dataType == jsonparser.Object {
-				newVal, err := v.recursiveInjectInputFields(node.Ref, value)
-				if err != nil {
-					return
-				}
-				finalVal, err = jsonparser.Set(defaultValue, newVal, fmt.Sprintf("[%d]", i))
-				if err != nil {
-					return
-				}
-			} else {
-				return
-			}
-			i++
-		})
+		_, err := jsonparser.ArrayEach(varVal, v.jsonWalker(v.definition.ResolveListOrNameType(fieldType), defaultValue, &node, &finalVal))
 		if err != nil {
 			return nil, nil
 		}
@@ -187,6 +159,38 @@ func (v *inputFieldDefaultInjectionVisitor) processNonScalarField(fieldType int,
 	return finalVal, nil
 }
 
+func (v *inputFieldDefaultInjectionVisitor) jsonWalker(fieldType int, defaultValue []byte, node *ast.Node, finalVal *[]byte) func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+	i := 0
+	listOfList := v.definition.TypeIsList(v.definition.Types[fieldType].OfType)
+	return func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+		if err != nil {
+			return
+		}
+		if listOfList && dataType == jsonparser.Array {
+			newVal, err := v.processNonScalarField(v.definition.Types[fieldType].OfType, value)
+			if err != nil {
+				return
+			}
+			*finalVal, err = jsonparser.Set(defaultValue, newVal, fmt.Sprintf("[%d]", i))
+			if err != nil {
+				return
+			}
+		} else if !listOfList && dataType == jsonparser.Object {
+			newVal, err := v.recursiveInjectInputFields(node.Ref, value)
+			if err != nil {
+				return
+			}
+			*finalVal, err = jsonparser.Set(defaultValue, newVal, fmt.Sprintf("[%d]", i))
+			if err != nil {
+				return
+			}
+		} else {
+			return
+		}
+		i++
+	}
+
+}
 func (v *inputFieldDefaultInjectionVisitor) LeaveVariableDefinition(ref int) {
 	v.variableName = ""
 	v.jsonPath = make([]string, 0)
