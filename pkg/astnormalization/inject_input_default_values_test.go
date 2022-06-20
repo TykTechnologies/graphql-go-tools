@@ -18,14 +18,23 @@ schema {
 type Mutation {
   testDefaultValueSimple(data: SimpleTestInput!): String!
   testNestedInputField(data: InputWithNestedField!): String!
-  mutationExtractDefaultVariable(in: PassedWithDefault = {firstField: "test"}): String
+  mutationExtractDefaultVariable(
+    in: PassedWithDefault = { firstField: "test" }
+  ): String
   mutationNestedMissing(in: InputWithDefaultFieldsNested): String
-  
+  mutationWithListInput(in: InputHasList): String
+}
+
+input InputHasList {
+  firstList: [LowerLevelInput!]! = [
+    { firstField: 1, secondField: ValueOne }
+    { firstField: 1 }
+  ]
 }
 
 input InputWithDefaultFieldsNested {
-    first: String!
-    nested: LowerLevelInput = {firstField: 0}
+  first: String!
+  nested: LowerLevelInput = { firstField: 0 }
 }
 
 input SimpleTestInput {
@@ -35,8 +44,8 @@ input SimpleTestInput {
 }
 
 input PassedWithDefault {
-    firstField: String!
-    second: Int! = 0
+  firstField: String!
+  second: Int! = 0
 }
 
 input InputWithNestedField {
@@ -124,6 +133,18 @@ func TestInputDefaultValueExtraction(t *testing.T) {
 			}`, "", `{"a":{"firstField":"test","second":0}}`, func(walker *astvisitor.Walker) {
 			injectInputFieldDefaults(walker)
 		})
+	})
 
+	t.Run("list default value", func(t *testing.T) {
+		runWithVariablesAssert(t, func(walker *astvisitor.Walker) {
+			injectInputFieldDefaults(walker)
+		}, testInputDefaultSchema, `
+			mutation mutationWithListInput($a: InputHasList) {
+			  mutationWithListInput(data: $a)
+			}`, "", `
+			mutation mutationWithListInput($a: InputHasList) {
+			  mutationWithListInput(data: $a)
+			}
+`, `{"a":{}}`, `{"a":{"firstList":[{"firstField":1,"secondField":"ValueOne"},{"firstField":1,"secondField":"ValueOne"}]}}`)
 	})
 }

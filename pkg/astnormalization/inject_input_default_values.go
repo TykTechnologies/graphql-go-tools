@@ -1,6 +1,7 @@
 package astnormalization
 
 import (
+	"fmt"
 	"github.com/buger/jsonparser"
 	"github.com/jensneuse/graphql-go-tools/pkg/ast"
 	"github.com/jensneuse/graphql-go-tools/pkg/astvisitor"
@@ -100,7 +101,7 @@ func (v *inputFieldDefaultInjectionVisitor) recursiveInjectInputFields(inputObje
 				if err != nil {
 					return nil, err
 				}
-				fieldValue, retErr = v.recursiveInjectInputFields(node.Ref, defVal)
+				fieldValue, retErr = v.processNonScalarFieldWithDefault(valDef.Type, defVal)
 			}
 			if retErr != nil {
 				return nil, err
@@ -110,8 +111,8 @@ func (v *inputFieldDefaultInjectionVisitor) recursiveInjectInputFields(inputObje
 				return nil, err
 			}
 			continue
-
 		}
+
 		if !hasDefault && isTypeScalarOrEnum {
 			continue
 		}
@@ -128,6 +129,50 @@ func (v *inputFieldDefaultInjectionVisitor) recursiveInjectInputFields(inputObje
 			return nil, err
 		}
 	}
+	return finalVal, nil
+}
+
+func (v *inputFieldDefaultInjectionVisitor) processNonScalarFieldWithDefault(fieldType int, defaultValue []byte) ([]byte, error) {
+	finalVal := defaultValue
+	fieldIsList := v.definition.TypeIsList(fieldType)
+	varVal, valType, _, err := jsonparser.Get(defaultValue)
+	if err != nil {
+		return nil, err
+
+	}
+	node, found := v.definition.Index.FirstNodeByNameBytes(v.definition.ResolveTypeNameBytes(fieldType))
+	if !found {
+		return nil, nil
+	}
+	valIsList := valType == jsonparser.Array
+	if fieldIsList && valIsList {
+		i := 0
+		_, err := jsonparser.ArrayEach(varVal, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+			if err != nil {
+				return
+			}
+			if dataType == jsonparser.Object {
+				newVal, err := v.recursiveInjectInputFields(node.Ref, value)
+				if err != nil {
+					return
+				}
+				finalVal, err = jsonparser.Set(defaultValue, newVal, fmt.Sprintf("[%d]", i))
+				if err != nil {
+					return
+				}
+			}
+			i++
+		})
+		if err != nil {
+			return nil, nil
+		}
+	} else if !fieldIsList && !valIsList {
+		finalVal, err = v.recursiveInjectInputFields(node.Ref, defaultValue)
+		if err != nil {
+			return nil, nil
+		}
+	}
+
 	return finalVal, nil
 }
 
