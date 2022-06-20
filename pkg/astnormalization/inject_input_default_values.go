@@ -45,7 +45,7 @@ func (v *inputFieldDefaultInjectionVisitor) EnterVariableDefinition(ref int) {
 	}
 
 	typeRef := v.operation.VariableDefinitions[ref].Type
-	if v.operation.TypeIsScalar(typeRef, v.operation) || v.operation.TypeIsEnum(typeRef, v.operation) {
+	if v.isScalarTypeOrExtension(typeRef, v.operation) {
 		return
 	}
 	newVal, err := v.processObjectOrListInput(typeRef, variableVal, v.operation)
@@ -70,7 +70,7 @@ func (v *inputFieldDefaultInjectionVisitor) recursiveInjectInputFields(inputObje
 	for _, i := range objectDef.InputFieldsDefinition.Refs {
 		valDef := v.definition.InputValueDefinitions[i]
 		fieldName := v.definition.InputValueDefinitionNameString(i)
-		isTypeScalarOrEnum := v.definition.TypeIsScalar(valDef.Type, v.definition) || v.definition.TypeIsEnum(valDef.Type, v.definition)
+		isTypeScalarOrEnum := v.isScalarTypeOrExtension(valDef.Type, v.definition)
 		hasDefault := valDef.DefaultValue.IsDefined
 
 		varVal, _, _, err := jsonparser.Get(varValue, fieldName)
@@ -121,6 +121,22 @@ func (v *inputFieldDefaultInjectionVisitor) recursiveInjectInputFields(inputObje
 		}
 	}
 	return finalVal, nil
+}
+
+func (v *inputFieldDefaultInjectionVisitor) isScalarTypeOrExtension(typeRef int, typeDoc *ast.Document) bool {
+	if typeDoc.TypeIsScalar(typeRef, v.definition) || typeDoc.TypeIsEnum(typeRef, v.definition) {
+		return true
+	}
+	typeName := v.definition.TypeNameBytes(typeRef)
+	node, found := v.definition.Index.FirstNonExtensionNodeByNameBytes(typeName)
+	if !found {
+		return false
+	}
+	switch node.Kind {
+	case ast.NodeKindScalarTypeDefinition, ast.NodeKindEnumTypeDefinition:
+		return true
+	}
+	return false
 }
 
 func (v *inputFieldDefaultInjectionVisitor) processObjectOrListInput(fieldType int, defaultValue []byte, typeDoc *ast.Document) ([]byte, error) {

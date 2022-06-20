@@ -70,6 +70,17 @@ input LowerLevelInput {
 `
 
 func TestInputDefaultValueExtraction(t *testing.T) {
+	t.Run("should not change", func(t *testing.T) {
+		runWithVariablesAssert(t, func(walker *astvisitor.Walker) {
+			injectInputFieldDefaults(walker)
+		}, testInputDefaultSchema, `
+			mutation testDefaultValueSimple($a: SimpleTestInput!) {
+  				testDefaultValueSimple(data: $a)
+			}`, "", `
+			mutation testDefaultValueSimple($a: SimpleTestInput!) {
+  				testDefaultValueSimple(data: $a)
+			}`, `{"a":{"firstField":"test","secondField":2}}`, `{"a":{"firstField":"test","secondField":2}}`)
+	})
 	t.Run("simple default value extract", func(t *testing.T) {
 		runWithVariablesAssert(t, func(walker *astvisitor.Walker) {
 			injectInputFieldDefaults(walker)
