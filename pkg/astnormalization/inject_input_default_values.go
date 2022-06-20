@@ -67,9 +67,9 @@ func (v *inputFieldDefaultInjectionVisitor) recursiveInjectInputFields(inputObje
 	if !objectDef.HasInputFieldsDefinition {
 		return varValue, nil
 	}
-	for _, i := range objectDef.InputFieldsDefinition.Refs {
-		valDef := v.definition.InputValueDefinitions[i]
-		fieldName := v.definition.InputValueDefinitionNameString(i)
+	for _, ref := range objectDef.InputFieldsDefinition.Refs {
+		valDef := v.definition.InputValueDefinitions[ref]
+		fieldName := v.definition.InputValueDefinitionNameString(ref)
 		isTypeScalarOrEnum := v.isScalarTypeOrExtension(valDef.Type, v.definition)
 		hasDefault := valDef.DefaultValue.IsDefined
 
