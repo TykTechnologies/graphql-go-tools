@@ -405,22 +405,13 @@ var runWithVariables = func(t *testing.T, normalizeFunc registerNormalizeVariabl
 	}, definition, operation, operationName, expectedOutput, variablesInput, expectedVariables, additionalNormalizers...)
 }
 
-var runWithVariablesDefaultValues = func(
-	t *testing.T,
-	normalizeFunc registerNormalizeVariablesDefaulValueFunc,
-	definition,
-	operation,
-	operationName,
-	expectedOutput,
-	variablesInput,
-	expectedVariables string,
-	additionalNormalizers ...registerNormalizeFunc) {
+var runWithVariablesDefaultValues = func(t *testing.T, normalizeFunc registerNormalizeVariablesDefaulValueFunc, definition, operation, operationName, expectedOutput, variablesInput, expectedVariables string) {
 	t.Helper()
 
 	runWithVariablesAssert(t, func(walker *astvisitor.Walker) {
 		visitor := normalizeFunc(walker)
 		visitor.operationName = []byte(operationName)
-	}, definition, operation, operationName, expectedOutput, variablesInput, expectedVariables, additionalNormalizers...)
+	}, definition, operation, operationName, expectedOutput, variablesInput, expectedVariables)
 }
 
 var runWithDeleteUnusedVariables = func(t *testing.T, normalizeFunc registerNormalizeDeleteVariablesFunc, definition, operation, operationName, expectedOutput, variablesInput, expectedVariables string) {

@@ -145,18 +145,6 @@ func TestInputDefaultValueExtraction(t *testing.T) {
 		})
 	})
 
-	t.Run("run with variable default value", func(t *testing.T) {
-		runWithVariablesDefaultValues(t, extractVariablesDefaultValue, testInputDefaultSchema, `
-			mutation {
-				mutationExtractDefaultVariable()
-			}`, "", `
-			mutation($a: PassedWithDefault) {
-    			mutationExtractDefaultVariable(in: $a)
-			}`, "", `{"a":{"firstField":"test","second":0}}`, func(walker *astvisitor.Walker) {
-			injectInputFieldDefaults(walker)
-		})
-	})
-
 	t.Run("list default value", func(t *testing.T) {
 		runWithVariablesAssert(t, func(walker *astvisitor.Walker) {
 			injectInputFieldDefaults(walker)
