@@ -159,8 +159,7 @@ func (v *inputFieldDefaultInjectionVisitor) processNonScalarField(fieldType int,
 				if err != nil {
 					return
 				}
-			}
-			if dataType == jsonparser.Object {
+			} else if !listOfList && dataType == jsonparser.Object {
 				newVal, err := v.recursiveInjectInputFields(node.Ref, value)
 				if err != nil {
 					return
@@ -169,6 +168,8 @@ func (v *inputFieldDefaultInjectionVisitor) processNonScalarField(fieldType int,
 				if err != nil {
 					return
 				}
+			} else {
+				return
 			}
 			i++
 		})
@@ -184,23 +185,6 @@ func (v *inputFieldDefaultInjectionVisitor) processNonScalarField(fieldType int,
 		return nil, errors.New("mismatched input value")
 	}
 	return finalVal, nil
-}
-
-func (v *inputFieldDefaultInjectionVisitor) calculateNestingDepth(typeRef int) int {
-	var nestingDepth int
-	for typeRef != ast.InvalidRef {
-		first := v.definition.Types[typeRef]
-
-		typeRef = first.OfType
-
-		switch first.TypeKind {
-		case ast.TypeKindList:
-			nestingDepth++
-		default:
-			continue
-		}
-	}
-	return nestingDepth
 }
 
 func (v *inputFieldDefaultInjectionVisitor) LeaveVariableDefinition(ref int) {

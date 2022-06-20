@@ -183,7 +183,6 @@ func (o *OperationNormalizer) setupOperationWalkers() {
 	injectInputFieldDefaults(&other)
 
 	o.operationWalkers = append(o.operationWalkers, &fragmentInline, &extractVariablesWalker, &other)
-
 }
 
 func (o *OperationNormalizer) prepareDefinition(definition *ast.Document, report *operationreport.Report) {
