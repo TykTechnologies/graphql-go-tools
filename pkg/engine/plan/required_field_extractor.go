@@ -53,7 +53,7 @@ func (f *RequiredFieldExtractor) addFieldsForObjectExtensionDefinitions(fieldReq
 			requiredFields := make([]string, len(primaryKeys))
 			copy(requiredFields, primaryKeys)
 
-			requiredFieldsByRequiresDirective := f.requiredFieldsByRequiresDirective(fieldDefinitionRef)
+			requiredFieldsByRequiresDirective := requiredFieldsByRequiresDirective(f.document, fieldDefinitionRef)
 			requiredFields = append(requiredFields, requiredFieldsByRequiresDirective...)
 
 			*fieldRequires = append(*fieldRequires, FieldConfiguration{
@@ -97,13 +97,13 @@ func (f *RequiredFieldExtractor) addFieldsForObjectDefinitions(fieldRequires *Fi
 	}
 }
 
-func (f *RequiredFieldExtractor) requiredFieldsByRequiresDirective(fieldDefinitionRef int) []string {
-	for _, directiveRef := range f.document.FieldDefinitions[fieldDefinitionRef].Directives.Refs {
-		if directiveName := f.document.DirectiveNameString(directiveRef); directiveName != federationRequireDirectiveName {
+func requiredFieldsByRequiresDirective(document *ast.Document, fieldDefinitionRef int) []string {
+	for _, directiveRef := range document.FieldDefinitions[fieldDefinitionRef].Directives.Refs {
+		if directiveName := document.DirectiveNameString(directiveRef); directiveName != federationRequireDirectiveName {
 			continue
 		}
 
-		value, exists := f.document.DirectiveArgumentValueByName(directiveRef, fieldsArgumentNameBytes)
+		value, exists := document.DirectiveArgumentValueByName(directiveRef, fieldsArgumentNameBytes)
 		if !exists {
 			continue
 		}
@@ -111,7 +111,7 @@ func (f *RequiredFieldExtractor) requiredFieldsByRequiresDirective(fieldDefiniti
 			continue
 		}
 
-		fieldsStr := f.document.StringValueContentString(value.Ref)
+		fieldsStr := document.StringValueContentString(value.Ref)
 
 		return strings.Split(fieldsStr, " ")
 	}
@@ -121,7 +121,7 @@ func (f *RequiredFieldExtractor) requiredFieldsByRequiresDirective(fieldDefiniti
 
 func (f *RequiredFieldExtractor) primaryKeyFieldsIfObjectTypeIsEntity(objectType ast.ObjectTypeDefinition) (keyFields []string, ok bool) {
 	for _, directiveRef := range objectType.Directives.Refs {
-		if directiveName := f.document.DirectiveNameString(directiveRef); directiveName != federationKeyDirectiveName {
+		if directiveName := f.document.DirectiveNameString(directiveRef); directiveName != FederationKeyDirectiveName {
 			continue
 		}
 

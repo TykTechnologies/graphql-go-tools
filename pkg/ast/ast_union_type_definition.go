@@ -18,7 +18,8 @@ type UnionTypeDefinition struct {
 	Equals              position.Position // =
 	HasUnionMemberTypes bool
 	HasFieldDefinitions bool
-	UnionMemberTypes    TypeList // optional, e.g. Photo | Person
+	UnionMemberTypes    TypeList            // optional, e.g. Photo | Person
+	FieldsDefinition    FieldDefinitionList // contains a single field: { __typename: String! }
 }
 
 func (d *Document) UnionTypeDefinitionNameBytes(ref int) ByteSlice {
