@@ -31,10 +31,6 @@ func (r *resolver) Subscription() SubscriptionResolver {
 	return &subscriptionResolver{r}
 }
 
-func (r *resolver) __Directive() directiveResolver {
-	return directiveResolver{r}
-}
-
 func New() Config {
 	return Config{
 		Resolvers: &resolver{
@@ -156,9 +152,9 @@ func (r *subscriptionResolver) MessageAdded(ctx context.Context, roomName string
 	return events, nil
 }
 
-type directiveResolver struct{ *resolver }
+type DirectiveIsRepeatableResolver struct{ *resolver }
 
-func (d directiveResolver) IsRepeatable(ctx context.Context, obj *introspection.Directive) (bool, error) {
+func (d DirectiveIsRepeatableResolver) IsRepeatable(ctx context.Context, obj *introspection.Directive) (bool, error) {
 	return true, nil
 }
 
