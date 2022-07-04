@@ -3,6 +3,7 @@ extend type Query {
 }
 
 extend type Subscription {
+    updatedPrice: Product!
     updateProductPrice(upc: String!): Product!
 }
 

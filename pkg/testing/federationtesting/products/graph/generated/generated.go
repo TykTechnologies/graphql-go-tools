@@ -66,6 +66,7 @@ type ComplexityRoot struct {
 
 	Subscription struct {
 		UpdateProductPrice func(childComplexity int, upc string) int
+		UpdatedPrice       func(childComplexity int) int
 	}
 
 	Service struct {
@@ -80,6 +81,7 @@ type QueryResolver interface {
 	TopProducts(ctx context.Context, first *int) ([]*model.Product, error)
 }
 type SubscriptionResolver interface {
+	UpdatedPrice(ctx context.Context) (<-chan *model.Product, error)
 	UpdateProductPrice(ctx context.Context, upc string) (<-chan *model.Product, error)
 }
 
@@ -181,6 +183,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Subscription.UpdateProductPrice(childComplexity, args["upc"].(string)), true
 
+	case "Subscription.updatedPrice":
+		if e.complexity.Subscription.UpdatedPrice == nil {
+			break
+		}
+
+		return e.complexity.Subscription.UpdatedPrice(childComplexity), true
+
 	case "_Service.sdl":
 		if e.complexity.Service.SDL == nil {
 			break
@@ -260,6 +269,7 @@ var sources = []*ast.Source{
 }
 
 extend type Subscription {
+    updatedPrice: Product!
     updateProductPrice(upc: String!): Product!
 }
 
@@ -785,6 +795,51 @@ func (ec *executionContext) _Query___schema(ctx context.Context, field graphql.C
 	res := resTmp.(*introspection.Schema)
 	fc.Result = res
 	return ec.marshalO__Schema2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐSchema(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Subscription_updatedPrice(ctx context.Context, field graphql.CollectedField) (ret func() graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = nil
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Subscription().UpdatedPrice(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return nil
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return nil
+	}
+	return func() graphql.Marshaler {
+		res, ok := <-resTmp.(<-chan *model.Product)
+		if !ok {
+			return nil
+		}
+		return graphql.WriterFunc(func(w io.Writer) {
+			w.Write([]byte{'{'})
+			graphql.MarshalString(field.Alias).MarshalGQL(w)
+			w.Write([]byte{':'})
+			ec.marshalNProduct2ᚖgithubᚗcomᚋjensneuseᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋproductsᚋgraphᚋmodelᚐProduct(ctx, field.Selections, res).MarshalGQL(w)
+			w.Write([]byte{'}'})
+		})
+	}
 }
 
 func (ec *executionContext) _Subscription_updateProductPrice(ctx context.Context, field graphql.CollectedField) (ret func() graphql.Marshaler) {
@@ -2181,6 +2236,8 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 	}
 
 	switch fields[0].Name {
+	case "updatedPrice":
+		return ec._Subscription_updatedPrice(ctx, fields[0])
 	case "updateProductPrice":
 		return ec._Subscription_updateProductPrice(ctx, fields[0])
 	default:

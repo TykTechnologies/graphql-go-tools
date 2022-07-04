@@ -6,6 +6,7 @@ package graph
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/jensneuse/graphql-go-tools/pkg/testing/federationtesting/products/graph/generated"
@@ -14,6 +15,33 @@ import (
 
 func (r *queryResolver) TopProducts(ctx context.Context, first *int) ([]*model.Product, error) {
 	return hats, nil
+}
+
+func (r *subscriptionResolver) UpdatedPrice(ctx context.Context) (<-chan *model.Product, error) {
+	updatedPrice := make(chan *model.Product)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(updateInterval):
+				rand.Seed(time.Now().UnixNano())
+				product := hats[0]
+
+				if randomnessEnabled {
+					product = hats[rand.Intn(len(hats)-1)]
+					product.Price = rand.Intn(maxPrice-minPrice+1) + minPrice
+					updatedPrice <- product
+					continue
+				}
+
+				product.Price = currentPrice
+				currentPrice += 1
+				updatedPrice <- product
+			}
+		}
+	}()
+	return updatedPrice, nil
 }
 
 func (r *subscriptionResolver) UpdateProductPrice(ctx context.Context, upc string) (<-chan *model.Product, error) {

@@ -1,4 +1,4 @@
-package federation
+package federationtesting
 
 import (
 	"io/ioutil"
@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	federationExampleDirectoryRelativePath = "examples/federation"
+	federationExampleDirectoryRelativePath = "pkg/testing/federationtesting"
 
 	QueryReviewsOfMe = `query ReviewsOfMe {
   me {

@@ -5,6 +5,7 @@ package graph
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jensneuse/graphql-go-tools/pkg/testing/federationtesting/reviews/graph/generated"
 	"github.com/jensneuse/graphql-go-tools/pkg/testing/federationtesting/reviews/graph/model"
@@ -32,6 +33,10 @@ func (r *productResolver) Reviews(ctx context.Context, obj *model.Product) ([]*m
 	}
 
 	return res, nil
+}
+
+func (r *userResolver) Username(ctx context.Context, obj *model.User) (string, error) {
+	return fmt.Sprintf("User %s", obj.ID), nil
 }
 
 func (r *userResolver) Reviews(ctx context.Context, obj *model.User) ([]*model.Review, error) {
