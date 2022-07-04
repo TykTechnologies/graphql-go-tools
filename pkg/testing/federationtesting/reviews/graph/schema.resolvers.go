@@ -36,7 +36,11 @@ func (r *productResolver) Reviews(ctx context.Context, obj *model.Product) ([]*m
 }
 
 func (r *userResolver) Username(ctx context.Context, obj *model.User) (string, error) {
-	return fmt.Sprintf("User %s", obj.ID), nil
+	username := fmt.Sprintf("User %s", obj.ID)
+	if obj.ID == "1234" {
+		username = "Me"
+	}
+	return username, nil
 }
 
 func (r *userResolver) Reviews(ctx context.Context, obj *model.User) ([]*model.Review, error) {

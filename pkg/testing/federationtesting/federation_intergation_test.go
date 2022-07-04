@@ -13,16 +13,16 @@ import (
 	"github.com/jensneuse/abstractlogger"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/jensneuse/graphql-go-tools/pkg/testing/federationtesting/accounts"
+	accounts "github.com/jensneuse/graphql-go-tools/pkg/testing/federationtesting/accounts/graph"
 	gateway2 "github.com/jensneuse/graphql-go-tools/pkg/testing/federationtesting/gateway"
-	"github.com/jensneuse/graphql-go-tools/pkg/testing/federationtesting/products"
-	"github.com/jensneuse/graphql-go-tools/pkg/testing/federationtesting/reviews"
+	products "github.com/jensneuse/graphql-go-tools/pkg/testing/federationtesting/products/graph"
+	reviews "github.com/jensneuse/graphql-go-tools/pkg/testing/federationtesting/reviews/graph"
 )
 
 func newFederationSetup() *federationSetup {
-	accountUpstreamServer := httptest.NewServer(accounts.Handler())
-	productsUpstreamServer := httptest.NewServer(products.Handler())
-	reviewsUpstreamServer := httptest.NewServer(reviews.Handler())
+	accountUpstreamServer := httptest.NewServer(accounts.GraphQLEndpointHandler(accounts.TestOptions))
+	productsUpstreamServer := httptest.NewServer(products.GraphQLEndpointHandler(products.TestOptions))
+	reviewsUpstreamServer := httptest.NewServer(reviews.GraphQLEndpointHandler(reviews.TestOptions))
 
 	httpClient := http.DefaultClient
 
