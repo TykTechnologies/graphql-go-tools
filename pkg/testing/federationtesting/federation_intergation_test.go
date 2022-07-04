@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	accounts "github.com/jensneuse/graphql-go-tools/pkg/testing/federationtesting/accounts/graph"
-	gateway2 "github.com/jensneuse/graphql-go-tools/pkg/testing/federationtesting/gateway"
+	"github.com/jensneuse/graphql-go-tools/pkg/testing/federationtesting/gateway"
 	products "github.com/jensneuse/graphql-go-tools/pkg/testing/federationtesting/products/graph"
 	reviews "github.com/jensneuse/graphql-go-tools/pkg/testing/federationtesting/reviews/graph"
 )
@@ -26,13 +26,13 @@ func newFederationSetup() *federationSetup {
 
 	httpClient := http.DefaultClient
 
-	poller := gateway2.NewDatasource([]gateway2.ServiceConfig{
+	poller := gateway.NewDatasource([]gateway.ServiceConfig{
 		{Name: "accounts", URL: accountUpstreamServer.URL},
 		{Name: "products", URL: productsUpstreamServer.URL, WS: strings.ReplaceAll(productsUpstreamServer.URL, "http:", "ws:")},
 		{Name: "reviews", URL: reviewsUpstreamServer.URL},
 	}, httpClient)
 
-	gtw := gateway2.Handler(abstractlogger.NoopLogger, poller, httpClient)
+	gtw := gateway.Handler(abstractlogger.NoopLogger, poller, httpClient)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
