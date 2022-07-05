@@ -92,7 +92,12 @@ echo "Tidy ./ ..."
 cd $ROOT_DIR
 go mod tidy
 
-echo "Go generate in pkg/graphql/federationtesting ..."
-cd ./pkg/graphql/federationtesting
+echo "Go generate in pkg/testing/federationtesting ..."
+cd ./pkg/testing/federationtesting
+go generate ./...
+cd $ROOT_DIR
+
+echo "Go generate in pkg/testing/subscriptiontesting ..."
+cd ./pkg/testing/subscriptiontesting
 go generate ./...
 cd $ROOT_DIR
