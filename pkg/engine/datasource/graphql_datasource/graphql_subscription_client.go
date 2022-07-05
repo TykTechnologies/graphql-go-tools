@@ -132,19 +132,30 @@ func (c *WebSocketGraphQLSubscriptionClient) Subscribe(ctx context.Context, opti
 	if err != nil {
 		return err
 	}
-	msgType, connectionAckMsg, err := conn.Read(ctx)
-	if err != nil {
-		return err
-	}
-	if msgType != websocket.MessageText {
-		return fmt.Errorf("unexpected msg type")
-	}
-	connectionAck, err := jsonparser.GetString(connectionAckMsg, "type")
-	if err != nil {
-		return err
-	}
-	if connectionAck != "connection_ack" {
-		return fmt.Errorf("expected connection_ack, got: %s", connectionAck)
+	// wait for ack and/or ka
+ackWait:
+	for {
+		msgType, msg, err := conn.Read(ctx)
+		if err != nil {
+			return err
+		}
+		if msgType != websocket.MessageText {
+			return fmt.Errorf("unexpected message type")
+		}
+
+		respType, err := jsonparser.GetString(msg, "type")
+		if err != nil {
+			return err
+		}
+
+		switch respType {
+		case "ka":
+			continue
+		case "connection_ack":
+			break ackWait
+		default:
+			return fmt.Errorf("expected connection_ack or ka, got %s", respType)
+		}
 	}
 
 	handler = newConnectionHandler(c.ctx, conn, c.readTimeout, c.log)
