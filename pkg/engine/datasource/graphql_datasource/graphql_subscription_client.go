@@ -26,6 +26,8 @@ const (
 	connectionError = `{"errors":[{"message":"connection error"}]}`
 )
 
+const ackWaitTimeout = time.Second * 30
+
 // WebSocketGraphQLSubscriptionClient is a WebSocket client that allows running multiple subscriptions via the same WebSocket Connection
 // It takes care of de-duplicating WebSocket connections to the same origin under certain circumstances
 // If Hash(URL,Body,Headers) result in the same result, an existing WS connection is re-used
@@ -132,9 +134,16 @@ func (c *WebSocketGraphQLSubscriptionClient) Subscribe(ctx context.Context, opti
 	if err != nil {
 		return err
 	}
+
 	// wait for ack and/or ka
-ackWait:
+	timer := time.NewTimer(ackWaitTimeout)
 	for {
+		select {
+		case <-timer.C:
+			return fmt.Errorf("timeout while waiting for connection_ack")
+		default:
+		}
+
 		msgType, msg, err := conn.Read(ctx)
 		if err != nil {
 			return err
@@ -148,13 +157,13 @@ ackWait:
 			return err
 		}
 
-		switch respType {
-		case "ka":
-			continue
-		case "connection_ack":
-			break ackWait
-		default:
+		if respType != "ka" && respType != "connection_ack" {
 			return fmt.Errorf("expected connection_ack or ka, got %s", respType)
+		}
+		if respType == "ka" {
+			continue
+		} else if respType == "connection_ack" {
+			break
 		}
 	}
 
