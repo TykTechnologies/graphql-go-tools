@@ -62,10 +62,12 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
   find . -type f -iname '*.go' -exec sed -i '' -e $IMPORT_PATTERN '{}' ';'
   find . -type f -iname 'go.mod' -exec sed -i '' -e $IMPORT_PATTERN '{}' ';'
   find . -type f -iname '*gqlgen.yml' -exec sed -i '' -e $IMPORT_PATTERN '{}' ';'
+  find . -type f -iname '*.golden' -exec sed -i '' -e $IMPORT_PATTERN '{}' ';'
 else
   find . -type f -iname '*.go' -exec sed -i $IMPORT_PATTERN '{}' ';'
   find . -type f -iname 'go.mod' -exec sed -i $IMPORT_PATTERN '{}' ';'
   find . -type f -iname '*gqlgen.yml' -exec sed -i $IMPORT_PATTERN '{}' ';'
+  find . -type f -iname '*.golden' -exec sed -i $IMPORT_PATTERN '{}' ';'
 fi
 
 
