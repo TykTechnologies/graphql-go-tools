@@ -135,7 +135,24 @@ func (c *WebSocketGraphQLSubscriptionClient) Subscribe(ctx context.Context, opti
 		return err
 	}
 
-	// wait for ack and/or ka
+	if err := waitForAck(ctx, conn); err != nil {
+		return err
+	}
+
+	handler = newConnectionHandler(c.ctx, conn, c.readTimeout, c.log)
+	c.handlers[handlerID] = handler
+
+	go func(handlerID uint64) {
+		handler.startBlocking(sub)
+		c.handlersMu.Lock()
+		delete(c.handlers, handlerID)
+		c.handlersMu.Unlock()
+	}(handlerID)
+
+	return nil
+}
+
+func waitForAck(ctx context.Context, conn *websocket.Conn) error {
 	timer := time.NewTimer(ackWaitTimeout)
 	for {
 		select {
@@ -165,17 +182,6 @@ func (c *WebSocketGraphQLSubscriptionClient) Subscribe(ctx context.Context, opti
 			return fmt.Errorf("expected connection_ack or ka, got %s", respType)
 		}
 	}
-
-	handler = newConnectionHandler(c.ctx, conn, c.readTimeout, c.log)
-	c.handlers[handlerID] = handler
-
-	go func(handlerID uint64) {
-		handler.startBlocking(sub)
-		c.handlersMu.Lock()
-		delete(c.handlers, handlerID)
-		c.handlersMu.Unlock()
-	}(handlerID)
-
 	return nil
 }
 
