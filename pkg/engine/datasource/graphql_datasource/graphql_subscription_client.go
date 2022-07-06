@@ -157,13 +157,12 @@ func (c *WebSocketGraphQLSubscriptionClient) Subscribe(ctx context.Context, opti
 			return err
 		}
 
-		if respType != "ka" && respType != "connection_ack" {
-			return fmt.Errorf("expected connection_ack or ka, got %s", respType)
-		}
 		if respType == "ka" {
 			continue
 		} else if respType == "connection_ack" {
 			break
+		} else {
+			return fmt.Errorf("expected connection_ack or ka, got %s", respType)
 		}
 	}
 
