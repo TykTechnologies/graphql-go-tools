@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -377,6 +378,33 @@ func getBrokerAddresses(brokers map[string]*dockertest.Resource) (brokerAddresse
 		brokerAddresses = append(brokerAddresses, broker.GetHostPort(portID))
 	}
 	return brokerAddresses
+}
+
+func publishMessagesContinuously(t *testing.T, ctx context.Context, options *GraphQLSubscriptionOptions) {
+	config := sarama.NewConfig()
+	if options.SASL.Enable {
+		config.Net.SASL.Enable = true
+		config.Net.SASL.User = options.SASL.User
+		config.Net.SASL.Password = options.SASL.Password
+	}
+
+	asyncProducer, err := sarama.NewAsyncProducer(options.BrokerAddresses, config)
+	require.NoError(t, err)
+
+	var i int
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		message := &sarama.ProducerMessage{
+			Topic: options.Topic,
+			Value: sarama.StringEncoder(fmt.Sprintf(messageTemplate, i)),
+		}
+		asyncProducer.Input() <- message
+		i++
+	}
 }
 
 func TestSarama_StartConsumingLatest_True(t *testing.T) {
@@ -749,12 +777,17 @@ func TestSarama_Cluster_Member_Restart(t *testing.T) {
 		break
 	}
 
-	// Wait for some time for consumer group restart
-	<-time.After(3 * consumerGroupRetryInterval)
+	// Stop publishMessagesContinuously properly. A leaking goroutine
+	// may lead to inconsistencies in the other tests.
+	var wg sync.WaitGroup
+	ctx, cancel := context.WithCancel(context.Background())
 
-	// Produce a message:
-	// message-1
-	testAsyncProducer(t, options, 0, 1)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		publishMessagesContinuously(t, ctx, options)
+	}()
+
 L:
 	for {
 		select {
@@ -770,6 +803,10 @@ L:
 	}
 
 	require.NoError(t, cg.Close())
+
+	// Stop publishMessagesContinuously
+	cancel()
+	wg.Wait()
 }
 
 func TestSarama_Cluster_Add_Member(t *testing.T) {
@@ -800,12 +837,17 @@ func TestSarama_Cluster_Add_Member(t *testing.T) {
 	_, err := k.addNewBroker(t, port)
 	require.NoError(t, err)
 
-	// Wait for some time for consumer group restart
-	<-time.After(3 * consumerGroupRetryInterval)
+	// Stop publishMessagesContinuously properly. A leaking goroutine
+	// may lead to inconsistencies in the other tests.
+	var wg sync.WaitGroup
+	ctx, cancel := context.WithCancel(context.Background())
 
-	// Produce a message:
-	// message-1
-	testAsyncProducer(t, options, 0, 1)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		publishMessagesContinuously(t, ctx, options)
+	}()
+
 L:
 	for {
 		select {
@@ -821,4 +863,8 @@ L:
 	}
 
 	require.NoError(t, cg.Close())
+
+	// Stop publishMessagesContinuously
+	cancel()
+	wg.Wait()
 }
