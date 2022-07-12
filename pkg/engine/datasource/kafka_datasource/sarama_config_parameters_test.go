@@ -723,7 +723,6 @@ func TestSarama_Multiple_Broker(t *testing.T) {
 }
 
 func TestSarama_Cluster_Member_Restart(t *testing.T) {
-	t.Skip("")
 	k := newKafkaCluster(t)
 	brokers := k.start(t, 2)
 
