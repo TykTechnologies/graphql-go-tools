@@ -165,7 +165,6 @@ func (k *kafkaCluster) startKafka(t *testing.T, port int, envVars []string) *doc
 		},
 		ExposedPorts: []string{portID},
 	}, func(config *docker.HostConfig) {
-		config.AutoRemove = true
 		config.RestartPolicy = docker.RestartOnFailure(10)
 		if k.kafkaRunOptions.saslAuth {
 			wd, _ := os.Getwd()
