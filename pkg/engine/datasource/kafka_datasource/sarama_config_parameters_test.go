@@ -281,7 +281,7 @@ func (k *kafkaCluster) start(t *testing.T, numMembers int, options ...kafkaClust
 	return resources
 }
 
-func (k *kafkaCluster) restart(t *testing.T, port int, broker *dockertest.Resource, options ...kafkaClusterOption) (*dockertest.Resource, error) {
+/*func (k *kafkaCluster) restart(t *testing.T, port int, broker *dockertest.Resource, options ...kafkaClusterOption) (*dockertest.Resource, error) {
 	if err := broker.Close(); err != nil {
 		return nil, err
 	}
@@ -296,7 +296,7 @@ func (k *kafkaCluster) restart(t *testing.T, port int, broker *dockertest.Resour
 	var envVars []string
 	envVars = append(envVars, k.kafkaRunOptions.envVars...)
 	return k.startKafka(t, port, envVars), nil
-}
+}*/
 
 func (k *kafkaCluster) addNewBroker(t *testing.T, port int, options ...kafkaClusterOption) (*dockertest.Resource, error) {
 	for _, opt := range options {
@@ -332,21 +332,15 @@ func testAsyncProducer(t *testing.T, options *GraphQLSubscriptionOptions, start,
 }
 
 func testConsumeMessages(messages chan *sarama.ConsumerMessage, numberOfMessages int) (map[string]struct{}, error) {
-
 	allMessages := make(map[string]struct{})
-	for {
-		select {
-		case msg, ok := <-messages:
-			if !ok {
-				return allMessages, nil
-			}
-			value := string(msg.Value)
-			allMessages[value] = struct{}{}
-			if len(allMessages) >= numberOfMessages {
-				return allMessages, nil
-			}
+	for msg := range messages {
+		value := string(msg.Value)
+		allMessages[value] = struct{}{}
+		if len(allMessages) >= numberOfMessages {
+			return allMessages, nil
 		}
 	}
+	return allMessages, nil
 }
 
 func testStartConsumer(t *testing.T, options *GraphQLSubscriptionOptions) (*KafkaConsumerGroup, chan *sarama.ConsumerMessage) {
@@ -728,7 +722,7 @@ func TestSarama_Multiple_Broker(t *testing.T) {
 	require.NoError(t, cg.Close())
 }
 
-func TestSarama_Cluster_Member_Restart(t *testing.T) {
+/*func TestSarama_Cluster_Member_Restart(t *testing.T) {
 	t.Skip("")
 	k := newKafkaCluster(t)
 	brokers := k.start(t, 2)
@@ -765,8 +759,8 @@ func TestSarama_Cluster_Member_Restart(t *testing.T) {
 L:
 	for {
 		select {
-		//case <-time.After(10 * time.Second):
-		//	require.Fail(t, "No message received in 10 seconds")
+		case <-time.After(10 * time.Second):
+			require.Fail(t, "No message received in 10 seconds")
 		case msg, ok := <-messages:
 			if !ok {
 				require.Fail(t, "messages channel is closed")
@@ -777,7 +771,7 @@ L:
 	}
 
 	require.NoError(t, cg.Close())
-}
+}*/
 
 func TestSarama_Cluster_Add_Member(t *testing.T) {
 	k := newKafkaCluster(t)
@@ -795,7 +789,7 @@ func TestSarama_Cluster_Add_Member(t *testing.T) {
 
 	// Add a new Kafka node to the cluster
 	var ports []int
-	for portID, _ := range brokers {
+	for portID := range brokers {
 		port, err := strconv.Atoi(strings.Trim(portID, "/tcp"))
 		require.NoError(t, err)
 		ports = append(ports, port)
@@ -816,8 +810,8 @@ func TestSarama_Cluster_Add_Member(t *testing.T) {
 L:
 	for {
 		select {
-		//case <-time.After(10 * time.Second):
-		//	require.Fail(t, "No message received in 10 seconds")
+		case <-time.After(10 * time.Second):
+			require.Fail(t, "No message received in 10 seconds")
 		case msg, ok := <-messages:
 			if !ok {
 				require.Fail(t, "messages channel is closed")
