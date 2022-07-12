@@ -734,7 +734,7 @@ func TestSarama_Multiple_Broker(t *testing.T) {
 
 func TestSarama_Cluster_Member_Restart(t *testing.T) {
 	k := newKafkaCluster(t)
-	brokers := k.start(t, 3)
+	brokers := k.start(t, 2)
 
 	options := &GraphQLSubscriptionOptions{
 		BrokerAddresses:      getBrokerAddresses(brokers),
@@ -784,7 +784,7 @@ L:
 
 func TestSarama_Cluster_Add_Member(t *testing.T) {
 	k := newKafkaCluster(t)
-	brokers := k.start(t, 3)
+	brokers := k.start(t, 1)
 
 	options := &GraphQLSubscriptionOptions{
 		BrokerAddresses:      getBrokerAddresses(brokers),
