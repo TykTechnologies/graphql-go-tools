@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"sort"
 	"strconv"
@@ -57,6 +56,7 @@ type kafkaCluster struct {
 
 func newKafkaCluster(t *testing.T) *kafkaCluster {
 	pool, err := dockertest.NewPool("")
+	pool.MaxWait = 5 * time.Minute
 	require.NoError(t, err)
 
 	require.NoError(t, pool.Client.Ping())
@@ -238,9 +238,6 @@ func (k *kafkaCluster) startKafka(t *testing.T, port int, envVars []string) *doc
 		return nil
 	}
 
-	if err = k.pool.Retry(retryFn); err != nil {
-		log.Fatalf("could not connect to kafka: %s", err)
-	}
 	require.NoError(t, k.pool.Retry(retryFn))
 
 	t.Logf("Kafka is ready to accept connections on %d", port)
