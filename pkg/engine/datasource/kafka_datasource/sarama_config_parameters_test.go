@@ -56,7 +56,6 @@ type kafkaCluster struct {
 
 func newKafkaCluster(t *testing.T) *kafkaCluster {
 	pool, err := dockertest.NewPool("")
-	pool.MaxWait = 5 * time.Minute
 	require.NoError(t, err)
 
 	require.NoError(t, pool.Client.Ping())
@@ -780,6 +779,7 @@ L:
 }
 
 func TestSarama_Cluster_Add_Member(t *testing.T) {
+	t.Skip("")
 	k := newKafkaCluster(t)
 	brokers := k.start(t, 1)
 
