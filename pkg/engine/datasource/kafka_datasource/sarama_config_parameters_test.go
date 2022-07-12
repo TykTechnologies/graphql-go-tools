@@ -166,6 +166,7 @@ func (k *kafkaCluster) startKafka(t *testing.T, port int, envVars []string) *doc
 		ExposedPorts: []string{portID},
 	}, func(config *docker.HostConfig) {
 		config.AutoRemove = true
+		config.RestartPolicy = docker.RestartOnFailure(10)
 		if k.kafkaRunOptions.saslAuth {
 			wd, _ := os.Getwd()
 			config.Mounts = []docker.HostMount{{
@@ -281,7 +282,7 @@ func (k *kafkaCluster) start(t *testing.T, numMembers int, options ...kafkaClust
 	return resources
 }
 
-/*func (k *kafkaCluster) restart(t *testing.T, port int, broker *dockertest.Resource, options ...kafkaClusterOption) (*dockertest.Resource, error) {
+func (k *kafkaCluster) restart(t *testing.T, port int, broker *dockertest.Resource, options ...kafkaClusterOption) (*dockertest.Resource, error) {
 	if err := broker.Close(); err != nil {
 		return nil, err
 	}
@@ -296,7 +297,7 @@ func (k *kafkaCluster) start(t *testing.T, numMembers int, options ...kafkaClust
 	var envVars []string
 	envVars = append(envVars, k.kafkaRunOptions.envVars...)
 	return k.startKafka(t, port, envVars), nil
-}*/
+}
 
 func (k *kafkaCluster) addNewBroker(t *testing.T, port int, options ...kafkaClusterOption) (*dockertest.Resource, error) {
 	for _, opt := range options {
@@ -722,7 +723,7 @@ func TestSarama_Multiple_Broker(t *testing.T) {
 	require.NoError(t, cg.Close())
 }
 
-/*func TestSarama_Cluster_Member_Restart(t *testing.T) {
+func TestSarama_Cluster_Member_Restart(t *testing.T) {
 	t.Skip("")
 	k := newKafkaCluster(t)
 	brokers := k.start(t, 2)
@@ -771,7 +772,7 @@ L:
 	}
 
 	require.NoError(t, cg.Close())
-}*/
+}
 
 func TestSarama_Cluster_Add_Member(t *testing.T) {
 	k := newKafkaCluster(t)
