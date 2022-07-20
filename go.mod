@@ -21,7 +21,6 @@ require (
 	github.com/jensneuse/abstractlogger v0.0.4
 	github.com/jensneuse/byte-template v0.0.0-20200214152254-4f3cf06e5c68
 	github.com/jensneuse/diffview v1.0.0
-	github.com/jensneuse/graphql-go-tools/examples/chat v0.0.0-20210714083836-7bf4457dc2b2
 	github.com/jensneuse/graphql-go-tools/examples/federation v0.0.0-20210714083836-7bf4457dc2b2
 	github.com/jensneuse/pipeline v0.0.0-20200117120358-9fb4de085cd6
 	github.com/klauspost/compress v1.13.1 // indirect
@@ -29,6 +28,7 @@ require (
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/nats-io/nats.go v1.11.1-0.20210623165838-4b75fc59ae30
 	github.com/qri-io/jsonschema v0.2.1
+	github.com/rs/cors v1.7.0
 	github.com/sebdah/goldie v0.0.0-20180424091453-8784dd1ab561
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cobra v0.0.5
@@ -44,5 +44,3 @@ require (
 )
 
 replace github.com/jensneuse/graphql-go-tools/examples/federation => ./examples/federation
-
-replace github.com/jensneuse/graphql-go-tools/examples/chat => ./examples/chat
