@@ -1,4 +1,4 @@
-module github.com/jensneuse/graphql-go-tools
+module github.com/TykTechnologies/graphql-go-tools
 
 go 1.15
 
