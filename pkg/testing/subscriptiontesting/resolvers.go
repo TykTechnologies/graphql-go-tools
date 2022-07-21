@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
-	"github.com/99designs/gqlgen/graphql/introspection"
 )
 
 type ckey string
@@ -150,12 +149,6 @@ func (r *subscriptionResolver) MessageAdded(ctx context.Context, roomName string
 	r.mu.Unlock()
 
 	return events, nil
-}
-
-type directiveResolver struct{ *resolver }
-
-func (d directiveResolver) IsRepeatable(ctx context.Context, obj *introspection.Directive) (bool, error) {
-	return true, nil
 }
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
