@@ -7,7 +7,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/rs/cors"
 
-	"github.com/jensneuse/graphql-go-tools/pkg/testing/subscriptiontesting"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/testing/subscriptiontesting"
 )
 
 func main() {
