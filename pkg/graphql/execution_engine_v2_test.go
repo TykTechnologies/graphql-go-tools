@@ -16,10 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	federationExample "github.com/jensneuse/graphql-go-tools/examples/federation"
-	accounts "github.com/jensneuse/graphql-go-tools/examples/federation/accounts/graph"
-	products "github.com/jensneuse/graphql-go-tools/examples/federation/products/graph"
-	reviews "github.com/jensneuse/graphql-go-tools/examples/federation/reviews/graph"
 	"github.com/jensneuse/graphql-go-tools/pkg/engine/datasource/graphql_datasource"
 	"github.com/jensneuse/graphql-go-tools/pkg/engine/datasource/httpclient"
 	"github.com/jensneuse/graphql-go-tools/pkg/engine/datasource/rest_datasource"
@@ -28,6 +24,10 @@ import (
 	"github.com/jensneuse/graphql-go-tools/pkg/engine/resolve"
 	"github.com/jensneuse/graphql-go-tools/pkg/operationreport"
 	"github.com/jensneuse/graphql-go-tools/pkg/starwars"
+	federationExample "github.com/jensneuse/graphql-go-tools/pkg/testing/federationtesting"
+	accounts "github.com/jensneuse/graphql-go-tools/pkg/testing/federationtesting/accounts/graph"
+	products "github.com/jensneuse/graphql-go-tools/pkg/testing/federationtesting/products/graph"
+	reviews "github.com/jensneuse/graphql-go-tools/pkg/testing/federationtesting/reviews/graph"
 )
 
 func TestEngineResponseWriter_AsHTTPResponse(t *testing.T) {
@@ -1352,7 +1352,7 @@ subscription UpdatedPrice {
 
 			if assert.NoError(t, err) {
 				assert.Eventuallyf(t, func() bool {
-					msg := `{"data":{"updatedPrice":{"name":"Trilby","price":%d,"reviews":[{"body":"A highly effective form of birth control.","author":{"id":"1234","username":"User 1234"}}]}}}`
+					msg := `{"data":{"updatedPrice":{"name":"Trilby","price":%d,"reviews":[{"body":"A highly effective form of birth control.","author":{"id":"1234","username":"Me"}}]}}}`
 					price := 10
 					if secondRun {
 						price += 2
