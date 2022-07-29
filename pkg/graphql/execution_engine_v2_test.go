@@ -575,6 +575,54 @@ func TestExecutionEngineV2_Execute(t *testing.T) {
 		},
 	))
 
+	t.Run("execute operation with graphql data source on multiple root nodes (single flight)", runWithoutError(
+		ExecutionEngineV2TestCase{
+			schema: func(t *testing.T) *Schema {
+				schema := `
+					type Query {
+						name: String!
+						code: String!
+						currency: String!
+					}
+				`
+				parsedSchema, err := NewSchemaFromString(schema)
+				require.NoError(t, err)
+				return parsedSchema
+			}(t),
+			operation: func(t *testing.T) Request {
+				return Request{
+					OperationName: "Country",
+					Query:         "query Country { name code currency }",
+					Variables:     nil,
+				}
+			},
+			dataSources: []plan.DataSourceConfiguration{
+				{
+					RootNodes: []plan.TypeField{
+						{TypeName: "Query", FieldNames: []string{"name", "code", "currency"}},
+					},
+					Factory: &graphql_datasource.Factory{
+						HTTPClient: testNetHttpClient(t, roundTripperTestCase{
+							expectedHost:     "example.com",
+							expectedPath:     "/",
+							expectedBody:     `{"query":"{name code currency}"}`,
+							sendResponseBody: `{"data":{"name":"Germany","code":"DE","currency":"EUR"}}`,
+							sendStatusCode:   200,
+						}),
+					},
+					Custom: graphql_datasource.ConfigJson(graphql_datasource.Configuration{
+						Fetch: graphql_datasource.FetchConfiguration{
+							URL:    "https://example.com/",
+							Method: "GET",
+						},
+					}),
+				},
+			},
+			fields:           []plan.FieldConfiguration{},
+			expectedResponse: `{"data":{"name":"Germany","code":"DE","currency":"EUR"}}`,
+		},
+	))
+
 	t.Run("execute the correct operation when sending multiple queries", runWithoutError(
 		ExecutionEngineV2TestCase{
 			schema: starwarsSchema(t),
