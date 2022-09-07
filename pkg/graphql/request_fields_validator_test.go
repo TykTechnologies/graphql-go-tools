@@ -1,6 +1,7 @@
 package graphql
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -85,6 +86,25 @@ func TestFieldsValidator_ValidateByFieldList(t *testing.T) {
 			assert.True(t, result.Valid)
 			assert.Equal(t, 0, result.Errors.Count())
 		})
+
+		t.Run("should invalidate if blocked fields are used", func(t *testing.T) {
+			blockList := FieldRestrictionList{
+				Kind: BlockList,
+				Types: []Type{
+					{
+						Name:   "Character",
+						Fields: []string{"*"},
+					},
+				},
+			}
+
+			validator := DefaultFieldsValidator{}
+			result, err := validator.ValidateByFieldList(&request, schema, blockList)
+			fmt.Println(result, err)
+			assert.NoError(t, err)
+			assert.False(t, result.Valid)
+			assert.Equal(t, 1, result.Errors.Count())
+		})
 	})
 
 	t.Run("allow list", func(t *testing.T) {
@@ -121,6 +141,28 @@ func TestFieldsValidator_ValidateByFieldList(t *testing.T) {
 					{
 						Name:   "Character",
 						Fields: []string{"name"},
+					},
+				},
+			}
+
+			validator := DefaultFieldsValidator{}
+			result, err := validator.ValidateByFieldList(&request, schema, allowList)
+			assert.NoError(t, err)
+			assert.True(t, result.Valid)
+			assert.Equal(t, 0, result.Errors.Count())
+		})
+
+		t.Run("should validate if all fields of a type are allowed", func(t *testing.T) {
+			allowList := FieldRestrictionList{
+				Kind: AllowList,
+				Types: []Type{
+					{
+						Name:   "Query",
+						Fields: []string{"hero"},
+					},
+					{
+						Name:   "Character",
+						Fields: []string{"*"},
 					},
 				},
 			}
