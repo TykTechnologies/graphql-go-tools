@@ -1,7 +1,6 @@
 package graphql
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -87,7 +86,7 @@ func TestFieldsValidator_ValidateByFieldList(t *testing.T) {
 			assert.Equal(t, 0, result.Errors.Count())
 		})
 
-		t.Run("should invalidate if blocked fields are used", func(t *testing.T) {
+		t.Run("should invalidate if all fields are blocked by an asterisk char", func(t *testing.T) {
 			blockList := FieldRestrictionList{
 				Kind: BlockList,
 				Types: []Type{
@@ -100,7 +99,6 @@ func TestFieldsValidator_ValidateByFieldList(t *testing.T) {
 
 			validator := DefaultFieldsValidator{}
 			result, err := validator.ValidateByFieldList(&request, schema, blockList)
-			fmt.Println(result, err)
 			assert.NoError(t, err)
 			assert.False(t, result.Valid)
 			assert.Equal(t, 1, result.Errors.Count())
@@ -152,7 +150,7 @@ func TestFieldsValidator_ValidateByFieldList(t *testing.T) {
 			assert.Equal(t, 0, result.Errors.Count())
 		})
 
-		t.Run("should validate if all fields of a type are allowed", func(t *testing.T) {
+		t.Run("should validate if all fields of a type are allowed with the asterisk char", func(t *testing.T) {
 			allowList := FieldRestrictionList{
 				Kind: AllowList,
 				Types: []Type{
