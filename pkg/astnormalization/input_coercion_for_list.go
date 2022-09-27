@@ -192,8 +192,8 @@ func (i *inputCoercionForListVisitor) walkJsonObject(inputObjDefTypeRef int, dat
 		defer i.popQuery()
 
 		inputValueDefRef := i.definition.InputObjectTypeDefinitionInputValueDefinitionByName(inputObjDefTypeRef, key)
-		// if the inputValueDefRef is -1 then the input value of this variable key does not exist in the input object type so skip
-		if inputValueDefRef == -1 {
+		// if the inputValueDefRef is invalid then the input value of this variable key does not exist in the input object type so skip
+		if inputValueDefRef == ast.InvalidRef {
 			return nil
 		}
 		typeRef := i.definition.ResolveListOrNameType(i.definition.InputValueDefinitionType(inputValueDefRef))
