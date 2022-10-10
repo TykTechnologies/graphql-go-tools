@@ -113,10 +113,10 @@ func (r *Request) parseQueryOnce() (report operationreport.Report) {
 	return report
 }
 
-func (r *Request) IsIntrospectionQuery() (result bool, err error) {
+func (r *Request) scanOperationDefinitionsFindSelectionSets() (*ast.SelectionSet, error) {
 	report := r.parseQueryOnce()
 	if report.HasErrors() {
-		return false, report
+		return nil, report
 	}
 
 	var operationDefinitionRef = ast.InvalidRef
@@ -129,7 +129,7 @@ func (r *Request) IsIntrospectionQuery() (result bool, err error) {
 	}
 
 	if len(possibleOperationDefinitionRefs) == 0 {
-		return
+		return nil, nil
 	} else if len(possibleOperationDefinitionRefs) == 1 {
 		operationDefinitionRef = possibleOperationDefinitionRefs[0]
 	} else {
@@ -145,28 +145,65 @@ func (r *Request) IsIntrospectionQuery() (result bool, err error) {
 	}
 
 	if operationDefinitionRef == ast.InvalidRef {
-		return
+		return nil, nil
 	}
 
 	operationDef := r.document.OperationDefinitions[operationDefinitionRef]
 	if operationDef.OperationType != ast.OperationTypeQuery {
-		return
+		return nil, nil
 	}
 	if !operationDef.HasSelections {
-		return
+		return nil, nil
 	}
 
 	selectionSet := r.document.SelectionSets[operationDef.SelectionSet]
 	if len(selectionSet.SelectionRefs) == 0 {
-		return
+		return nil, nil
 	}
 
+	return &selectionSet, nil
+}
+
+func (r *Request) scanFragmentDefinitionsFindSelectionSets() ([]*ast.SelectionSet, error) {
+	report := r.parseQueryOnce()
+	if report.HasErrors() {
+		return nil, report
+	}
+
+	var selectionSets []*ast.SelectionSet
+	for i := 0; i < len(r.document.RootNodes); i++ {
+		if r.document.RootNodes[i].Kind == ast.NodeKindFragmentDefinition {
+			ref := r.document.RootNodes[i].Ref
+			fragment := r.document.FragmentDefinitions[ref]
+			selectionSet := r.document.SelectionSets[fragment.SelectionSet]
+			if len(selectionSet.SelectionRefs) == 0 {
+				continue
+			}
+			selectionSets = append(selectionSets, &selectionSet)
+		}
+	}
+
+	for i := 0; i < len(r.document.InlineFragments); i++ {
+		selectionSet := r.document.SelectionSets[r.document.InlineFragments[i].SelectionSet]
+		selectionSets = append(selectionSets, &selectionSet)
+	}
+
+	return selectionSets, nil
+}
+
+func (r *Request) IsIntrospectionQuery() (result bool, err error) {
+	selectionSet, err := r.scanOperationDefinitionsFindSelectionSets()
+	if err != nil {
+		return
+	}
+	if selectionSet == nil {
+		return
+	}
 	for i := 0; i < len(selectionSet.SelectionRefs); i++ {
 		selection := r.document.Selections[selectionSet.SelectionRefs[i]]
 		if selection.Kind != ast.SelectionKindField {
 			continue
 		}
-
 		fieldName := r.document.FieldNameUnsafeString(selection.Ref)
 		switch fieldName {
 		case schemaIntrospectionFieldName, typeIntrospectionFieldName:
@@ -177,6 +214,39 @@ func (r *Request) IsIntrospectionQuery() (result bool, err error) {
 	}
 
 	return true, nil
+}
+
+func (r *Request) IsIntrospectionQueryStrict() (result bool, err error) {
+	selectionSets, err := r.scanFragmentDefinitionsFindSelectionSets()
+	if err != nil {
+		return
+	}
+	selectionSet, err := r.scanOperationDefinitionsFindSelectionSets()
+	if err != nil {
+		return
+	}
+	if selectionSet != nil {
+		selectionSets = append(selectionSets, selectionSet)
+	}
+
+	for _, selectionSet := range selectionSets {
+		for i := 0; i < len(selectionSet.SelectionRefs); i++ {
+			selection := r.document.Selections[selectionSet.SelectionRefs[i]]
+			if selection.Kind != ast.SelectionKindField {
+				continue
+			}
+
+			fieldName := r.document.FieldNameUnsafeString(selection.Ref)
+			switch fieldName {
+			case schemaIntrospectionFieldName, typeIntrospectionFieldName:
+				return true, nil
+			default:
+				continue
+			}
+		}
+	}
+
+	return
 }
 
 func (r *Request) OperationType() (OperationType, error) {
