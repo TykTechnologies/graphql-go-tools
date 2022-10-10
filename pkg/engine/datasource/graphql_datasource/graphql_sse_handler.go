@@ -75,7 +75,7 @@ func (h *gqlSSEConnectionHandler) subscribe(ctx context.Context, sub Subscriptio
 		_ = resp.Body.Close()
 	}()
 
-	reader := sse.NewEventStreamReader(resp.Body, math.MaxInt)
+	reader := sse.NewEventStreamReader(resp.Body, math.MaxInt32)
 
 	for {
 		if ctx.Err() != nil {
