@@ -113,7 +113,7 @@ func (r *Request) parseQueryOnce() (report operationreport.Report) {
 	return report
 }
 
-func (r *Request) scanOperationDefinitionsFindSelectionSets() (*ast.SelectionSet, error) {
+func (r *Request) scanOperationDefinitionsFindSelectionSets() (selectionSet *ast.SelectionSet, err error) {
 	report := r.parseQueryOnce()
 	if report.HasErrors() {
 		return nil, report
@@ -145,23 +145,23 @@ func (r *Request) scanOperationDefinitionsFindSelectionSets() (*ast.SelectionSet
 	}
 
 	if operationDefinitionRef == ast.InvalidRef {
-		return nil, nil
+		return
 	}
 
 	operationDef := r.document.OperationDefinitions[operationDefinitionRef]
 	if operationDef.OperationType != ast.OperationTypeQuery {
-		return nil, nil
+		return
 	}
 	if !operationDef.HasSelections {
-		return nil, nil
+		return
 	}
 
-	selectionSet := r.document.SelectionSets[operationDef.SelectionSet]
+	selectionSet = &r.document.SelectionSets[operationDef.SelectionSet]
 	if len(selectionSet.SelectionRefs) == 0 {
-		return nil, nil
+		return
 	}
 
-	return &selectionSet, nil
+	return selectionSet, nil
 }
 
 func (r *Request) scanFragmentDefinitionsFindSelectionSets() ([]*ast.SelectionSet, error) {
@@ -171,16 +171,13 @@ func (r *Request) scanFragmentDefinitionsFindSelectionSets() ([]*ast.SelectionSe
 	}
 
 	var selectionSets []*ast.SelectionSet
-	for i := 0; i < len(r.document.RootNodes); i++ {
-		if r.document.RootNodes[i].Kind == ast.NodeKindFragmentDefinition {
-			ref := r.document.RootNodes[i].Ref
-			fragment := r.document.FragmentDefinitions[ref]
-			selectionSet := r.document.SelectionSets[fragment.SelectionSet]
-			if len(selectionSet.SelectionRefs) == 0 {
-				continue
-			}
-			selectionSets = append(selectionSets, &selectionSet)
+	for i := 0; i < len(r.document.FragmentDefinitions); i++ {
+		fragment := r.document.FragmentDefinitions[i]
+		selectionSet := r.document.SelectionSets[fragment.SelectionSet]
+		if len(selectionSet.SelectionRefs) == 0 {
+			continue
 		}
+		selectionSets = append(selectionSets, &selectionSet)
 	}
 
 	for i := 0; i < len(r.document.InlineFragments); i++ {
