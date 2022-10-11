@@ -113,7 +113,7 @@ func (r *Request) parseQueryOnce() (report operationreport.Report) {
 	return report
 }
 
-func (r *Request) scanOperationDefinitionsFindSelectionSets() (selectionSet *ast.SelectionSet, err error) {
+func (r *Request) scanOperationDefinitionsFindSelectionSet() (selectionSet *ast.SelectionSet, err error) {
 	report := r.parseQueryOnce()
 	if report.HasErrors() {
 		return nil, report
@@ -170,6 +170,12 @@ func (r *Request) scanFragmentDefinitionsFindSelectionSets() ([]*ast.SelectionSe
 		return nil, report
 	}
 
+	// See the following constants:
+	//
+	// * inlineFragmentedIntrospectionQueryWithFragmentOnQuery
+	// * inlineFragmentedIntrospectionQueryType
+	// * fragmentedIntrospectionQuery
+
 	var selectionSets []*ast.SelectionSet
 	for i := 0; i < len(r.document.FragmentDefinitions); i++ {
 		fragment := r.document.FragmentDefinitions[i]
@@ -189,7 +195,7 @@ func (r *Request) scanFragmentDefinitionsFindSelectionSets() ([]*ast.SelectionSe
 }
 
 func (r *Request) IsIntrospectionQuery() (result bool, err error) {
-	selectionSet, err := r.scanOperationDefinitionsFindSelectionSets()
+	selectionSet, err := r.scanOperationDefinitionsFindSelectionSet()
 	if err != nil {
 		return
 	}
@@ -213,12 +219,15 @@ func (r *Request) IsIntrospectionQuery() (result bool, err error) {
 	return true, nil
 }
 
+// IsIntrospectionQueryStrict returns true if the client tries to query __schema or __type fields in any way.
+// IsIntrospectionQuery returns false if schema/type introspection query contains additional non-introspection fields.
+// This breaks the granular access schema of Tyk Gateway.
 func (r *Request) IsIntrospectionQueryStrict() (result bool, err error) {
 	selectionSets, err := r.scanFragmentDefinitionsFindSelectionSets()
 	if err != nil {
 		return
 	}
-	selectionSet, err := r.scanOperationDefinitionsFindSelectionSets()
+	selectionSet, err := r.scanOperationDefinitionsFindSelectionSet()
 	if err != nil {
 		return
 	}
@@ -236,8 +245,10 @@ func (r *Request) IsIntrospectionQueryStrict() (result bool, err error) {
 			fieldName := r.document.FieldNameUnsafeString(selection.Ref)
 			switch fieldName {
 			case schemaIntrospectionFieldName, typeIntrospectionFieldName:
+				// The query wants to access an introspection field, return true.
 				return true, nil
 			default:
+				// non-introspection field, continue scanning.
 				continue
 			}
 		}
