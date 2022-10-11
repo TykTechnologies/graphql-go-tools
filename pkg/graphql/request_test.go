@@ -181,6 +181,8 @@ func TestRequest_IsIntrospectionQueryStrict(t *testing.T) {
 		t.Run("with inline fragment", run(inlineFragmentedIntrospectionQueryType, true))
 		t.Run("with inline fragment on type query", run(inlineFragmentedIntrospectionQueryWithFragmentOnQuery, true))
 		t.Run("with fragment", run(fragmentedIntrospectionQuery, true))
+		t.Run("schema introspection query with additional non-introspection fields", run(nonSchemaIntrospectionQueryWithAdditionalFields, true))
+		t.Run("type introspection query with additional non-introspection fields", run(nonTypeIntrospectionQueryWithAdditionalFields, true))
 	})
 
 	t.Run("type introspection query", func(t *testing.T) {
@@ -194,8 +196,6 @@ func TestRequest_IsIntrospectionQueryStrict(t *testing.T) {
 		t.Run("Foo mutation", run(mutationQuery, false))
 		t.Run("fake schema introspection with alias", run(nonSchemaIntrospectionQueryWithAliases, false))
 		t.Run("fake type introspection with alias", run(nonTypeIntrospectionQueryWithAliases, false))
-		t.Run("schema introspection query with additional non-introspection fields", run(nonSchemaIntrospectionQueryWithAdditionalFields, true))
-		t.Run("type introspection query with additional non-introspection fields", run(nonTypeIntrospectionQueryWithAdditionalFields, true))
 		t.Run("schema introspection with multiple queries in payload", run(nonSchemaIntrospectionQueryWithMultipleQueries, false))
 		t.Run("type introspection with multiple queries in payload", run(nonTypeIntrospectionQueryWithMultipleQueries, false))
 	})
