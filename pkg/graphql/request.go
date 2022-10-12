@@ -243,9 +243,9 @@ func (r *Request) IsIntrospectionQueryStrict() (result bool, err error) {
 		selectionSets = append(selectionSets, selectionSet)
 	}
 
-	for _, selectionSet := range selectionSets {
-		for i := 0; i < len(selectionSet.SelectionRefs); i++ {
-			selection := r.document.Selections[selectionSet.SelectionRefs[i]]
+	for _, selectionSetItem := range selectionSets {
+		for i := 0; i < len(selectionSetItem.SelectionRefs); i++ {
+			selection := r.document.Selections[selectionSetItem.SelectionRefs[i]]
 			if selection.Kind != ast.SelectionKindField {
 				continue
 			}
