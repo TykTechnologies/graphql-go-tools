@@ -179,16 +179,24 @@ func (r *Request) scanFragmentDefinitionsFindSelectionSets() ([]*ast.SelectionSe
 	var selectionSets []*ast.SelectionSet
 	for i := 0; i < len(r.document.FragmentDefinitions); i++ {
 		fragment := r.document.FragmentDefinitions[i]
-		selectionSet := r.document.SelectionSets[fragment.SelectionSet]
-		if len(selectionSet.SelectionRefs) == 0 {
-			continue
+		if fragment.HasSelections {
+			if fragment.SelectionSet == ast.InvalidRef {
+				continue
+			}
+			selectionSet := r.document.SelectionSets[fragment.SelectionSet]
+			selectionSets = append(selectionSets, &selectionSet)
 		}
-		selectionSets = append(selectionSets, &selectionSet)
 	}
 
 	for i := 0; i < len(r.document.InlineFragments); i++ {
-		selectionSet := r.document.SelectionSets[r.document.InlineFragments[i].SelectionSet]
-		selectionSets = append(selectionSets, &selectionSet)
+		inlineFragment := r.document.InlineFragments[i]
+		if inlineFragment.HasSelections {
+			if inlineFragment.SelectionSet == ast.InvalidRef {
+				continue
+			}
+			selectionSet := r.document.SelectionSets[inlineFragment.SelectionSet]
+			selectionSets = append(selectionSets, &selectionSet)
+		}
 	}
 
 	return selectionSets, nil
