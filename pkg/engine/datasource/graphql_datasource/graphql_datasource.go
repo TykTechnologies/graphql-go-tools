@@ -9,8 +9,9 @@ import (
 	"net/http"
 
 	"github.com/buger/jsonparser"
-	"github.com/TykTechnologies/graphql-go-tools/pkg/asttransform"
 	"github.com/tidwall/sjson"
+
+	"github.com/TykTechnologies/graphql-go-tools/pkg/asttransform"
 
 	"github.com/TykTechnologies/graphql-go-tools/pkg/ast"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/astnormalization"
@@ -1147,17 +1148,19 @@ type Factory struct {
 	BatchFactory       resolve.DataSourceBatchFactory
 	HTTPClient         *http.Client
 	StreamingClient    *http.Client
-	subscriptionClient *SubscriptionClient
+	SubscriptionClient *SubscriptionClient
 }
 
 func (f *Factory) Planner(ctx context.Context) plan.DataSourcePlanner {
-	if f.subscriptionClient == nil {
-		f.subscriptionClient = NewGraphQLSubscriptionClient(f.HTTPClient, f.StreamingClient, ctx)
+	if f.SubscriptionClient == nil {
+		f.SubscriptionClient = NewGraphQLSubscriptionClient(f.HTTPClient, f.StreamingClient, ctx)
+	} else if f.SubscriptionClient.engineCtx == nil {
+		f.SubscriptionClient.engineCtx = ctx
 	}
 	return &Planner{
 		batchFactory:       f.BatchFactory,
 		fetchClient:        f.HTTPClient,
-		subscriptionClient: f.subscriptionClient,
+		subscriptionClient: f.SubscriptionClient,
 	}
 }
 
@@ -1166,7 +1169,7 @@ type Source struct {
 }
 
 func (s *Source) compactAndUnNullVariables(input []byte) []byte {
-	variables, _, _, err := jsonparser.Get(input, "body","variables")
+	variables, _, _, err := jsonparser.Get(input, "body", "variables")
 	if err != nil {
 		return input
 	}
@@ -1188,7 +1191,7 @@ func (s *Source) compactAndUnNullVariables(input []byte) []byte {
 			break
 		}
 	}
-	input, _ = jsonparser.Set(input, variables, "body","variables")
+	input, _ = jsonparser.Set(input, variables, "body", "variables")
 	return input
 }
 
