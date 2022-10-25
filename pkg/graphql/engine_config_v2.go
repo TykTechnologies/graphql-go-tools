@@ -96,8 +96,7 @@ func WithDataSourceV2GeneratorSubscriptionClientFactory(factory graphqlDataSourc
 }
 
 type graphqlDataSourceV2Generator struct {
-	document                  *ast.Document
-	subscriptionClientFactory graphqlDataSource.GraphQLSubscriptionClientFactory
+	document *ast.Document
 }
 
 func newGraphQLDataSourceV2Generator(document *ast.Document) *graphqlDataSourceV2Generator {
