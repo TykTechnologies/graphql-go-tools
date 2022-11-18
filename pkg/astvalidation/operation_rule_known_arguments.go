@@ -1,9 +1,9 @@
 package astvalidation
 
 import (
-	"github.com/wundergraph/graphql-go-tools/pkg/ast"
-	"github.com/wundergraph/graphql-go-tools/pkg/astvisitor"
-	"github.com/wundergraph/graphql-go-tools/pkg/operationreport"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/ast"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/astvisitor"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/operationreport"
 )
 
 // KnownArguments validates if all arguments are known
