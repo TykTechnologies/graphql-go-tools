@@ -173,6 +173,9 @@ func (d *DataSourceConfiguration) HasRootNode(typeName, fieldName string) bool {
 			continue
 		}
 		for j := range d.RootNodes[i].FieldNames {
+			if bytes.Equal([]byte(fieldName), literal.TYPENAME) {
+				return true
+			}
 			if fieldName == d.RootNodes[i].FieldNames[j] {
 				return true
 			}
@@ -514,9 +517,9 @@ func (v *Visitor) EnterField(ref int) {
 	skip, skipVariableName := v.resolveSkipForField(ref)
 	include, includeVariableName := v.resolveIncludeForField(ref)
 
-	fieldName := v.Operation.FieldNameBytes(ref)
+	//fieldName := v.Operation.FieldNameBytes(ref)
 	fieldAliasOrName := v.Operation.FieldAliasOrNameBytes(ref)
-	if bytes.Equal(fieldName, literal.TYPENAME) {
+	/*if bytes.Equal(fieldName, literal.TYPENAME) {
 		v.currentField = &resolve.Field{
 			Name: fieldAliasOrName,
 			Value: &resolve.String{
@@ -533,7 +536,7 @@ func (v *Visitor) EnterField(ref int) {
 		}
 		*v.currentFields[len(v.currentFields)-1].fields = append(*v.currentFields[len(v.currentFields)-1].fields, v.currentField)
 		return
-	}
+	}*/
 
 	fieldDefinition, ok := v.Walker.FieldDefinition(ref)
 	if !ok {
