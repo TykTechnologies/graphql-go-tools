@@ -3213,7 +3213,8 @@ func TestGraphQLDataSource(t *testing.T) {
 					},
 					Fields: []*resolve.Field{
 						{
-							Name: []byte("__typename"),
+							Name:      []byte("__typename"),
+							HasBuffer: true,
 							Value: &resolve.String{
 								Path:       []string{"__typename"},
 								Nullable:   false,

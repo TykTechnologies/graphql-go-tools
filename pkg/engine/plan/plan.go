@@ -172,6 +172,9 @@ func (d *DataSourceConfiguration) HasRootNode(typeName, fieldName string) bool {
 		if typeName != d.RootNodes[i].TypeName {
 			continue
 		}
+		if fieldName == "__typename" {
+			return true
+		}
 		for j := range d.RootNodes[i].FieldNames {
 			if fieldName == d.RootNodes[i].FieldNames[j] {
 				return true
@@ -513,27 +516,7 @@ func (v *Visitor) EnterField(ref int) {
 
 	skip, skipVariableName := v.resolveSkipForField(ref)
 	include, includeVariableName := v.resolveIncludeForField(ref)
-
-	fieldName := v.Operation.FieldNameBytes(ref)
 	fieldAliasOrName := v.Operation.FieldAliasOrNameBytes(ref)
-	if bytes.Equal(fieldName, literal.TYPENAME) {
-		v.currentField = &resolve.Field{
-			Name: fieldAliasOrName,
-			Value: &resolve.String{
-				Nullable:   false,
-				Path:       []string{"__typename"},
-				IsTypeName: true,
-			},
-			OnTypeName:              v.resolveOnTypeName(),
-			Position:                v.resolveFieldPosition(ref),
-			SkipDirectiveDefined:    skip,
-			SkipVariableName:        skipVariableName,
-			IncludeDirectiveDefined: include,
-			IncludeVariableName:     includeVariableName,
-		}
-		*v.currentFields[len(v.currentFields)-1].fields = append(*v.currentFields[len(v.currentFields)-1].fields, v.currentField)
-		return
-	}
 
 	fieldDefinition, ok := v.Walker.FieldDefinition(ref)
 	if !ok {
@@ -681,6 +664,15 @@ func (v *Visitor) skipField(ref int) bool {
 }
 
 func (v *Visitor) resolveFieldValue(fieldRef, typeRef int, nullable bool, path []string, isList bool) resolve.Node {
+	fieldNameBytes := v.Operation.FieldNameBytes(fieldRef)
+	if bytes.Equal(fieldNameBytes, literal.TYPENAME) {
+		return &resolve.String{
+			Nullable:   false,
+			Path:       []string{"__typename"},
+			IsTypeName: true,
+		}
+	}
+
 	ofType := v.Definition.Types[typeRef].OfType
 
 	fieldName := v.Operation.FieldNameString(fieldRef)
