@@ -1104,14 +1104,23 @@ func (r *Resolver) resolveObject(ctx *Context, object *Object, data []byte, obje
 				ctx.resetResponsePathElements()
 				ctx.lastFetchID = object.Fields[i].BufferID
 			}
-		} else if bytes.Equal(object.Fields[i].Name, literal.TYPENAME) {
-			typeNameValue, _ := json.Marshal(object.Fields[i].TypeName)
-			fieldData, err = jsonparser.Set([]byte("{}"), typeNameValue, string(literal.TYPENAME))
-			if err != nil {
-				return
-			}
 		} else {
 			fieldData = data
+		}
+
+		if bytes.Equal(object.Fields[i].Name, literal.TYPENAME) {
+			// Don't overwrite the existing __typename values.
+			_, _, _, err = jsonparser.Get(fieldData, string(literal.TYPENAME))
+			if errors.Is(err, jsonparser.KeyPathNotFoundError) {
+				if len(fieldData) == 0 {
+					fieldData = []byte(`{}`)
+				}
+				typeNameValue, _ := json.Marshal(object.Fields[i].TypeName)
+				fieldData, err = jsonparser.Set(fieldData, typeNameValue, string(literal.TYPENAME))
+				if err != nil {
+					return
+				}
+			}
 		}
 
 		if object.Fields[i].OnTypeName != nil {
