@@ -1,0 +1,490 @@
+{
+  "asyncapi": "2.0.0",
+  "channels": {
+    "smartylighting.streetlights.1.0.action.{streetlightId}.dim": {
+      "parameters": {
+        "streetlightId": {
+          "description": "The ID of the streetlight.",
+          "schema": {
+            "type": "string"
+          }
+        }
+      },
+      "subscribe": {
+        "message": {
+          "name": "dimLight",
+          "payload": {
+            "properties": {
+              "percentage": {
+                "description": "Percentage to which the light should be dimmed to.",
+                "maximum": 100,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "sentAt": {
+                "description": "Date and time when the message was sent.",
+                "format": "date-time",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "summary": "Command a particular streetlight to dim the lights.",
+          "title": "Dim light",
+          "traits": [{
+            "headers": {
+              "properties": {
+                "my-app-header": {
+                  "maximum": 100,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            }
+          }]
+        },
+        "operationId": "dimLight",
+        "traits": [{
+          "bindings": {
+            "kafka": {
+              "clientId": "my-app-id"
+            }
+          }
+        }]
+      }
+    },
+    "smartylighting.streetlights.1.0.action.{streetlightId}.turn.off": {
+      "parameters": {
+        "streetlightId": {
+          "description": "The ID of the streetlight.",
+          "schema": {
+            "type": "string"
+          }
+        }
+      },
+      "subscribe": {
+        "message": {
+          "name": "turnOnOff",
+          "payload": {
+            "properties": {
+              "command": {
+                "description": "Whether to turn on or off the light.",
+                "enum": [
+                  "on",
+                  "off"
+                ],
+                "type": "string"
+              },
+              "sentAt": {
+                "description": "Date and time when the message was sent.",
+                "format": "date-time",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "summary": "Command a particular streetlight to turn the lights on or off.",
+          "title": "Turn on/off",
+          "traits": [{
+            "headers": {
+              "properties": {
+                "my-app-header": {
+                  "maximum": 100,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            }
+          }]
+        },
+        "operationId": "turnOff",
+        "traits": [{
+          "bindings": {
+            "kafka": {
+              "clientId": "my-app-id"
+            }
+          }
+        }]
+      }
+    },
+    "smartylighting.streetlights.1.0.action.{streetlightId}.turn.on": {
+      "parameters": {
+        "streetlightId": {
+          "description": "The ID of the streetlight.",
+          "schema": {
+            "type": "string"
+          }
+        }
+      },
+      "subscribe": {
+        "message": {
+          "name": "turnOnOff",
+          "payload": {
+            "properties": {
+              "command": {
+                "description": "Whether to turn on or off the light.",
+                "enum": [
+                  "on",
+                  "off"
+                ],
+                "type": "string"
+              },
+              "sentAt": {
+                "description": "Date and time when the message was sent.",
+                "format": "date-time",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "summary": "Command a particular streetlight to turn the lights on or off.",
+          "title": "Turn on/off",
+          "traits": [{
+            "headers": {
+              "properties": {
+                "my-app-header": {
+                  "maximum": 100,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            }
+          }]
+        },
+        "operationId": "turnOn",
+        "traits": [{
+          "bindings": {
+            "kafka": {
+              "clientId": "my-app-id"
+            }
+          }
+        }]
+      }
+    },
+    "smartylighting.streetlights.1.0.event.{streetlightId}.lighting.measured": {
+      "description": "The topic on which measured values may be produced and consumed.",
+      "parameters": {
+        "streetlightId": {
+          "description": "The ID of the streetlight.",
+          "schema": {
+            "type": "string"
+          }
+        }
+      },
+      "publish": {
+        "message": {
+          "contentType": "application/json",
+          "name": "lightMeasured",
+          "payload": {
+            "properties": {
+              "lumens": {
+                "description": "Light intensity measured in lumens.",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "sentAt": {
+                "description": "Date and time when the message was sent.",
+                "format": "date-time",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "summary": "Inform about environmental lighting conditions of a particular streetlight.",
+          "title": "Light measured",
+          "traits": [{
+            "headers": {
+              "properties": {
+                "my-app-header": {
+                  "maximum": 100,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            }
+          }]
+        },
+        "operationId": "receiveLightMeasurement",
+        "summary": "Inform about environmental lighting conditions of a particular streetlight.",
+        "traits": [{
+          "bindings": {
+            "kafka": {
+              "clientId": "my-app-id"
+            }
+          }
+        }]
+      }
+    },
+    "smartylighting.streetlights.1.0.event.{streetlightId}.lighting.measured-replica": {
+      "description": "The topic on which measured values may be produced and consumed.",
+      "parameters": {
+        "streetlightId": {
+          "description": "The ID of the streetlight.",
+          "schema": {
+            "type": "string"
+          }
+        }
+      },
+      "publish": {
+        "message": {
+          "contentType": "application/json",
+          "name": "lightMeasured",
+          "payload": {
+            "properties": {
+              "lumens": {
+                "description": "Light intensity measured in lumens.",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "sentAt": {
+                "description": "Date and time when the message was sent.",
+                "format": "date-time",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "summary": "Inform about environmental lighting conditions of a particular streetlight.",
+          "title": "Light measured",
+          "traits": [{
+            "headers": {
+              "properties": {
+                "my-app-header": {
+                  "maximum": 100,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            }
+          }]
+        },
+        "operationId": "receiveLightMeasurementReplica",
+        "summary": "Replica - Inform about environmental lighting conditions of a particular streetlight.",
+        "traits": [{
+          "bindings": {
+            "kafka": {
+              "clientId": "my-app-id"
+            }
+          }
+        }]
+      }
+    }
+  },
+  "components": {
+    "messageTraits": {
+      "commonHeaders": {
+        "headers": {
+          "properties": {
+            "my-app-header": {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        }
+      }
+    },
+    "messages": {
+      "dimLight": {
+        "name": "dimLight",
+        "payload": {
+          "properties": {
+            "percentage": {
+              "description": "Percentage to which the light should be dimmed to.",
+              "maximum": 100,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "sentAt": {
+              "description": "Date and time when the message was sent.",
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "summary": "Command a particular streetlight to dim the lights.",
+        "title": "Dim light",
+        "traits": [{
+          "headers": {
+            "properties": {
+              "my-app-header": {
+                "maximum": 100,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        }]
+      },
+      "lightMeasured": {
+        "contentType": "application/json",
+        "name": "lightMeasured",
+        "payload": {
+          "properties": {
+            "lumens": {
+              "description": "Light intensity measured in lumens.",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "sentAt": {
+              "description": "Date and time when the message was sent.",
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "summary": "Inform about environmental lighting conditions of a particular streetlight.",
+        "title": "Light measured",
+        "traits": [{
+          "headers": {
+            "properties": {
+              "my-app-header": {
+                "maximum": 100,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        }]
+      },
+      "turnOnOff": {
+        "name": "turnOnOff",
+        "payload": {
+          "properties": {
+            "command": {
+              "description": "Whether to turn on or off the light.",
+              "enum": [
+                "on",
+                "off"
+              ],
+              "type": "string"
+            },
+            "sentAt": {
+              "description": "Date and time when the message was sent.",
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "summary": "Command a particular streetlight to turn the lights on or off.",
+        "title": "Turn on/off",
+        "traits": [{
+          "headers": {
+            "properties": {
+              "my-app-header": {
+                "maximum": 100,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        }]
+      }
+    },
+    "operationTraits": {
+      "kafka": {
+        "bindings": {
+          "kafka": {
+            "clientId": "my-app-id"
+          }
+        }
+      }
+    },
+    "parameters": {
+      "streetlightId": {
+        "description": "The ID of the streetlight.",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "dimLightPayload": {
+        "properties": {
+          "percentage": {
+            "description": "Percentage to which the light should be dimmed to.",
+            "maximum": 100,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "sentAt": {
+            "description": "Date and time when the message was sent.",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "lightMeasuredPayload": {
+        "properties": {
+          "lumens": {
+            "description": "Light intensity measured in lumens.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "sentAt": {
+            "description": "Date and time when the message was sent.",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "sentAt": {
+        "description": "Date and time when the message was sent.",
+        "format": "date-time",
+        "type": "string"
+      },
+      "turnOnOffPayload": {
+        "properties": {
+          "command": {
+            "description": "Whether to turn on or off the light.",
+            "enum": [
+              "on",
+              "off"
+            ],
+            "type": "string"
+          },
+          "sentAt": {
+            "description": "Date and time when the message was sent.",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    }
+  },
+  "defaultContentType": "application/json",
+  "info": {
+    "description": "The Smartylighting Streetlights API allows you to remotely manage the city lights.\n\n### Check out its awesome features:\n\n* Turn a specific streetlight on/off 🌃\n* Dim a specific streetlight 😎\n* Receive real-time information about environmental lighting conditions 📈\n",
+    "license": {
+      "name": "Apache 2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0"
+    },
+    "title": "Streetlights Kafka API",
+    "version": "1.0.0"
+  },
+  "servers": {
+    "test": {
+      "description": "Test broker",
+      "protocol": "kafka-secure",
+      "security": [{
+        "saslScram": []
+      }],
+      "url": "test.mykafkacluster.org:8092"
+    }
+  }
+}
