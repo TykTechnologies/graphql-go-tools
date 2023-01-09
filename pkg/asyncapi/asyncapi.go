@@ -23,6 +23,27 @@ const (
 
 type AsyncAPI struct {
 	Channels map[string]*ChannelItem
+	Servers  map[string]*Server
+}
+
+type ServerVariable struct {
+}
+
+type SecurityRequirement struct {
+	Requirements map[string][]string
+}
+
+type ServerBindings struct {
+}
+
+type Server struct {
+	URL             string
+	Protocol        string
+	ProtocolVersion string
+	Description     string
+	Variables       map[string]*ServerVariable
+	Security        *SecurityRequirement
+	Bindings        *ServerBindings
 }
 
 type ChannelItem struct {
@@ -252,6 +273,10 @@ func (w *walker) enterChannelObject() error {
 		}
 		return nil
 	})
+}
+
+func (w *walker) enterServersObject() {
+
 }
 
 func ParseAsyncAPIDocument(input []byte) (*AsyncAPI, error) {
