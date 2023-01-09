@@ -19,6 +19,7 @@ const (
 	PayloadKey    string = "payload"
 	PropertiesKey string = "properties"
 	EnumKey       string = "enum"
+	ServersKey    string = "servers"
 )
 
 type AsyncAPI struct {
@@ -49,6 +50,7 @@ type Server struct {
 type ChannelItem struct {
 	Message     *Message
 	OperationID string
+	Servers     []string
 }
 
 type Enum struct {
@@ -81,6 +83,20 @@ type Message struct {
 type walker struct {
 	document *bytes.Buffer
 	asyncapi *AsyncAPI
+}
+
+func extractStringArray(key string, data []byte) ([]string, error) {
+	var result []string
+	_, err := jsonparser.ArrayEach(data, func(value []byte, dataType jsonparser.ValueType, _ int, _ error) {
+		result = append(result, string(value))
+	}, key)
+	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
+		err = nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func extractString(key string, data []byte) (string, error) {
@@ -217,7 +233,7 @@ func (w *walker) enterMessageObject(key, data []byte) error {
 }
 
 func (w *walker) enterChannelItemObject(key []byte, data []byte) error {
-	value, dataType, _, err := jsonparser.Get(data, SubscribeKey)
+	subscribeValue, dataType, _, err := jsonparser.Get(data, SubscribeKey)
 	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
 		return nil
 	}
@@ -229,7 +245,7 @@ func (w *walker) enterChannelItemObject(key []byte, data []byte) error {
 		return fmt.Errorf("%s has to be a JSON object", SubscribeKey)
 	}
 
-	messageValue, dataType, _, err := jsonparser.Get(value, MessageKey)
+	messageValue, dataType, _, err := jsonparser.Get(subscribeValue, MessageKey)
 	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
 		return fmt.Errorf("channel: %s: %w", key, ErrMissingMessageObject)
 	}
@@ -241,7 +257,7 @@ func (w *walker) enterChannelItemObject(key []byte, data []byte) error {
 		return fmt.Errorf("%s has to be a JSON object", MessageKey)
 	}
 
-	operationID, err := extractString("operationId", value)
+	operationID, err := extractString("operationId", subscribeValue)
 	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
 		err = nil
 	}
@@ -249,7 +265,15 @@ func (w *walker) enterChannelItemObject(key []byte, data []byte) error {
 		return err
 	}
 
-	w.asyncapi.Channels[string(key)] = &ChannelItem{OperationID: operationID}
+	servers, err := extractStringArray(ServersKey, data)
+	if err != nil {
+		return err
+	}
+	channelItem := &ChannelItem{
+		OperationID: operationID,
+		Servers:     servers,
+	}
+	w.asyncapi.Channels[string(key)] = channelItem
 	return w.enterMessageObject(key, messageValue)
 }
 
@@ -275,19 +299,17 @@ func (w *walker) enterChannelObject() error {
 	})
 }
 
-func (w *walker) enterServersObject() {
-
-}
+func (w *walker) enterServersObject() {}
 
 func ParseAsyncAPIDocument(input []byte) (*AsyncAPI, error) {
 	r := bytes.NewBuffer(input)
-	p, err := parser.New()
+	asyncAPIParser, err := parser.New()
 	if err != nil {
 		return nil, err
 	}
 
 	buf := bytes.NewBuffer(nil)
-	err = p(r, buf)
+	err = asyncAPIParser(r, buf)
 	if err != nil {
 		return nil, err
 	}
