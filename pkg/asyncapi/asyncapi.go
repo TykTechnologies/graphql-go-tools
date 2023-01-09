@@ -31,8 +31,8 @@ type ChannelItem struct {
 }
 
 type Enum struct {
-	value     []byte
-	valueType jsonparser.ValueType
+	Value     []byte
+	ValueType jsonparser.ValueType
 }
 
 type Property struct {
@@ -120,8 +120,8 @@ func (w *walker) enterPropertyObject(channel, key, data []byte) error {
 
 	_, err = jsonparser.ArrayEach(data, func(enumValue []byte, dataType jsonparser.ValueType, _ int, err error) {
 		property.Enum = append(property.Enum, &Enum{
-			value:     enumValue,
-			valueType: dataType,
+			Value:     enumValue,
+			ValueType: dataType,
 		})
 	}, EnumKey)
 	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
@@ -159,7 +159,7 @@ func (w *walker) enterPayloadObject(key, data []byte) error {
 	}
 
 	p := &Payload{Properties: make(map[string]*Property)}
-	typeValue, err := extractString("summary", data)
+	typeValue, err := extractString("type", payload)
 	if err == nil {
 		p.Type = typeValue
 	}
@@ -181,7 +181,7 @@ func (w *walker) enterMessageObject(key, data []byte) error {
 		msg.Summary = summary
 	}
 
-	title, err := extractString("summary", data)
+	title, err := extractString("title", data)
 	if err == nil {
 		msg.Title = title
 	}
