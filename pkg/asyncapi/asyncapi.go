@@ -13,13 +13,22 @@ import (
 var ErrMissingMessageObject = errors.New("missing message object")
 
 const (
-	ChannelsKey   string = "channels"
-	SubscribeKey  string = "subscribe"
-	MessageKey    string = "message"
-	PayloadKey    string = "payload"
-	PropertiesKey string = "properties"
-	EnumKey       string = "enum"
-	ServersKey    string = "servers"
+	ChannelsKey    = "channels"
+	SubscribeKey   = "subscribe"
+	MessageKey     = "message"
+	PayloadKey     = "payload"
+	PropertiesKey  = "properties"
+	EnumKey        = "enum"
+	ServersKey     = "servers"
+	DescriptionKey = "description"
+	NameKey        = "name"
+	TitleKey       = "title"
+	SummaryKey     = "summary"
+	TypeKey        = "type"
+	FormatKey      = "format"
+	MinimumKey     = "minimum"
+	MaximumKey     = "maximum"
+	OperationIDKey = "operationId"
 )
 
 type AsyncAPI struct {
@@ -129,28 +138,28 @@ func extractInteger(key string, data []byte) (int, error) {
 
 func (w *walker) enterPropertyObject(channel, key, data []byte) error {
 	property := &Property{}
-	description, err := extractString("description", data)
+	description, err := extractString(DescriptionKey, data)
 	if err == nil {
 		property.Description = description
 	}
 
-	format, err := extractString("format", data)
+	format, err := extractString(FormatKey, data)
 	if err == nil {
 		property.Format = format
 	}
 
-	tpe, err := extractString("type", data)
+	tpe, err := extractString(TypeKey, data)
 	if err != nil {
 		return err
 	}
 	property.Type = tpe
 
-	minimum, err := extractInteger("minimum", data)
+	minimum, err := extractInteger(MinimumKey, data)
 	if err == nil {
 		property.Minimum = minimum
 	}
 
-	maximum, err := extractInteger("maximum", data)
+	maximum, err := extractInteger(MaximumKey, data)
 	if err == nil {
 		property.Maximum = maximum
 	}
@@ -196,7 +205,7 @@ func (w *walker) enterPayloadObject(key, data []byte) error {
 	}
 
 	p := &Payload{Properties: make(map[string]*Property)}
-	typeValue, err := extractString("type", payload)
+	typeValue, err := extractString(TypeKey, payload)
 	if err == nil {
 		p.Type = typeValue
 	}
@@ -207,23 +216,23 @@ func (w *walker) enterPayloadObject(key, data []byte) error {
 
 func (w *walker) enterMessageObject(key, data []byte) error {
 	msg := &Message{}
-	name, err := extractString("name", data)
+	name, err := extractString(NameKey, data)
 	if err != nil {
 		return err
 	}
 	msg.Name = name
 
-	summary, err := extractString("summary", data)
+	summary, err := extractString(SummaryKey, data)
 	if err == nil {
 		msg.Summary = summary
 	}
 
-	title, err := extractString("title", data)
+	title, err := extractString(TitleKey, data)
 	if err == nil {
 		msg.Title = title
 	}
 
-	description, err := extractString("description", data)
+	description, err := extractString(DescriptionKey, data)
 	if err == nil {
 		msg.Description = description
 	}
@@ -257,7 +266,7 @@ func (w *walker) enterChannelItemObject(key []byte, data []byte) error {
 		return fmt.Errorf("%s has to be a JSON object", MessageKey)
 	}
 
-	operationID, err := extractString("operationId", subscribeValue)
+	operationID, err := extractString(OperationIDKey, subscribeValue)
 	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
 		err = nil
 	}
