@@ -210,6 +210,23 @@ func TestAsyncAPIStreetLightsKafkaSecurity(t *testing.T) {
 				},
 			},
 		},
+		Servers: map[string]*Server{
+			"test": {
+				URL:         "test.mykafkacluster.org:8092",
+				Protocol:    "kafka-secure",
+				Description: "Test broker",
+			},
+			"test_oauth": {
+				URL:         "test.mykafkacluster.org:8093",
+				Protocol:    "kafka-secure",
+				Description: "Test port for oauth",
+				Security: []*SecurityRequirement{{
+					Requirements: map[string][]string{
+						"streetlights_auth": {"streetlights:write", "streetlights:read"},
+					},
+				}},
+			},
+		},
 	}
 	asyncapiDoc, err := os.ReadFile("./fixtures/streetlights-kafka-security.yaml")
 	require.NoError(t, err)

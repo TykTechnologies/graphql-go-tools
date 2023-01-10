@@ -51,8 +51,8 @@ type Server struct {
 	Protocol        string
 	ProtocolVersion string
 	Description     string
+	Security        []*SecurityRequirement
 	Variables       map[string]*ServerVariable
-	Security        *SecurityRequirement
 	Bindings        *ServerBindings
 }
 
@@ -333,6 +333,20 @@ func (w *walker) enterServerObject(key, data []byte) error {
 	if err == nil {
 		s.Description = descriptionValue
 	}
+
+	// TODO: Simplify this code.
+	jsonparser.ArrayEach(data, func(value []byte, dataType jsonparser.ValueType, _ int, _ error) {
+		jsonparser.ObjectEach(value, func(key []byte, value2 []byte, dataType2 jsonparser.ValueType, _ int) error {
+			sr := &SecurityRequirement{Requirements: make(map[string][]string)}
+			jsonparser.ArrayEach(value2, func(value3 []byte, dataType2 jsonparser.ValueType, _ int, _ error) {
+				sr.Requirements[string(key)] = append(sr.Requirements[string(key)], string(value3))
+			})
+			if len(sr.Requirements) > 0 {
+				s.Security = append(s.Security, sr)
+			}
+			return nil
+		})
+	}, "security")
 
 	w.asyncapi.Servers[string(key)] = s
 	return nil
