@@ -100,6 +100,13 @@ func TestAsyncAPIStreetLightsKafka(t *testing.T) {
 				},
 			},
 		},
+		Servers: map[string]*Server{
+			"test": {
+				URL:         "test.mykafkacluster.org:8092",
+				Protocol:    "kafka-secure",
+				Description: "Test broker",
+			},
+		},
 	}
 	asyncapiDoc, err := os.ReadFile("./fixtures/streetlights-kafka.yaml")
 	require.NoError(t, err)

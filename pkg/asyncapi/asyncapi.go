@@ -308,7 +308,48 @@ func (w *walker) enterChannelObject() error {
 	})
 }
 
-func (w *walker) enterServersObject() {}
+func (w *walker) enterServerObject(key, data []byte) error {
+	s := &Server{}
+
+	// Mandatory
+	urlValue, err := extractString("url", data)
+	if err != nil {
+		return err
+	}
+	s.URL = urlValue
+
+	protocolValue, err := extractString("protocol", data)
+	if err != nil {
+		return err
+	}
+	s.Protocol = protocolValue
+
+	// Not mandatory
+	protocolVersionValue, err := extractString("protocolVersion", data)
+	if err == nil {
+		s.ProtocolVersion = protocolVersionValue
+	}
+	descriptionValue, err := extractString("description", data)
+	if err == nil {
+		s.Description = descriptionValue
+	}
+
+	w.asyncapi.Servers[string(key)] = s
+	return nil
+}
+
+func (w *walker) enterServersObject() error {
+	serverValue, dataType, _, err := jsonparser.Get(w.document.Bytes(), ServersKey)
+	if err != nil {
+		return err
+	}
+	if dataType != jsonparser.Object {
+		return fmt.Errorf("%s has to be a JSON object", ServersKey)
+	}
+	return jsonparser.ObjectEach(serverValue, func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
+		return w.enterServerObject(key, value)
+	})
+}
 
 func ParseAsyncAPIDocument(input []byte) (*AsyncAPI, error) {
 	r := bytes.NewBuffer(input)
@@ -325,10 +366,18 @@ func ParseAsyncAPIDocument(input []byte) (*AsyncAPI, error) {
 
 	w := &walker{
 		document: buf,
-		asyncapi: &AsyncAPI{Channels: make(map[string]*ChannelItem)},
+		asyncapi: &AsyncAPI{
+			Channels: make(map[string]*ChannelItem),
+			Servers:  make(map[string]*Server),
+		},
 	}
 
 	err = w.enterChannelObject()
+	if err != nil {
+		return nil, err
+	}
+
+	err = w.enterServersObject()
 	if err != nil {
 		return nil, err
 	}
