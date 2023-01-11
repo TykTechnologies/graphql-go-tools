@@ -29,6 +29,7 @@ const (
 	MinimumKey     = "minimum"
 	MaximumKey     = "maximum"
 	OperationIDKey = "operationId"
+	SecurityKey    = "security"
 )
 
 type AsyncAPI struct {
@@ -308,6 +309,31 @@ func (w *walker) enterChannelObject() error {
 	})
 }
 
+func (w *walker) enterSecurityRequirementObject(key, data []byte, s *Server) error {
+	sr := &SecurityRequirement{Requirements: make(map[string][]string)}
+
+	_, err := jsonparser.ArrayEach(data, func(value3 []byte, dataType2 jsonparser.ValueType, _ int, _ error) {
+		sr.Requirements[string(key)] = append(sr.Requirements[string(key)], string(value3))
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(sr.Requirements) > 0 {
+		s.Security = append(s.Security, sr)
+	}
+	return nil
+}
+
+func (w *walker) enterSecurityObject(s *Server, data []byte) error {
+	_, err := jsonparser.ArrayEach(data, func(value []byte, dataType jsonparser.ValueType, _ int, err error) {
+		err = jsonparser.ObjectEach(value, func(key []byte, value2 []byte, dataType2 jsonparser.ValueType, _ int) error {
+			return w.enterSecurityRequirementObject(key, value2, s)
+		})
+	}, SecurityKey)
+	return err
+}
+
 func (w *walker) enterServerObject(key, data []byte) error {
 	s := &Server{}
 
@@ -334,19 +360,10 @@ func (w *walker) enterServerObject(key, data []byte) error {
 		s.Description = descriptionValue
 	}
 
-	// TODO: Simplify this code.
-	jsonparser.ArrayEach(data, func(value []byte, dataType jsonparser.ValueType, _ int, _ error) {
-		jsonparser.ObjectEach(value, func(key []byte, value2 []byte, dataType2 jsonparser.ValueType, _ int) error {
-			sr := &SecurityRequirement{Requirements: make(map[string][]string)}
-			jsonparser.ArrayEach(value2, func(value3 []byte, dataType2 jsonparser.ValueType, _ int, _ error) {
-				sr.Requirements[string(key)] = append(sr.Requirements[string(key)], string(value3))
-			})
-			if len(sr.Requirements) > 0 {
-				s.Security = append(s.Security, sr)
-			}
-			return nil
-		})
-	}, "security")
+	err = w.enterSecurityObject(s, data)
+	if err != nil {
+		return err
+	}
 
 	w.asyncapi.Servers[string(key)] = s
 	return nil
