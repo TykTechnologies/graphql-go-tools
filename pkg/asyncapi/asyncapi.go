@@ -37,14 +37,13 @@ type AsyncAPI struct {
 	Servers  map[string]*Server
 }
 
-type ServerVariable struct {
-}
-
 type SecurityRequirement struct {
 	Requirements map[string][]string
 }
 
-type ServerBindings struct {
+type Binding struct {
+	Value     []byte
+	ValueType jsonparser.ValueType
 }
 
 type Server struct {
@@ -53,13 +52,17 @@ type Server struct {
 	ProtocolVersion string
 	Description     string
 	Security        []*SecurityRequirement
-	Variables       map[string]*ServerVariable
-	Bindings        *ServerBindings
+	Bindings        map[string]map[string]*Binding
+}
+
+type OperationTrait struct {
+	Bindings map[string]map[string]*Binding
 }
 
 type ChannelItem struct {
 	Message     *Message
 	OperationID string
+	Traits      []*OperationTrait
 	Servers     []string
 }
 
@@ -242,7 +245,46 @@ func (w *walker) enterMessageObject(key, data []byte) error {
 	return w.enterPayloadObject(key, data)
 }
 
-func (w *walker) enterChannelItemObject(key []byte, data []byte) error {
+func (w *walker) enterOperationTraitsObject(channelName []byte, data []byte) error {
+	traitsValue, dataType, _, err := jsonparser.Get(data, "traits")
+	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
+		return nil
+	}
+	if dataType != jsonparser.Array {
+		return errors.New("traits has to be an array")
+	}
+	opt := &OperationTrait{
+		Bindings: make(map[string]map[string]*Binding),
+	}
+
+	jsonparser.ArrayEach(traitsValue, func(bindingValue []byte, dataType jsonparser.ValueType, offset int, err error) {
+		kafkaValue, _, _, err := jsonparser.Get(bindingValue, "bindings", "kafka")
+		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
+			return
+		}
+
+		jsonparser.ObjectEach(kafkaValue, func(key []byte, kafkaBindingItemValue []byte, dataType jsonparser.ValueType, _ int) error {
+			if dataType != jsonparser.String {
+				return nil
+			}
+
+			b := &Binding{
+				Value:     kafkaBindingItemValue,
+				ValueType: dataType,
+			}
+			_, ok := opt.Bindings["kafka"]
+			if !ok {
+				opt.Bindings["kafka"] = make(map[string]*Binding)
+			}
+			opt.Bindings["kafka"][string(key)] = b
+			return nil
+		})
+	})
+	w.asyncapi.Channels[string(channelName)].Traits = append(w.asyncapi.Channels[string(channelName)].Traits, opt)
+	return nil
+}
+
+func (w *walker) enterChannelItemObject(channelName []byte, data []byte) error {
 	subscribeValue, dataType, _, err := jsonparser.Get(data, SubscribeKey)
 	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
 		return nil
@@ -257,7 +299,7 @@ func (w *walker) enterChannelItemObject(key []byte, data []byte) error {
 
 	messageValue, dataType, _, err := jsonparser.Get(subscribeValue, MessageKey)
 	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
-		return fmt.Errorf("channel: %s: %w", key, ErrMissingMessageObject)
+		return fmt.Errorf("channel: %s: %w", channelName, ErrMissingMessageObject)
 	}
 	if err != nil {
 		return err
@@ -283,8 +325,14 @@ func (w *walker) enterChannelItemObject(key []byte, data []byte) error {
 		OperationID: operationID,
 		Servers:     servers,
 	}
-	w.asyncapi.Channels[string(key)] = channelItem
-	return w.enterMessageObject(key, messageValue)
+	w.asyncapi.Channels[string(channelName)] = channelItem
+
+	err = w.enterOperationTraitsObject(channelName, subscribeValue)
+	if err != nil {
+		return err
+	}
+
+	return w.enterMessageObject(channelName, messageValue)
 }
 
 func (w *walker) enterChannelObject() error {
@@ -325,6 +373,45 @@ func (w *walker) enterSecurityRequirementObject(key, data []byte, s *Server) err
 	return nil
 }
 
+func (w *walker) enterServerBindingsObject(channelName []byte, data []byte) error {
+	traitsValue, dataType, _, err := jsonparser.Get(data, "traits")
+	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
+		return nil
+	}
+	if dataType != jsonparser.Array {
+		return errors.New("traits has to be an array")
+	}
+	opt := &OperationTrait{
+		Bindings: make(map[string]map[string]*Binding),
+	}
+
+	jsonparser.ArrayEach(traitsValue, func(bindingValue []byte, dataType jsonparser.ValueType, offset int, err error) {
+		kafkaValue, _, _, err := jsonparser.Get(bindingValue, "bindings", "kafka")
+		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
+			return
+		}
+
+		jsonparser.ObjectEach(kafkaValue, func(key []byte, kafkaBindingItemValue []byte, dataType jsonparser.ValueType, _ int) error {
+			if dataType != jsonparser.String {
+				return nil
+			}
+
+			b := &Binding{
+				Value:     kafkaBindingItemValue,
+				ValueType: dataType,
+			}
+			_, ok := opt.Bindings["kafka"]
+			if !ok {
+				opt.Bindings["kafka"] = make(map[string]*Binding)
+			}
+			opt.Bindings["kafka"][string(key)] = b
+			return nil
+		})
+	})
+	w.asyncapi.Channels[string(channelName)].Traits = append(w.asyncapi.Channels[string(channelName)].Traits, opt)
+	return nil
+}
+
 func (w *walker) enterSecurityObject(s *Server, data []byte) error {
 	_, err := jsonparser.ArrayEach(data, func(value []byte, dataType jsonparser.ValueType, _ int, err error) {
 		err = jsonparser.ObjectEach(value, func(key []byte, value2 []byte, dataType2 jsonparser.ValueType, _ int) error {
@@ -335,7 +422,9 @@ func (w *walker) enterSecurityObject(s *Server, data []byte) error {
 }
 
 func (w *walker) enterServerObject(key, data []byte) error {
-	s := &Server{}
+	s := &Server{
+		Bindings: map[string]map[string]*Binding{},
+	}
 
 	// Mandatory
 	urlValue, err := extractString("url", data)
@@ -364,6 +453,32 @@ func (w *walker) enterServerObject(key, data []byte) error {
 	if err != nil {
 		return err
 	}
+
+	// TODO: Simplify this.
+	kafkaValue, _, _, err := jsonparser.Get(data, "bindings", "kafka")
+	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
+		err = nil
+	}
+	if err != nil {
+		return err
+	}
+
+	jsonparser.ObjectEach(kafkaValue, func(key []byte, kafkaBindingItemValue []byte, dataType jsonparser.ValueType, _ int) error {
+		if dataType != jsonparser.String {
+			return nil
+		}
+
+		b := &Binding{
+			Value:     kafkaBindingItemValue,
+			ValueType: dataType,
+		}
+		_, ok := s.Bindings["kafka"]
+		if !ok {
+			s.Bindings["kafka"] = make(map[string]*Binding)
+		}
+		s.Bindings["kafka"][string(key)] = b
+		return nil
+	})
 
 	w.asyncapi.Servers[string(key)] = s
 	return nil

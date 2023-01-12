@@ -13,6 +13,22 @@ func TestAsyncAPIStreetLightsKafka(t *testing.T) {
 		Channels: map[string]*ChannelItem{
 			"smartylighting.streetlights.1.0.action.{streetlightId}.dim": {
 				OperationID: "dimLight",
+				Traits: []*OperationTrait{
+					{
+						Bindings: map[string]map[string]*Binding{
+							"kafka": {
+								"clientId": {
+									Value:     []byte("my-app-id"),
+									ValueType: jsonparser.String,
+								},
+								"groupId": {
+									Value:     []byte("my-group-id"),
+									ValueType: jsonparser.String,
+								},
+							},
+						},
+					},
+				},
 				Message: &Message{
 					Name:    "dimLight",
 					Summary: "Command a particular streetlight to dim the lights.",
@@ -37,6 +53,22 @@ func TestAsyncAPIStreetLightsKafka(t *testing.T) {
 			},
 			"smartylighting.streetlights.1.0.action.{streetlightId}.turn.off": {
 				OperationID: "turnOff",
+				Traits: []*OperationTrait{
+					{
+						Bindings: map[string]map[string]*Binding{
+							"kafka": {
+								"clientId": {
+									Value:     []byte("my-app-id"),
+									ValueType: jsonparser.String,
+								},
+								"groupId": {
+									Value:     []byte("my-group-id"),
+									ValueType: jsonparser.String,
+								},
+							},
+						},
+					},
+				},
 				Message: &Message{
 					Name:    "turnOnOff",
 					Summary: "Command a particular streetlight to turn the lights on or off.",
@@ -69,6 +101,22 @@ func TestAsyncAPIStreetLightsKafka(t *testing.T) {
 			},
 			"smartylighting.streetlights.1.0.action.{streetlightId}.turn.on": {
 				OperationID: "turnOn",
+				Traits: []*OperationTrait{
+					{
+						Bindings: map[string]map[string]*Binding{
+							"kafka": {
+								"clientId": {
+									Value:     []byte("my-app-id"),
+									ValueType: jsonparser.String,
+								},
+								"groupId": {
+									Value:     []byte("my-group-id"),
+									ValueType: jsonparser.String,
+								},
+							},
+						},
+					},
+				},
 				Message: &Message{
 					Name:    "turnOnOff",
 					Summary: "Command a particular streetlight to turn the lights on or off.",
@@ -121,6 +169,7 @@ func TestAsyncAPIStreetLightsKafkaSecurity(t *testing.T) {
 			"smartylighting.streetlights.1.0.action.{streetlightId}.dim": {
 				OperationID: "dimLight",
 				Servers:     []string{"test_oauth"},
+				Traits:      []*OperationTrait{{Bindings: map[string]map[string]*Binding{}}},
 				Message: &Message{
 					Name:    "dimLight",
 					Summary: "Command a particular streetlight to dim the lights.",
@@ -146,6 +195,7 @@ func TestAsyncAPIStreetLightsKafkaSecurity(t *testing.T) {
 			"smartylighting.streetlights.1.0.action.{streetlightId}.turn.off": {
 				OperationID: "turnOff",
 				Servers:     []string{"test_oauth"},
+				Traits:      []*OperationTrait{{Bindings: map[string]map[string]*Binding{}}},
 				Message: &Message{
 					Name:    "turnOnOff",
 					Summary: "Command a particular streetlight to turn the lights on or off.",
@@ -179,6 +229,7 @@ func TestAsyncAPIStreetLightsKafkaSecurity(t *testing.T) {
 			"smartylighting.streetlights.1.0.action.{streetlightId}.turn.on": {
 				OperationID: "turnOn",
 				Servers:     []string{"test_oauth"},
+				Traits:      []*OperationTrait{{Bindings: map[string]map[string]*Binding{}}},
 				Message: &Message{
 					Name:    "turnOnOff",
 					Summary: "Command a particular streetlight to turn the lights on or off.",
@@ -215,11 +266,24 @@ func TestAsyncAPIStreetLightsKafkaSecurity(t *testing.T) {
 				URL:         "test.mykafkacluster.org:8092",
 				Protocol:    "kafka-secure",
 				Description: "Test broker",
+				Bindings: map[string]map[string]*Binding{
+					"kafka": {
+						"clientId": {
+							Value:     []byte("my-app-id"),
+							ValueType: jsonparser.String,
+						},
+						"groupId": {
+							Value:     []byte("my-group-id"),
+							ValueType: jsonparser.String,
+						},
+					},
+				},
 			},
 			"test_oauth": {
 				URL:         "test.mykafkacluster.org:8093",
 				Protocol:    "kafka-secure",
 				Description: "Test port for oauth",
+				Bindings:    map[string]map[string]*Binding{},
 				Security: []*SecurityRequirement{{
 					Requirements: map[string][]string{
 						"streetlights_auth": {"streetlights:write", "streetlights:read"},

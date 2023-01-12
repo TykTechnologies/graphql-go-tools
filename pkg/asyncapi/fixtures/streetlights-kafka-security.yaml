@@ -21,6 +21,10 @@ servers:
     description: Test broker
     security:
       - saslScram: []
+    bindings:
+      kafka:
+        clientId: my-app-id
+        groupId: my-group-id
   test_oauth:
     url: test.mykafkacluster.org:8093
     protocol: kafka-secure
