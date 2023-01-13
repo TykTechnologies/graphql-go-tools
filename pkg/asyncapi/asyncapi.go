@@ -11,25 +11,29 @@ import (
 )
 
 const (
-	ChannelsKey    = "channels"
-	SubscribeKey   = "subscribe"
-	MessageKey     = "message"
-	PayloadKey     = "payload"
-	PropertiesKey  = "properties"
-	EnumKey        = "enum"
-	ServersKey     = "servers"
-	DescriptionKey = "description"
-	NameKey        = "name"
-	TitleKey       = "title"
-	SummaryKey     = "summary"
-	TypeKey        = "type"
-	FormatKey      = "format"
-	MinimumKey     = "minimum"
-	MaximumKey     = "maximum"
-	OperationIDKey = "operationId"
-	SecurityKey    = "security"
-	BindingsKey    = "bindings"
-	KafkaKey       = "kafka"
+	ChannelsKey        = "channels"
+	SubscribeKey       = "subscribe"
+	MessageKey         = "message"
+	PayloadKey         = "payload"
+	PropertiesKey      = "properties"
+	EnumKey            = "enum"
+	ServersKey         = "servers"
+	URLKey             = "url"
+	ProtocolKey        = "protocol"
+	ProtocolVersionKey = "protocolVersion"
+	DescriptionKey     = "description"
+	NameKey            = "name"
+	TitleKey           = "title"
+	SummaryKey         = "summary"
+	TypeKey            = "type"
+	FormatKey          = "format"
+	MinimumKey         = "minimum"
+	MaximumKey         = "maximum"
+	OperationIDKey     = "operationId"
+	SecurityKey        = "security"
+	BindingsKey        = "bindings"
+	KafkaKey           = "kafka"
+	TraitsKey          = "traits"
 )
 
 type AsyncAPI struct {
@@ -46,6 +50,8 @@ type Binding struct {
 	ValueType jsonparser.ValueType
 }
 
+// Server object is defined here:
+// https://www.asyncapi.com/docs/reference/specification/v2.4.0#serverObject
 type Server struct {
 	URL             string
 	Protocol        string
@@ -55,10 +61,14 @@ type Server struct {
 	Bindings        map[string]map[string]*Binding
 }
 
+// OperationTrait object is defined here:
+// https://www.asyncapi.com/docs/reference/specification/v2.4.0#operationTraitObject
 type OperationTrait struct {
 	Bindings map[string]map[string]*Binding
 }
 
+// ChannelItem object is defined here:
+// https://www.asyncapi.com/docs/reference/specification/v2.4.0#channelItemObject
 type ChannelItem struct {
 	Message     *Message
 	OperationID string
@@ -71,6 +81,8 @@ type Enum struct {
 	ValueType jsonparser.ValueType
 }
 
+// Property object is derived from Schema object.
+// https://www.asyncapi.com/docs/reference/specification/v2.4.0#schemaObject
 type Property struct {
 	Description string
 	Minimum     int
@@ -80,11 +92,16 @@ type Property struct {
 	Enum        []*Enum
 }
 
+// Payload is definition of the message payload. It can be of any type but defaults to Schema object.
+// It must match the schema format, including encoding type - e.g Avro should be inlined as
+// either a YAML or JSON object NOT a string to be parsed as YAML or JSON.
 type Payload struct {
 	Type       string
 	Properties map[string]*Property
 }
 
+// Message object is defined here:
+// https://www.asyncapi.com/docs/reference/specification/v2.4.0#messageObject
 type Message struct {
 	Name        string
 	Summary     string
@@ -255,7 +272,7 @@ func (w *walker) enterMessageObject(channelName, data []byte) error {
 }
 
 func (w *walker) enterOperationTraitsObject(channelName []byte, data []byte) error {
-	traitsValue, dataType, _, err := jsonparser.Get(data, "traits")
+	traitsValue, dataType, _, err := jsonparser.Get(data, TraitsKey)
 	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
 		return nil
 	}
@@ -457,24 +474,24 @@ func (w *walker) enterServerObject(key, data []byte) error {
 	}
 
 	// Mandatory
-	urlValue, err := extractString("url", data)
+	urlValue, err := extractString(URLKey, data)
 	if err != nil {
 		return err
 	}
 	s.URL = urlValue
 
-	protocolValue, err := extractString("protocol", data)
+	protocolValue, err := extractString(ProtocolKey, data)
 	if err != nil {
 		return err
 	}
 	s.Protocol = protocolValue
 
 	// Not mandatory
-	protocolVersionValue, err := extractString("protocolVersion", data)
+	protocolVersionValue, err := extractString(ProtocolVersionKey, data)
 	if err == nil {
 		s.ProtocolVersion = protocolVersionValue
 	}
-	descriptionValue, err := extractString("description", data)
+	descriptionValue, err := extractString(DescriptionKey, data)
 	if err == nil {
 		s.Description = descriptionValue
 	}
