@@ -10,8 +10,6 @@ import (
 	"github.com/buger/jsonparser"
 )
 
-var ErrMissingMessageObject = errors.New("missing message object")
-
 const (
 	ChannelsKey    = "channels"
 	SubscribeKey   = "subscribe"
@@ -30,6 +28,8 @@ const (
 	MaximumKey     = "maximum"
 	OperationIDKey = "operationId"
 	SecurityKey    = "security"
+	BindingsKey    = "bindings"
+	KafkaKey       = "kafka"
 )
 
 type AsyncAPI struct {
@@ -103,9 +103,6 @@ func extractStringArray(key string, data []byte) ([]string, error) {
 	_, err := jsonparser.ArrayEach(data, func(value []byte, dataType jsonparser.ValueType, _ int, _ error) {
 		result = append(result, string(value))
 	}, key)
-	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
-		err = nil
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -114,60 +111,60 @@ func extractStringArray(key string, data []byte) ([]string, error) {
 
 func extractString(key string, data []byte) (string, error) {
 	value, dataType, _, err := jsonparser.Get(data, key)
-	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
-		return "", fmt.Errorf("key: %s is missing", key)
+	if err != nil {
+		return "", err
 	}
 	if dataType != jsonparser.String {
 		return "", fmt.Errorf("key: %s has to be a string", key)
-	}
-	if err != nil {
-		return "", err
 	}
 	return string(value), nil
 }
 
 func extractInteger(key string, data []byte) (int, error) {
 	value, dataType, _, err := jsonparser.Get(data, key)
-	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
-		return 0, fmt.Errorf("key: %s is missing", key)
+	if err != nil {
+		return 0, err
 	}
 	if dataType != jsonparser.Number {
 		return 0, fmt.Errorf("key: %s has to be a number", key)
-	}
-	if err != nil {
-		return 0, err
 	}
 	return strconv.Atoi(string(value))
 }
 
 func (w *walker) enterPropertyObject(channel, key, data []byte) error {
 	property := &Property{}
+	// Not mandatory
 	description, err := extractString(DescriptionKey, data)
 	if err == nil {
 		property.Description = description
 	}
 
+	// Not mandatory
 	format, err := extractString(FormatKey, data)
 	if err == nil {
 		property.Format = format
 	}
 
+	// Mandatory
 	tpe, err := extractString(TypeKey, data)
 	if err != nil {
 		return err
 	}
 	property.Type = tpe
 
+	// Not mandatory
 	minimum, err := extractInteger(MinimumKey, data)
 	if err == nil {
 		property.Minimum = minimum
 	}
 
+	// Not mandatory
 	maximum, err := extractInteger(MaximumKey, data)
 	if err == nil {
 		property.Maximum = maximum
 	}
 
+	// Not mandatory
 	_, err = jsonparser.ArrayEach(data, func(enumValue []byte, dataType jsonparser.ValueType, _ int, err error) {
 		property.Enum = append(property.Enum, &Enum{
 			Value:     enumValue,
@@ -181,7 +178,11 @@ func (w *walker) enterPropertyObject(channel, key, data []byte) error {
 		return err
 	}
 
-	w.asyncapi.Channels[string(channel)].Message.Payload.Properties[string(key)] = property
+	channelItem, ok := w.asyncapi.Channels[string(channel)]
+	if !ok {
+		return fmt.Errorf("channel: %s is missing", channel)
+	}
+	channelItem.Message.Payload.Properties[string(key)] = property
 	return nil
 }
 
@@ -213,12 +214,17 @@ func (w *walker) enterPayloadObject(key, data []byte) error {
 	if err == nil {
 		p.Type = typeValue
 	}
-	w.asyncapi.Channels[string(key)].Message.Payload = p
+
+	channel, ok := w.asyncapi.Channels[string(key)]
+	if !ok {
+		return fmt.Errorf("channel: %s is missing", key)
+	}
+	channel.Message.Payload = p
 
 	return w.enterPropertiesObject(key, payload)
 }
 
-func (w *walker) enterMessageObject(key, data []byte) error {
+func (w *walker) enterMessageObject(channelName, data []byte) error {
 	msg := &Message{}
 	name, err := extractString(NameKey, data)
 	if err != nil {
@@ -240,9 +246,12 @@ func (w *walker) enterMessageObject(key, data []byte) error {
 	if err == nil {
 		msg.Description = description
 	}
-
-	w.asyncapi.Channels[string(key)].Message = msg
-	return w.enterPayloadObject(key, data)
+	channel, ok := w.asyncapi.Channels[string(channelName)]
+	if !ok {
+		return fmt.Errorf("channel: %s is missing", channelName)
+	}
+	channel.Message = msg
+	return w.enterPayloadObject(channelName, data)
 }
 
 func (w *walker) enterOperationTraitsObject(channelName []byte, data []byte) error {
@@ -258,12 +267,12 @@ func (w *walker) enterOperationTraitsObject(channelName []byte, data []byte) err
 	}
 
 	jsonparser.ArrayEach(traitsValue, func(bindingValue []byte, dataType jsonparser.ValueType, offset int, err error) {
-		kafkaValue, _, _, err := jsonparser.Get(bindingValue, "bindings", "kafka")
+		kafkaValue, _, _, err := jsonparser.Get(bindingValue, BindingsKey, KafkaKey)
 		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
 			return
 		}
 
-		jsonparser.ObjectEach(kafkaValue, func(key []byte, kafkaBindingItemValue []byte, dataType jsonparser.ValueType, _ int) error {
+		err = jsonparser.ObjectEach(kafkaValue, func(key []byte, kafkaBindingItemValue []byte, dataType jsonparser.ValueType, _ int) error {
 			if dataType != jsonparser.String {
 				return nil
 			}
@@ -272,15 +281,20 @@ func (w *walker) enterOperationTraitsObject(channelName []byte, data []byte) err
 				Value:     kafkaBindingItemValue,
 				ValueType: dataType,
 			}
-			_, ok := opt.Bindings["kafka"]
+			_, ok := opt.Bindings[KafkaKey]
 			if !ok {
-				opt.Bindings["kafka"] = make(map[string]*Binding)
+				opt.Bindings[KafkaKey] = make(map[string]*Binding)
 			}
-			opt.Bindings["kafka"][string(key)] = b
+			opt.Bindings[KafkaKey][string(key)] = b
 			return nil
 		})
 	})
-	w.asyncapi.Channels[string(channelName)].Traits = append(w.asyncapi.Channels[string(channelName)].Traits, opt)
+
+	channel, ok := w.asyncapi.Channels[string(channelName)]
+	if !ok {
+		return fmt.Errorf("channel: %s is missing", channelName)
+	}
+	channel.Traits = append(channel.Traits, opt)
 	return nil
 }
 
@@ -299,7 +313,7 @@ func (w *walker) enterChannelItemObject(channelName []byte, data []byte) error {
 
 	messageValue, dataType, _, err := jsonparser.Get(subscribeValue, MessageKey)
 	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
-		return fmt.Errorf("channel: %s: %w", channelName, ErrMissingMessageObject)
+		return fmt.Errorf("message item is missing in channel: %s", channelName)
 	}
 	if err != nil {
 		return err
@@ -309,6 +323,7 @@ func (w *walker) enterChannelItemObject(channelName []byte, data []byte) error {
 		return fmt.Errorf("%s has to be a JSON object", MessageKey)
 	}
 
+	// Not mandatory
 	operationID, err := extractString(OperationIDKey, subscribeValue)
 	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
 		err = nil
@@ -317,10 +332,15 @@ func (w *walker) enterChannelItemObject(channelName []byte, data []byte) error {
 		return err
 	}
 
+	// Not mandatory
 	servers, err := extractStringArray(ServersKey, data)
+	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
+		err = nil
+	}
 	if err != nil {
 		return err
 	}
+
 	channelItem := &ChannelItem{
 		OperationID: operationID,
 		Servers:     servers,
@@ -373,45 +393,6 @@ func (w *walker) enterSecurityRequirementObject(key, data []byte, s *Server) err
 	return nil
 }
 
-func (w *walker) enterServerBindingsObject(channelName []byte, data []byte) error {
-	traitsValue, dataType, _, err := jsonparser.Get(data, "traits")
-	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
-		return nil
-	}
-	if dataType != jsonparser.Array {
-		return errors.New("traits has to be an array")
-	}
-	opt := &OperationTrait{
-		Bindings: make(map[string]map[string]*Binding),
-	}
-
-	jsonparser.ArrayEach(traitsValue, func(bindingValue []byte, dataType jsonparser.ValueType, offset int, err error) {
-		kafkaValue, _, _, err := jsonparser.Get(bindingValue, "bindings", "kafka")
-		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
-			return
-		}
-
-		jsonparser.ObjectEach(kafkaValue, func(key []byte, kafkaBindingItemValue []byte, dataType jsonparser.ValueType, _ int) error {
-			if dataType != jsonparser.String {
-				return nil
-			}
-
-			b := &Binding{
-				Value:     kafkaBindingItemValue,
-				ValueType: dataType,
-			}
-			_, ok := opt.Bindings["kafka"]
-			if !ok {
-				opt.Bindings["kafka"] = make(map[string]*Binding)
-			}
-			opt.Bindings["kafka"][string(key)] = b
-			return nil
-		})
-	})
-	w.asyncapi.Channels[string(channelName)].Traits = append(w.asyncapi.Channels[string(channelName)].Traits, opt)
-	return nil
-}
-
 func (w *walker) enterSecurityObject(s *Server, data []byte) error {
 	_, err := jsonparser.ArrayEach(data, func(value []byte, dataType jsonparser.ValueType, _ int, err error) {
 		err = jsonparser.ObjectEach(value, func(key []byte, value2 []byte, dataType2 jsonparser.ValueType, _ int) error {
@@ -419,6 +400,33 @@ func (w *walker) enterSecurityObject(s *Server, data []byte) error {
 		})
 	}, SecurityKey)
 	return err
+}
+
+func (w *walker) enterServerBindingsObject(s *Server, data []byte) error {
+	// Not mandatory
+	kafkaValue, _, _, err := jsonparser.Get(data, BindingsKey, KafkaKey)
+	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	return jsonparser.ObjectEach(kafkaValue, func(key []byte, kafkaBindingItemValue []byte, dataType jsonparser.ValueType, _ int) error {
+		if dataType != jsonparser.String {
+			return nil
+		}
+		b := &Binding{
+			Value:     kafkaBindingItemValue,
+			ValueType: dataType,
+		}
+		_, ok := s.Bindings[KafkaKey]
+		if !ok {
+			s.Bindings[KafkaKey] = make(map[string]*Binding)
+		}
+		s.Bindings[KafkaKey][string(key)] = b
+		return nil
+	})
 }
 
 func (w *walker) enterServerObject(key, data []byte) error {
@@ -454,31 +462,10 @@ func (w *walker) enterServerObject(key, data []byte) error {
 		return err
 	}
 
-	// TODO: Simplify this.
-	kafkaValue, _, _, err := jsonparser.Get(data, "bindings", "kafka")
-	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
-		err = nil
-	}
+	err = w.enterServerBindingsObject(s, data)
 	if err != nil {
 		return err
 	}
-
-	jsonparser.ObjectEach(kafkaValue, func(key []byte, kafkaBindingItemValue []byte, dataType jsonparser.ValueType, _ int) error {
-		if dataType != jsonparser.String {
-			return nil
-		}
-
-		b := &Binding{
-			Value:     kafkaBindingItemValue,
-			ValueType: dataType,
-		}
-		_, ok := s.Bindings["kafka"]
-		if !ok {
-			s.Bindings["kafka"] = make(map[string]*Binding)
-		}
-		s.Bindings["kafka"][string(key)] = b
-		return nil
-	})
 
 	w.asyncapi.Servers[string(key)] = s
 	return nil

@@ -153,6 +153,7 @@ func TestAsyncAPIStreetLightsKafka(t *testing.T) {
 				URL:         "test.mykafkacluster.org:8092",
 				Protocol:    "kafka-secure",
 				Description: "Test broker",
+				Bindings:    map[string]map[string]*Binding{},
 			},
 		},
 	}
