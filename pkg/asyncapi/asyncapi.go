@@ -266,17 +266,25 @@ func (w *walker) enterOperationTraitsObject(channelName []byte, data []byte) err
 		Bindings: make(map[string]map[string]*Binding),
 	}
 
-	jsonparser.ArrayEach(traitsValue, func(bindingValue []byte, dataType jsonparser.ValueType, offset int, err error) {
+	var bindingValues [][]byte
+	_, err = jsonparser.ArrayEach(traitsValue, func(bindingValue []byte, dataType jsonparser.ValueType, offset int, err error) {
+		bindingValues = append(bindingValues, bindingValue)
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, bindingValue := range bindingValues {
 		kafkaValue, _, _, err := jsonparser.Get(bindingValue, BindingsKey, KafkaKey)
 		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
-			return
+			return nil
 		}
 
 		err = jsonparser.ObjectEach(kafkaValue, func(key []byte, kafkaBindingItemValue []byte, dataType jsonparser.ValueType, _ int) error {
 			if dataType != jsonparser.String {
+				// Currently, we only support String values.
 				return nil
 			}
-
 			b := &Binding{
 				Value:     kafkaBindingItemValue,
 				ValueType: dataType,
@@ -288,7 +296,10 @@ func (w *walker) enterOperationTraitsObject(channelName []byte, data []byte) err
 			opt.Bindings[KafkaKey][string(key)] = b
 			return nil
 		})
-	})
+		if err != nil {
+			return err
+		}
+	}
 
 	channel, ok := w.asyncapi.Channels[string(channelName)]
 	if !ok {
@@ -394,12 +405,23 @@ func (w *walker) enterSecurityRequirementObject(key, data []byte, s *Server) err
 }
 
 func (w *walker) enterSecurityObject(s *Server, data []byte) error {
-	_, err := jsonparser.ArrayEach(data, func(value []byte, dataType jsonparser.ValueType, _ int, err error) {
-		err = jsonparser.ObjectEach(value, func(key []byte, value2 []byte, dataType2 jsonparser.ValueType, _ int) error {
-			return w.enterSecurityRequirementObject(key, value2, s)
-		})
+	var securityObjectItems [][]byte
+	_, err := jsonparser.ArrayEach(data, func(securityObjectItem []byte, dataType jsonparser.ValueType, _ int, err error) {
+		securityObjectItems = append(securityObjectItems, securityObjectItem)
 	}, SecurityKey)
-	return err
+	if err != nil {
+		return err
+	}
+
+	for _, securityObjectItem := range securityObjectItems {
+		err = jsonparser.ObjectEach(securityObjectItem, func(key []byte, value []byte, _ jsonparser.ValueType, _ int) error {
+			return w.enterSecurityRequirementObject(key, value, s)
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (w *walker) enterServerBindingsObject(s *Server, data []byte) error {
