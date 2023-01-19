@@ -1,0 +1,28 @@
+schema {
+    subscription: Subscription
+}
+
+type Subscription {
+    dimLight(streetlightId: string): dimLight
+    turnOff(streetlightId: string): turnOnOff
+    turnOn(streetlightId: string): turnOnOff
+}
+
+type dimLight {
+    "Percentage to which the light should be dimmed to."
+    percentage: integer
+    "Date and time when the message was sent."
+    sentAt: string
+}
+
+enum command {
+    on
+    off
+}
+
+type turnOnOff {
+    "Date and time when the message was sent."
+    sentAt: string
+    "Whether to turn on or off the light."
+    command: command
+}
