@@ -3,10 +3,16 @@ package asyncapi
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"strings"
+
 	"github.com/TykTechnologies/graphql-go-tools/pkg/ast"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/introspection"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/lexer/literal"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/operationreport"
 	"github.com/buger/jsonparser"
+	"github.com/iancoleman/strcase"
 )
 
 type Converter struct {
@@ -16,94 +22,152 @@ type Converter struct {
 	knownTypes        map[string]struct{}
 }
 
-func (c *Converter) importTypes() []introspection.FullType {
+func getTypeRef(kind string) (introspection.TypeRef, error) {
+	// See introspection_enum.go
+	switch kind {
+	case "string", "integer", "number", "boolean":
+		return introspection.TypeRef{Kind: 0}, nil
+	case "object":
+		return introspection.TypeRef{Kind: 3}, nil
+	case "array":
+		return introspection.TypeRef{Kind: 1}, nil
+	}
+	return introspection.TypeRef{}, errors.New("unknown type")
+}
+
+func asyncAPITypeToGQLType(asyncAPIType string) (string, error) {
+	switch asyncAPIType {
+	case "string":
+		return string(literal.STRING), nil
+	case "integer":
+		return string(literal.INT), nil
+	case "number":
+		return string(literal.FLOAT), nil
+	case "boolean":
+		return string(literal.BOOLEAN), nil
+	default:
+		return "", fmt.Errorf("unknown type: %s", asyncAPIType)
+	}
+}
+
+func (c *Converter) importEnumType(name string, enums []*Enum) *introspection.FullType {
+	enumName := strcase.ToCamel(name)
+	_, ok := c.knownEnums[enumName]
+	if ok {
+		return nil
+	}
+
+	enumType := &introspection.FullType{
+		Kind: introspection.ENUM,
+		Name: enumName,
+	}
+	for _, enum := range enums {
+		if enum.ValueType == jsonparser.String {
+			enumType.EnumValues = append(enumType.EnumValues, introspection.EnumValue{
+				Name: strings.ToUpper(strcase.ToSnake(string(enum.Value))),
+			})
+		}
+	}
+	c.knownEnums[name] = struct{}{}
+	return enumType
+}
+
+func (c *Converter) importFullTypes() ([]introspection.FullType, error) {
 	fullTypes := make([]introspection.FullType, 0)
 	for _, channelItem := range c.asyncapi.Channels {
 		msg := channelItem.Message
-		if _, ok := c.knownTypes[msg.Name]; ok {
+
+		fullTypeName := strcase.ToCamel(msg.Name)
+		if _, ok := c.knownTypes[fullTypeName]; ok {
 			continue
 		}
 		ft := introspection.FullType{
 			Kind:        introspection.OBJECT,
-			Name:        msg.Name,
+			Name:        fullTypeName,
 			Description: msg.Description,
 		}
+
 		for name, prop := range msg.Payload.Properties {
-			if prop.Enum != nil && len(prop.Enum) != 0 {
-				_, ok := c.knownEnums[name]
-				if !ok {
-					enumType := introspection.FullType{
-						Kind: introspection.ENUM,
-						Name: name,
-					}
-					for _, enum := range prop.Enum {
-						if enum.ValueType == jsonparser.String {
-							enumType.EnumValues = append(enumType.EnumValues, introspection.EnumValue{
-								Name: string(enum.Value),
-							})
-						}
-					}
-					c.knownEnums[name] = struct{}{}
-					fullTypes = append(fullTypes, enumType)
-				}
-			}
-			copyName := name
 			var f introspection.Field
-			if prop.Enum == nil || len(prop.Enum) == 0 {
+			if prop.Enum == nil {
+				gqlType, err := asyncAPITypeToGQLType(prop.Type)
+				if err != nil {
+					return nil, err
+				}
+				typeRef, err := getTypeRef(prop.Type)
+				if err != nil {
+					return nil, err
+				}
+				typeRef.Name = &gqlType
 				f = introspection.Field{
-					Name:        copyName,
+					Name:        name,
 					Description: prop.Description,
-					Type: introspection.TypeRef{
-						Kind: 0,
-						Name: &prop.Type,
-					},
+					Type:        typeRef,
 				}
 			} else {
+				// ENUM field
+				enumType := c.importEnumType(name, prop.Enum)
+				if enumType != nil {
+					fullTypes = append(fullTypes, *enumType)
+				}
+				enumTypeName := strcase.ToCamel(name)
+				typeRef, err := getTypeRef(prop.Type)
+				if err != nil {
+					return nil, err
+				}
+				typeRef.Name = &enumTypeName
 				f = introspection.Field{
-					Name:        copyName,
+					Name:        name,
 					Description: prop.Description,
-					Type: introspection.TypeRef{
-						Kind: 4,
-						Name: &copyName,
-					},
+					Type:        typeRef,
 				}
 			}
 			ft.Fields = append(ft.Fields, f)
 		}
-		c.knownTypes[msg.Name] = struct{}{}
+
+		c.knownTypes[fullTypeName] = struct{}{}
 		fullTypes = append(fullTypes, ft)
 	}
-	return fullTypes
+	return fullTypes, nil
 }
 
-func (c *Converter) importSubscriptionType() introspection.FullType {
-	subscriptionType := introspection.FullType{
+func (c *Converter) importSubscriptionType() (*introspection.FullType, error) {
+	subscriptionType := &introspection.FullType{
 		Kind: introspection.OBJECT,
 		Name: "Subscription",
 	}
 	for _, channelItem := range c.asyncapi.Channels {
-		typeName := channelItem.Message.Name
+		typeName := strcase.ToCamel(channelItem.Message.Name)
+		typeRef, err := getTypeRef("object")
+		if err != nil {
+			return nil, err
+		}
+		typeRef.Name = &typeName
 		f := introspection.Field{
 			Name: channelItem.OperationID,
-			Type: introspection.TypeRef{
-				Kind: 3,
-				Name: &typeName,
-			},
+			Type: typeRef,
 		}
 		for paramName, paramType := range channelItem.Parameters {
-			n := paramType
+			gqlType, err := asyncAPITypeToGQLType(paramType)
+			if err != nil {
+				return nil, err
+			}
+
+			paramTypeRef, err := getTypeRef(paramType)
+			if err != nil {
+				return nil, err
+			}
+			paramTypeRef.Name = &gqlType
+
 			iv := introspection.InputValue{
 				Name: paramName,
-				Type: introspection.TypeRef{
-					Kind: 0,
-					Name: &n,
-				},
+				Type: paramTypeRef,
 			}
 			f.Args = append(f.Args, iv)
 		}
 		subscriptionType.Fields = append(subscriptionType.Fields, f)
 	}
-	return subscriptionType
+	return subscriptionType, nil
 }
 
 func ImportAsyncAPIDocumentByte(input []byte) (*ast.Document, operationreport.Report) {
@@ -124,8 +188,20 @@ func ImportAsyncAPIDocumentByte(input []byte) (*ast.Document, operationreport.Re
 	data.Schema.SubscriptionType = &introspection.TypeName{
 		Name: "Subscription",
 	}
-	data.Schema.Types = append(data.Schema.Types, c.importSubscriptionType())
-	data.Schema.Types = append(data.Schema.Types, c.importTypes()...)
+	subscriptionType, err := c.importSubscriptionType()
+	if err != nil {
+		report.AddInternalError(err)
+		return nil, report
+	}
+	data.Schema.Types = append(data.Schema.Types, *subscriptionType)
+
+	fullTypes, err := c.importFullTypes()
+	if err != nil {
+		report.AddInternalError(err)
+		return nil, report
+	}
+	data.Schema.Types = append(data.Schema.Types, fullTypes...)
+
 	outputPretty, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		report.AddInternalError(err)

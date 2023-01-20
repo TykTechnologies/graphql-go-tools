@@ -3,26 +3,26 @@ schema {
 }
 
 type Subscription {
-    dimLight(streetlightId: string): dimLight
-    turnOff(streetlightId: string): turnOnOff
-    turnOn(streetlightId: string): turnOnOff
+    dimLight(streetlightId: String): DimLight
+    turnOff(streetlightId: String): TurnOnOff
+    turnOn(streetlightId: String): TurnOnOff
 }
 
-type dimLight {
+type DimLight {
     "Percentage to which the light should be dimmed to."
-    percentage: integer
+    percentage: Int
     "Date and time when the message was sent."
-    sentAt: string
+    sentAt: String
 }
 
-enum command {
-    on
-    off
+enum Command {
+    ON
+    OFF
 }
 
-type turnOnOff {
-    "Date and time when the message was sent."
-    sentAt: string
+type TurnOnOff {
     "Whether to turn on or off the light."
-    command: command
+    command: Command
+    "Date and time when the message was sent."
+    sentAt: String
 }
