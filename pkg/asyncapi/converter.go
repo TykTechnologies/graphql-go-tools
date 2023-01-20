@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/TykTechnologies/graphql-go-tools/pkg/ast"
@@ -15,13 +16,15 @@ import (
 	"github.com/iancoleman/strcase"
 )
 
-type Converter struct {
+type converter struct {
 	asyncapi          *AsyncAPI
 	introspectionData *introspection.Data
 	knownEnums        map[string]struct{}
 	knownTypes        map[string]struct{}
 }
 
+// __TypeKind of introspection is an unexported type. In order to overcome the problem,
+// this function creates and returns a TypeRef for a given kind. kind is a AsyncAPI type.
 func getTypeRef(kind string) (introspection.TypeRef, error) {
 	// See introspection_enum.go
 	switch kind {
@@ -36,6 +39,7 @@ func getTypeRef(kind string) (introspection.TypeRef, error) {
 }
 
 func asyncAPITypeToGQLType(asyncAPIType string) (string, error) {
+	// See https://www.asyncapi.com/docs/reference/specification/v2.4.0#dataTypeFormat
 	switch asyncAPIType {
 	case "string":
 		return string(literal.STRING), nil
@@ -50,7 +54,7 @@ func asyncAPITypeToGQLType(asyncAPIType string) (string, error) {
 	}
 }
 
-func (c *Converter) importEnumType(name string, enums []*Enum) *introspection.FullType {
+func (c *converter) importEnumType(name string, enums []*Enum) *introspection.FullType {
 	enumName := strcase.ToCamel(name)
 	_, ok := c.knownEnums[enumName]
 	if ok {
@@ -72,7 +76,7 @@ func (c *Converter) importEnumType(name string, enums []*Enum) *introspection.Fu
 	return enumType
 }
 
-func (c *Converter) importFullTypes() ([]introspection.FullType, error) {
+func (c *converter) importFullTypes() ([]introspection.FullType, error) {
 	fullTypes := make([]introspection.FullType, 0)
 	for _, channelItem := range c.asyncapi.Channels {
 		msg := channelItem.Message
@@ -81,10 +85,17 @@ func (c *Converter) importFullTypes() ([]introspection.FullType, error) {
 		if _, ok := c.knownTypes[fullTypeName]; ok {
 			continue
 		}
+
+		var sb = strings.Builder{}
+		sb.WriteString(msg.Title)
+		sb.WriteString("\n")
+		sb.WriteString(msg.Summary)
+		sb.WriteString("\n")
+		sb.WriteString(msg.Description)
 		ft := introspection.FullType{
 			Kind:        introspection.OBJECT,
 			Name:        fullTypeName,
-			Description: msg.Description,
+			Description: strings.TrimSpace(sb.String()),
 		}
 
 		for name, prop := range msg.Payload.Properties {
@@ -105,7 +116,7 @@ func (c *Converter) importFullTypes() ([]introspection.FullType, error) {
 					Type:        typeRef,
 				}
 			} else {
-				// ENUM field
+				// ENUM type and its fields.
 				enumType := c.importEnumType(name, prop.Enum)
 				if enumType != nil {
 					fullTypes = append(fullTypes, *enumType)
@@ -123,15 +134,21 @@ func (c *Converter) importFullTypes() ([]introspection.FullType, error) {
 				}
 			}
 			ft.Fields = append(ft.Fields, f)
+			sort.Slice(ft.Fields, func(i, j int) bool {
+				return ft.Fields[i].Name < ft.Fields[j].Name
+			})
 		}
 
 		c.knownTypes[fullTypeName] = struct{}{}
 		fullTypes = append(fullTypes, ft)
+		sort.Slice(fullTypes, func(i, j int) bool {
+			return fullTypes[i].Name < fullTypes[j].Name
+		})
 	}
 	return fullTypes, nil
 }
 
-func (c *Converter) importSubscriptionType() (*introspection.FullType, error) {
+func (c *converter) importSubscriptionType() (*introspection.FullType, error) {
 	subscriptionType := &introspection.FullType{
 		Kind: introspection.OBJECT,
 		Name: "Subscription",
@@ -164,8 +181,15 @@ func (c *Converter) importSubscriptionType() (*introspection.FullType, error) {
 				Type: paramTypeRef,
 			}
 			f.Args = append(f.Args, iv)
+			sort.Slice(f.Args, func(i, j int) bool {
+				return f.Args[i].Name < f.Args[j].Name
+			})
 		}
+
 		subscriptionType.Fields = append(subscriptionType.Fields, f)
+		sort.Slice(subscriptionType.Fields, func(i, j int) bool {
+			return subscriptionType.Fields[i].Name < subscriptionType.Fields[j].Name
+		})
 	}
 	return subscriptionType, nil
 }
@@ -178,7 +202,9 @@ func ImportAsyncAPIDocumentByte(input []byte) (*ast.Document, operationreport.Re
 		return nil, report
 	}
 
-	c := &Converter{
+	// A parsed AsyncAPI document may include the same enum type name more than once.
+	// In order to prevent from duplicated types in the resulting schema, we save the names.
+	c := &converter{
 		asyncapi:   asyncapi,
 		knownEnums: make(map[string]struct{}),
 		knownTypes: make(map[string]struct{}),
@@ -216,4 +242,8 @@ func ImportAsyncAPIDocumentByte(input []byte) (*ast.Document, operationreport.Re
 		return nil, report
 	}
 	return doc, report
+}
+
+func ImportAsyncAPIDocumentString(input string) (*ast.Document, operationreport.Report) {
+	return ImportAsyncAPIDocumentByte([]byte(input))
 }

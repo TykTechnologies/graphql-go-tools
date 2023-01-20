@@ -8,6 +8,15 @@ type Subscription {
     turnOn(streetlightId: String): TurnOnOff
 }
 
+enum Command {
+    ON
+    OFF
+}
+
+"""
+Dim light
+Command a particular streetlight to dim the lights.
+"""
 type DimLight {
     "Percentage to which the light should be dimmed to."
     percentage: Int
@@ -15,11 +24,10 @@ type DimLight {
     sentAt: String
 }
 
-enum Command {
-    ON
-    OFF
-}
-
+"""
+Turn on/off
+Command a particular streetlight to turn the lights on or off.
+"""
 type TurnOnOff {
     "Whether to turn on or off the light."
     command: Command

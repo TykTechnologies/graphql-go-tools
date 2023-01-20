@@ -3,14 +3,15 @@ package asyncapi
 import (
 	"bytes"
 	"fmt"
-	"github.com/TykTechnologies/graphql-go-tools/pkg/astprinter"
-	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
+
+	"github.com/TykTechnologies/graphql-go-tools/pkg/astprinter"
+	"github.com/stretchr/testify/require"
 )
 
 func TestImportAsyncAPIDocumentByte(t *testing.T) {
-	versions := []string{"2.2.0"}
+	versions := []string{"2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0"}
 	for _, version := range versions {
 		asyncapiDoc, err := os.ReadFile(fmt.Sprintf("./fixtures/streetlights-kafka-%s.yaml", version))
 		require.NoError(t, err)
@@ -22,9 +23,8 @@ func TestImportAsyncAPIDocumentByte(t *testing.T) {
 		w := &bytes.Buffer{}
 		err = astprinter.PrintIndent(doc, nil, []byte("  "), w)
 		require.NoError(t, err)
-		fmt.Println(w.String())
 
-		graphqlDoc, err := os.ReadFile("./fixtures/streetlights-kafka.graphql")
+		graphqlDoc, err := os.ReadFile("./fixtures/streetlights-kafka-2.4.0-and-below.graphql")
 		require.NoError(t, err)
 		require.Equal(t, string(graphqlDoc), w.String())
 	}
