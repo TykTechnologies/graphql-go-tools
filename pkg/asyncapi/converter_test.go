@@ -10,12 +10,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestImportAsyncAPIDocumentByte(t *testing.T) {
+func TestImportAsyncAPIDocumentString(t *testing.T) {
 	versions := []string{"2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0"}
 	for _, version := range versions {
 		asyncapiDoc, err := os.ReadFile(fmt.Sprintf("./fixtures/streetlights-kafka-%s.yaml", version))
 		require.NoError(t, err)
-		doc, report := ImportAsyncAPIDocumentByte(asyncapiDoc)
+		doc, report := ImportAsyncAPIDocumentString(string(asyncapiDoc))
 		if report.HasErrors() {
 			t.Fatal(report.Error())
 		}

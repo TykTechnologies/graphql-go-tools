@@ -17,10 +17,9 @@ import (
 )
 
 type converter struct {
-	asyncapi          *AsyncAPI
-	introspectionData *introspection.Data
-	knownEnums        map[string]struct{}
-	knownTypes        map[string]struct{}
+	asyncapi   *AsyncAPI
+	knownEnums map[string]struct{}
+	knownTypes map[string]struct{}
 }
 
 // __TypeKind of introspection is an unexported type. In order to overcome the problem,
