@@ -71,6 +71,7 @@ type OperationTrait struct {
 // https://www.asyncapi.com/docs/reference/specification/v2.4.0#channelItemObject
 type ChannelItem struct {
 	Message     *Message
+	Parameters  map[string]string
 	OperationID string
 	Traits      []*OperationTrait
 	Servers     []string
@@ -372,7 +373,25 @@ func (w *walker) enterChannelItemObject(channelName []byte, data []byte) error {
 	channelItem := &ChannelItem{
 		OperationID: operationID,
 		Servers:     servers,
+		Parameters:  make(map[string]string),
 	}
+
+	parametersValue, _, _, err := jsonparser.Get(data, "parameters")
+	if err != nil {
+		return err
+	}
+	err = jsonparser.ObjectEach(parametersValue, func(parameterName []byte, parameterValue []byte, _ jsonparser.ValueType, _ int) error {
+		parameterType, _, _, err := jsonparser.Get(parameterValue, "schema", "type")
+		if err != nil {
+			return err
+		}
+		channelItem.Parameters[string(parameterName)] = string(parameterType)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
 	w.asyncapi.Channels[string(channelName)] = channelItem
 
 	err = w.enterOperationTraitsObject(channelName, subscribeValue)
