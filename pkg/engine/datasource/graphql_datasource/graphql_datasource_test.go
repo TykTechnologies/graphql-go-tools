@@ -5711,7 +5711,8 @@ func TestGraphQLDataSource(t *testing.T) {
 										},
 									},
 									{
-										Name: []byte("__typename"),
+										Name:     []byte("__typename"),
+										TypeName: "User",
 										Value: &resolve.String{
 											Path:       []string{"__typename"},
 											Nullable:   false,
@@ -5899,7 +5900,8 @@ func TestGraphQLDataSource(t *testing.T) {
 									//	},
 									//},
 									{
-										Name: []byte("__typename"),
+										Name:     []byte("__typename"),
+										TypeName: "Identity",
 										Value: &resolve.String{
 											Path:       []string{"__typename"},
 											Nullable:   false,
