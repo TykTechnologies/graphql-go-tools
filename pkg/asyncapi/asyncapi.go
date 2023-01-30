@@ -8,6 +8,7 @@ import (
 
 	"github.com/asyncapi/parser-go/pkg/parser"
 	"github.com/buger/jsonparser"
+	"github.com/iancoleman/strcase"
 )
 
 const (
@@ -167,6 +168,9 @@ func (w *walker) enterPropertyObject(channel, key, data []byte) error {
 
 	// Mandatory
 	tpe, err := extractString(TypeKey, data)
+	if err == jsonparser.KeyPathNotFoundError {
+		return fmt.Errorf("property: %s is required in %s, channel: %s", TypeKey, key, channel)
+	}
 	if err != nil {
 		return err
 	}
@@ -202,7 +206,9 @@ func (w *walker) enterPropertyObject(channel, key, data []byte) error {
 	if !ok {
 		return fmt.Errorf("channel: %s is missing", channel)
 	}
-	channelItem.Message.Payload.Properties[string(key)] = property
+	// Field names should use camelCase. Many GraphQL clients are written in JavaScript, Java, Kotlin, or Swift,
+	// all of which recommend camelCase for variable names.
+	channelItem.Message.Payload.Properties[strcase.ToLowerCamel(string(key))] = property
 	return nil
 }
 
@@ -240,7 +246,6 @@ func (w *walker) enterPayloadObject(key, data []byte) error {
 		return fmt.Errorf("channel: %s is missing", key)
 	}
 	channel.Message.Payload = p
-
 	return w.enterPropertiesObject(key, payload)
 }
 
@@ -551,7 +556,11 @@ func (w *walker) enterServerObject(key, data []byte) error {
 }
 
 func (w *walker) enterServersObject() error {
+	// Not Mandatory
 	serverValue, dataType, _, err := jsonparser.Get(w.document.Bytes(), ServersKey)
+	if err == jsonparser.KeyPathNotFoundError {
+		return nil
+	}
 	if err != nil {
 		return err
 	}
