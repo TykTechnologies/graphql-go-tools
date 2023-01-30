@@ -327,6 +327,24 @@ func (w *walker) enterOperationTraitsObject(channelName []byte, data []byte) err
 	return nil
 }
 
+func (w *walker) enterParametersObject(channelItem *ChannelItem, data []byte) error {
+	parametersValue, _, _, err := jsonparser.Get(data, "parameters")
+	if err == jsonparser.KeyPathNotFoundError {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return jsonparser.ObjectEach(parametersValue, func(parameterName []byte, parameterValue []byte, _ jsonparser.ValueType, _ int) error {
+		parameterType, _, _, perr := jsonparser.Get(parameterValue, "schema", "type")
+		if perr != nil {
+			return perr
+		}
+		channelItem.Parameters[string(parameterName)] = string(parameterType)
+		return nil
+	})
+}
+
 func (w *walker) enterChannelItemObject(channelName []byte, data []byte) error {
 	subscribeValue, dataType, _, err := jsonparser.Get(data, SubscribeKey)
 	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
@@ -376,18 +394,7 @@ func (w *walker) enterChannelItemObject(channelName []byte, data []byte) error {
 		Parameters:  make(map[string]string),
 	}
 
-	parametersValue, _, _, err := jsonparser.Get(data, "parameters")
-	if err != nil {
-		return err
-	}
-	err = jsonparser.ObjectEach(parametersValue, func(parameterName []byte, parameterValue []byte, _ jsonparser.ValueType, _ int) error {
-		parameterType, _, _, err := jsonparser.Get(parameterValue, "schema", "type")
-		if err != nil {
-			return err
-		}
-		channelItem.Parameters[string(parameterName)] = string(parameterType)
-		return nil
-	})
+	err = w.enterParametersObject(channelItem, data)
 	if err != nil {
 		return err
 	}
@@ -441,10 +448,14 @@ func (w *walker) enterSecurityRequirementObject(key, data []byte, s *Server) err
 }
 
 func (w *walker) enterSecurityObject(s *Server, data []byte) error {
+	// Not mandatory
 	var securityObjectItems [][]byte
 	_, err := jsonparser.ArrayEach(data, func(securityObjectItem []byte, dataType jsonparser.ValueType, _ int, err error) {
 		securityObjectItems = append(securityObjectItems, securityObjectItem)
 	}, SecurityKey)
+	if err == jsonparser.KeyPathNotFoundError {
+		return nil
+	}
 	if err != nil {
 		return err
 	}
