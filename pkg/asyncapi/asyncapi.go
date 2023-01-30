@@ -34,6 +34,8 @@ const (
 	BindingsKey        = "bindings"
 	KafkaKey           = "kafka"
 	TraitsKey          = "traits"
+	ParametersKey      = "parameters"
+	SchemaKey          = "schema"
 )
 
 type AsyncAPI struct {
@@ -245,6 +247,10 @@ func (w *walker) enterPayloadObject(key, data []byte) error {
 func (w *walker) enterMessageObject(channelName, data []byte) error {
 	msg := &Message{}
 	name, err := extractString(NameKey, data)
+	if err == jsonparser.KeyPathNotFoundError {
+		name = string(channelName)
+		err = nil
+	}
 	if err != nil {
 		return err
 	}
@@ -273,6 +279,7 @@ func (w *walker) enterMessageObject(channelName, data []byte) error {
 }
 
 func (w *walker) enterOperationTraitsObject(channelName []byte, data []byte) error {
+	// Not Mandatory
 	traitsValue, dataType, _, err := jsonparser.Get(data, TraitsKey)
 	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
 		return nil
@@ -328,7 +335,8 @@ func (w *walker) enterOperationTraitsObject(channelName []byte, data []byte) err
 }
 
 func (w *walker) enterParametersObject(channelItem *ChannelItem, data []byte) error {
-	parametersValue, _, _, err := jsonparser.Get(data, "parameters")
+	// Not mandatory
+	parametersValue, _, _, err := jsonparser.Get(data, ParametersKey)
 	if err == jsonparser.KeyPathNotFoundError {
 		return nil
 	}
@@ -336,7 +344,7 @@ func (w *walker) enterParametersObject(channelItem *ChannelItem, data []byte) er
 		return err
 	}
 	return jsonparser.ObjectEach(parametersValue, func(parameterName []byte, parameterValue []byte, _ jsonparser.ValueType, _ int) error {
-		parameterType, _, _, perr := jsonparser.Get(parameterValue, "schema", "type")
+		parameterType, _, _, perr := jsonparser.Get(parameterValue, SchemaKey, TypeKey)
 		if perr != nil {
 			return perr
 		}
@@ -370,10 +378,9 @@ func (w *walker) enterChannelItemObject(channelName []byte, data []byte) error {
 		return fmt.Errorf("%s has to be a JSON object", MessageKey)
 	}
 
-	// Not mandatory
 	operationID, err := extractString(OperationIDKey, subscribeValue)
 	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
-		err = nil
+		return fmt.Errorf("key: %s is required in channel: %s", OperationIDKey, channelName)
 	}
 	if err != nil {
 		return err
@@ -411,6 +418,9 @@ func (w *walker) enterChannelItemObject(channelName []byte, data []byte) error {
 
 func (w *walker) enterChannelObject() error {
 	value, dataType, _, err := jsonparser.Get(w.document.Bytes(), ChannelsKey)
+	if err == jsonparser.KeyPathNotFoundError {
+		return fmt.Errorf("key: %s is missing", ChannelsKey)
+	}
 	if err != nil {
 		return err
 	}

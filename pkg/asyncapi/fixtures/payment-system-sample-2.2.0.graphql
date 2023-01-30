@@ -1,0 +1,72 @@
+schema {
+    subscription: Subscription
+}
+
+type Subscription {
+    paymentFailedSub: PaymentFailed
+    paymentSucceededSub: PaymentSucceeded
+    userRegisteredSub: UserRegistered
+    userSubscribedSub: UserSubscribed
+    userUnsubscribedSub: UserUnsubscribed
+}
+
+type PaymentFailed {
+    "Timestamp of payment"
+    created_at: String
+    "ID of payment"
+    id: Int
+    "ID of plan"
+    plan_id: Int
+    "ID of user"
+    user_id: Int
+    "Value of payment"
+    value: Float
+}
+
+type PaymentSucceeded {
+    "Timestamp of payment"
+    created_at: String
+    "ID of payment"
+    id: Int
+    "ID of plan"
+    plan_id: Int
+    "ID of user"
+    user_id: Int
+    "Value of payment"
+    value: Float
+}
+
+type UserRegistered {
+    "E-mail of user"
+    email: String
+    "ID of user"
+    id: Int
+    "Name of user"
+    name: String
+    "Password of user"
+    password: String
+    "Timestamp of registration"
+    registered_at: String
+}
+
+type UserSubscribed {
+    "ID of subscription"
+    id: Int
+    "ID of plan"
+    plan_id: Int
+    "Name of plan"
+    plan_name: String
+    "Value of plan"
+    plan_value: Float
+    "Timestamp of subscription"
+    subscribed_at: String
+    "ID of user"
+    user_id: Int
+}
+
+type UserUnsubscribed {
+    "ID of subscription"
+    id: Int
+    "Timestamp of unsubscription"
+    unsubscribed_at: String
+}
