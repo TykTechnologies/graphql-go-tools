@@ -1,3 +1,4 @@
+# source: https://ambassadorpatryk.com/2022/02/async-api-is-a-way-to-describe-event-driven-apis/
 asyncapi: 2.0.0
 info:
   title: Payment Service

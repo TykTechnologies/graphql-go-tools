@@ -1,3 +1,4 @@
+# source: https://www.asyncapi.com/blog/understanding-asyncapis
 asyncapi: 2.0.0
 info:
   title: Account Service
