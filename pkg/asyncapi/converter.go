@@ -160,7 +160,7 @@ func (c *converter) importSubscriptionType() (*introspection.FullType, error) {
 		}
 		typeRef.Name = &typeName
 		f := introspection.Field{
-			Name: channelItem.OperationID,
+			Name: strcase.ToLowerCamel(channelItem.OperationID),
 			Type: typeRef,
 		}
 		for paramName, paramType := range channelItem.Parameters {
