@@ -10,6 +10,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func testFixtureFile(t *testing.T, name string) {
+	asyncapiDoc, err := os.ReadFile(fmt.Sprintf("./fixtures/%s.yaml", name))
+	require.NoError(t, err)
+	doc, report := ImportAsyncAPIDocumentString(string(asyncapiDoc))
+	if report.HasErrors() {
+		t.Fatal(report.Error())
+	}
+	require.NoError(t, err)
+	w := &bytes.Buffer{}
+	err = astprinter.PrintIndent(doc, nil, []byte("  "), w)
+	require.NoError(t, err)
+
+	graphqlDoc, err := os.ReadFile(fmt.Sprintf("./fixtures/%s.graphql", name))
+	require.NoError(t, err)
+	require.Equal(t, string(graphqlDoc), w.String())
+}
+
 func TestImportAsyncAPIDocumentString(t *testing.T) {
 	versions := []string{"2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0"}
 	for _, version := range versions {
@@ -30,104 +47,28 @@ func TestImportAsyncAPIDocumentString(t *testing.T) {
 	}
 }
 
-func TestImportAsyncAPIDocumentString_EmailService(t *testing.T) {
-	asyncapiDoc, err := os.ReadFile("./fixtures/email-service-2.0.0.yaml")
-	require.NoError(t, err)
-	doc, report := ImportAsyncAPIDocumentString(string(asyncapiDoc))
-	if report.HasErrors() {
-		t.Fatal(report.Error())
-	}
-	require.NoError(t, err)
-	w := &bytes.Buffer{}
-	err = astprinter.PrintIndent(doc, nil, []byte("  "), w)
-	require.NoError(t, err)
+func TestImportAsyncAPIDocumentString_Fixtures(t *testing.T) {
+	t.Run("email-service-2.0.0.yaml", func(t *testing.T) {
+		testFixtureFile(t, "email-service-2.0.0")
+	})
 
-	graphqlDoc, err := os.ReadFile("./fixtures/email-service-2.0.0.graphql")
-	require.NoError(t, err)
-	require.Equal(t, string(graphqlDoc), w.String())
-}
+	t.Run("payment-system-sample-2.2.0.yaml", func(t *testing.T) {
+		testFixtureFile(t, "payment-system-sample-2.2.0")
+	})
 
-func TestImportAsyncAPIDocumentString_PaymentSystemSample(t *testing.T) {
-	asyncapiDoc, err := os.ReadFile("./fixtures/payment-system-sample-2.2.0.yaml")
-	require.NoError(t, err)
-	doc, report := ImportAsyncAPIDocumentString(string(asyncapiDoc))
-	if report.HasErrors() {
-		t.Fatal(report.Error())
-	}
-	require.NoError(t, err)
-	w := &bytes.Buffer{}
-	err = astprinter.PrintIndent(doc, nil, []byte("  "), w)
-	require.NoError(t, err)
+	t.Run("payment-sample-2.0.0.yaml", func(t *testing.T) {
+		testFixtureFile(t, "payment-sample-2.0.0")
+	})
 
-	graphqlDoc, err := os.ReadFile("./fixtures/payment-system-sample-2.2.0.graphql")
-	require.NoError(t, err)
-	require.Equal(t, string(graphqlDoc), w.String())
-}
+	t.Run("trading-sample-2.0.0.yaml", func(t *testing.T) {
+		testFixtureFile(t, "trading-sample-2.0.0")
+	})
 
-func TestImportAsyncAPIDocumentString_PaymentSample(t *testing.T) {
-	asyncapiDoc, err := os.ReadFile("./fixtures/payment-sample-2.0.0.yaml")
-	require.NoError(t, err)
-	doc, report := ImportAsyncAPIDocumentString(string(asyncapiDoc))
-	if report.HasErrors() {
-		t.Fatal(report.Error())
-	}
-	require.NoError(t, err)
-	w := &bytes.Buffer{}
-	err = astprinter.PrintIndent(doc, nil, []byte("  "), w)
-	require.NoError(t, err)
+	t.Run("print-service-api-2.0.0.yaml", func(t *testing.T) {
+		testFixtureFile(t, "print-service-api-2.0.0")
+	})
 
-	graphqlDoc, err := os.ReadFile("./fixtures/payment-sample-2.0.0.graphql")
-	require.NoError(t, err)
-	require.Equal(t, string(graphqlDoc), w.String())
-}
-
-func TestImportAsyncAPIDocumentString_TradingSample(t *testing.T) {
-	asyncapiDoc, err := os.ReadFile("./fixtures/trading-sample-2.0.0.yaml")
-	require.NoError(t, err)
-	doc, report := ImportAsyncAPIDocumentString(string(asyncapiDoc))
-	if report.HasErrors() {
-		t.Fatal(report.Error())
-	}
-	require.NoError(t, err)
-	w := &bytes.Buffer{}
-	err = astprinter.PrintIndent(doc, nil, []byte("  "), w)
-	require.NoError(t, err)
-
-	graphqlDoc, err := os.ReadFile("./fixtures/trading-sample-2.0.0.graphql")
-	require.NoError(t, err)
-	require.Equal(t, string(graphqlDoc), w.String())
-}
-
-func TestImportAsyncAPIDocumentString_PrintServiceAPI(t *testing.T) {
-	asyncapiDoc, err := os.ReadFile("./fixtures/print-service-api-2.0.0.yaml")
-	require.NoError(t, err)
-	doc, report := ImportAsyncAPIDocumentString(string(asyncapiDoc))
-	if report.HasErrors() {
-		t.Fatal(report.Error())
-	}
-	require.NoError(t, err)
-	w := &bytes.Buffer{}
-	err = astprinter.PrintIndent(doc, nil, []byte("  "), w)
-	require.NoError(t, err)
-
-	graphqlDoc, err := os.ReadFile("./fixtures/print-service-api-2.0.0.graphql")
-	require.NoError(t, err)
-	require.Equal(t, string(graphqlDoc), w.String())
-}
-
-func TestImportAsyncAPIDocumentString_UserAPI(t *testing.T) {
-	asyncapiDoc, err := os.ReadFile("./fixtures/user-api-2.0.0.yaml")
-	require.NoError(t, err)
-	doc, report := ImportAsyncAPIDocumentString(string(asyncapiDoc))
-	if report.HasErrors() {
-		t.Fatal(report.Error())
-	}
-	require.NoError(t, err)
-	w := &bytes.Buffer{}
-	err = astprinter.PrintIndent(doc, nil, []byte("  "), w)
-	require.NoError(t, err)
-
-	graphqlDoc, err := os.ReadFile("./fixtures/user-api-2.0.0.graphql")
-	require.NoError(t, err)
-	require.Equal(t, string(graphqlDoc), w.String())
+	t.Run("user-api-2.0.0.yaml", func(t *testing.T) {
+		testFixtureFile(t, "user-api-2.0.0")
+	})
 }
