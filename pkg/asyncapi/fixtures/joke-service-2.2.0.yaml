@@ -1,0 +1,200 @@
+# source: https://quobix.com/articles/asyncapi-pubsub-using-golang/
+asyncapi: 2.2.0
+info:
+  title: 'Quobix AsyncAPI Tutorial: Simple Pub-Sub'
+  version: 1.0.0
+  description: >
+    A simple contract showing how to create an AsyncAPI driven API
+    using Golang with [Transport](https://github.com/vmware/transport-go) and
+    [Plank](https://github.com/vmware/transport-go/blob/main/plank).
+  contact:
+    name: Dave Shanley
+    url: 'https://quobix.com/articles/asyncapi-pubsub-using-golang'
+  license:
+    name: BSD-2-Clause
+    url: 'https://opensource.org/licenses/BSD-2-Clause'
+servers:
+  plank-demo:
+    url: 'ws://localhost:30080/ws'
+    protocol: stomp
+defaultContentType: application/json
+
+channels:
+  pub/queue/joke-service:
+    description: >
+      Publish a `JokeRequest` request to receive a `JokeResponse` and listen for the response over at **queue/joke-service**
+    publish:
+      operationId: get-joke
+      description: |
+        `JokeRequest` is empty, as in the payload of your `TransportRequest` can be empty.
+      message:
+        $ref: '#/components/messages/JokeRequest'
+
+  queue/joke-service:
+    description: |
+      The `JokeService` will publish responses to requests made via **pub/queue/joke-service**. 
+      
+      When subscribing to a queue using [Transport](https://github.com/vmware/transport-go), your subscription is considered 'private'. 
+      
+      Not other responses to a `JokeRequest` other than yours will be sent.
+    subscribe:
+      operationId: jokeResponse
+      description: Subscribe to listen for a `JokeResponse` response to your `JokeRequest`.
+      message:
+        $ref: '#/components/messages/JokeResponse'
+
+components:
+  schemas:
+    Joke:
+      description: >
+        `Joke` represents the exact API response that is delivered via the https://icanhazdadjoke.com API.
+      type: object
+      properties:
+        id:
+          description: >
+            An alphanumeric string that identifies this joke, from where it was sourced via https://icanhazdadjoke.com
+          type: string
+          examples:
+            - M7wPC5wPKBd
+            - MRZ0LJtHQCd
+            - usrcaMuszd
+        joke:
+          description: >
+            A random joke from https://icanhazdadjoke.com. Probably not very funny but may crack a smile.
+          type: string
+          examples:
+            - What kind of magic do cows believe in? MOODOO.
+            - My dog used to chase people on a bike a lot. It got so bad I had to take his bike away.
+            - What do you call a fly without wings? A walk.
+        status:
+          description: >
+            HTTP status code of the API call, should be *200* unless something went wrong.
+          type: number
+          format: int32
+          examples:
+            - 200
+
+    TransportRequest:
+      description: >
+        `TransportRequest` is a set of required properties that always exist on any
+        request message to Transport instances.
+
+        these properties are used by various other layers in the system to
+        decide how to treat a transport message.
+
+        The same `id` will be used for a response message.
+      type: object
+      required:
+        - id
+        - request
+        - created
+        - version
+      properties:
+        id:
+          description: >
+            `UUID` represented as a *string*. Should always be **unique** for
+            every single message.
+          type: string
+          examples:
+            - d68695be-0f11-4c9c-8644-2667135a7baf
+        version:
+          description: >
+            Version of the message, default to '1' if you don't use this
+            feature.
+          type: number
+          format: int32
+          examples:
+            - 1
+        created:
+          description: |
+            Timestamp representing when the message was created.
+          type: number
+          format: int64
+          examples:
+            - 1629991055269
+        request:
+          description: >
+            This is the command being issued to the service, this is the same as
+            the `operationId` of the service.
+          type: string
+          examples:
+            - get-joke
+            - do-something
+    TransportResponse:
+      description: >
+        `TransportResponse` is a set of required properties that always exist on any
+        response message from Transport instances.
+
+        these properties are used by various other layers in the system to
+        decide how to treat a transport message.
+
+        The `id` is always that of a paired request object, if applicable.
+      type: object
+      properties:
+        id:
+          description: >
+            `UUID` represented as a *string*. Should always be **unique** for
+            every single message.
+          type: string
+          examples:
+            - d68695be-0f11-4c9c-8644-2667135a7baf
+        version:
+          description: >
+            Version of the message, default to '1' if you don't use this
+            feature.
+          type: number
+          format: int32
+          examples:
+            - 1
+        created:
+          description: |
+            Timestamp representing when the message was created.
+          type: number
+          format: int64
+          examples:
+            - 1629991055269
+        channel:
+          description: >
+            This is the channel the service is operating over.
+          type: string
+          examples:
+            - joke-service
+        error:
+          default: 'false'
+          description: >
+            If something went wrong, this is set to true and the message is an error response.
+          type: boolean
+        errorCode:
+          default: 0
+          description: >
+            If something went wrong and `error` is true, an error code is set.
+          type: boolean
+        errorMessage:
+          default: ""
+          description: >
+            If something went wrong, Whatever happened is described here.
+          type: boolean
+
+  messages:
+    JokeResponse:
+      description: |
+        A response to a `JokeRequest`. Payload is a `Joke`.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/TransportResponse'
+          - type: object
+            properties:
+              payload:
+                $ref: '#/components/schemas/Joke'
+
+    JokeRequest:
+      description: |
+        A request for a joke. This is essentially an empty message
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/TransportRequest'
+          - type: object
+            properties:
+              payload:
+                type: object
+                description: This can be empty, you don't need to supply anthing here, it will be ignored.

@@ -1,0 +1,29 @@
+schema {
+    subscription: Subscription
+}
+
+type Subscription {
+    jokeResponse: QueuejokeService
+}
+
+"A response to a `JokeRequest`. Payload is a `Joke`.\n"
+type QueuejokeService {
+    "This is the channel the service is operating over.\n"
+    channel: String
+    "Timestamp representing when the message was created.\n"
+    created: Float
+    "If something went wrong, this is set to true and the message is an error response.\n"
+    error: Boolean
+    "If something went wrong and `error` is true, an error code is set.\n"
+    errorCode: Boolean
+    "If something went wrong, Whatever happened is described here.\n"
+    errorMessage: Boolean
+    "An alphanumeric string that identifies this joke, from where it was sourced via https://icanhazdadjoke.com\n"
+    id: String
+    "A random joke from https://icanhazdadjoke.com. Probably not very funny but may crack a smile.\n"
+    joke: String
+    "HTTP status code of the API call, should be *200* unless something went wrong.\n"
+    status: Float
+    "Version of the message, default to '1' if you don't use this feature.\n"
+    version: Float
+}

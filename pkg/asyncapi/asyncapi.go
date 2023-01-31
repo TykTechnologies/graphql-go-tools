@@ -37,6 +37,7 @@ const (
 	TraitsKey          = "traits"
 	ParametersKey      = "parameters"
 	SchemaKey          = "schema"
+	AllOfKey           = "allOf"
 )
 
 type AsyncAPI struct {
@@ -222,7 +223,14 @@ func (w *walker) enterPropertiesObject(channel, data []byte) error {
 	}
 
 	return jsonparser.ObjectEach(propertiesValue, func(key []byte, value []byte, dataType jsonparser.ValueType, _ int) error {
-		return w.enterPropertyObject(channel, key, value)
+		_, _, _, err = jsonparser.Get(value, PropertiesKey)
+		if err == jsonparser.KeyPathNotFoundError {
+			return w.enterPropertyObject(channel, key, value)
+		}
+		if err == nil {
+			return w.enterPropertiesObject(channel, value)
+		}
+		return err
 	})
 }
 
@@ -246,7 +254,30 @@ func (w *walker) enterPayloadObject(key, data []byte) error {
 		return fmt.Errorf("channel: %s is missing", key)
 	}
 	channel.Message.Payload = p
-	return w.enterPropertiesObject(key, payload)
+
+	allOfData, _, _, err := jsonparser.Get(payload, AllOfKey)
+	if err == jsonparser.KeyPathNotFoundError {
+		return w.enterPropertiesObject(key, payload)
+	}
+	if err != nil {
+		return err
+	}
+
+	var arrayOfProperties [][]byte
+	_, err = jsonparser.ArrayEach(allOfData, func(value []byte, _ jsonparser.ValueType, _ int, err error) {
+		arrayOfProperties = append(arrayOfProperties, value)
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, properties := range arrayOfProperties {
+		err = w.enterPropertiesObject(key, properties)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (w *walker) enterMessageObject(channelName, data []byte) error {

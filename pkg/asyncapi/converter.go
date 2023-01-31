@@ -48,6 +48,8 @@ func asyncAPITypeToGQLType(asyncAPIType string) (string, error) {
 		return string(literal.FLOAT), nil
 	case "boolean":
 		return string(literal.BOOLEAN), nil
+	case "object":
+		return string(literal.TYPE), nil
 	default:
 		return "", fmt.Errorf("unknown type: %s", asyncAPIType)
 	}
