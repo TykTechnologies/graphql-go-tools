@@ -97,3 +97,20 @@ func TestImportAsyncAPIDocumentString_TradingSample(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, string(graphqlDoc), w.String())
 }
+
+func TestImportAsyncAPIDocumentString_PrintServiceAPI(t *testing.T) {
+	asyncapiDoc, err := os.ReadFile("./fixtures/print-service-api-2.0.0.yaml")
+	require.NoError(t, err)
+	doc, report := ImportAsyncAPIDocumentString(string(asyncapiDoc))
+	if report.HasErrors() {
+		t.Fatal(report.Error())
+	}
+	require.NoError(t, err)
+	w := &bytes.Buffer{}
+	err = astprinter.PrintIndent(doc, nil, []byte("  "), w)
+	require.NoError(t, err)
+
+	graphqlDoc, err := os.ReadFile("./fixtures/print-service-api-2.0.0.graphql")
+	require.NoError(t, err)
+	require.Equal(t, string(graphqlDoc), w.String())
+}
