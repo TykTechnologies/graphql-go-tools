@@ -176,7 +176,7 @@ func (w *walker) enterPropertyObject(channel, key, data []byte) error {
 
 	// Mandatory
 	tpe, err := extractString(TypeKey, data)
-	if err == jsonparser.KeyPathNotFoundError {
+	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
 		return fmt.Errorf("property: %s is required in %s, channel: %s", TypeKey, key, channel)
 	}
 	if err != nil {
@@ -260,7 +260,7 @@ func (w *walker) enterPayloadObject(key, data []byte) error {
 func (w *walker) enterMessageObject(channelName, data []byte) error {
 	msg := &Message{}
 	name, err := extractString(NameKey, data)
-	if err == jsonparser.KeyPathNotFoundError {
+	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
 		name = string(channelName)
 		err = nil
 	}
@@ -350,7 +350,7 @@ func (w *walker) enterOperationTraitsObject(channelName []byte, data []byte) err
 func (w *walker) enterParametersObject(channelItem *ChannelItem, data []byte) error {
 	// Not mandatory
 	parametersValue, _, _, err := jsonparser.Get(data, ParametersKey)
-	if err == jsonparser.KeyPathNotFoundError {
+	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
 		return nil
 	}
 	if err != nil {
@@ -431,7 +431,7 @@ func (w *walker) enterChannelItemObject(channelName []byte, data []byte) error {
 
 func (w *walker) enterChannelObject() error {
 	value, dataType, _, err := jsonparser.Get(w.document.Bytes(), ChannelsKey)
-	if err == jsonparser.KeyPathNotFoundError {
+	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
 		return fmt.Errorf("key: %s is missing", ChannelsKey)
 	}
 	if err != nil {
@@ -476,7 +476,7 @@ func (w *walker) enterSecurityObject(s *Server, data []byte) error {
 	_, err := jsonparser.ArrayEach(data, func(securityObjectItem []byte, dataType jsonparser.ValueType, _ int, err error) {
 		securityObjectItems = append(securityObjectItems, securityObjectItem)
 	}, SecurityKey)
-	if err == jsonparser.KeyPathNotFoundError {
+	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
 		return nil
 	}
 	if err != nil {
