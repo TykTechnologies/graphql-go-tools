@@ -49,6 +49,7 @@ require (
 	github.com/vektah/gqlparser/v2 v2.5.1
 	go.uber.org/atomic v1.9.0
 	go.uber.org/zap v1.18.1
+	golang.org/x/exp v0.0.0-20230206171751-46f607a40771
 	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 	gopkg.in/yaml.v2 v2.4.0
