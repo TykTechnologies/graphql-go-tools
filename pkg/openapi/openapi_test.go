@@ -2,7 +2,6 @@ package openapi
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 	"testing"
 
@@ -14,11 +13,16 @@ func TestOpenAPIv3(t *testing.T) {
 	input, err := os.ReadFile("./fixtures/v3.0.0/petstore-expanded.yaml")
 	require.NoError(t, err)
 
-	doc, err := ImportOpenAPIDocumentByte(input)
-	fmt.Println(err)
+	doc, report := ImportOpenAPIDocumentByte(input)
+	if report.HasErrors() {
+		t.Fatal(report.Error())
+	}
 
 	w := &bytes.Buffer{}
 	err = astprinter.PrintIndent(doc, nil, []byte("  "), w)
 	require.NoError(t, err)
-	fmt.Println(w.String())
+
+	graphqlDoc, err := os.ReadFile("./fixtures/v3.0.0/petstore-expanded.graphql")
+	require.NoError(t, err)
+	require.Equal(t, string(graphqlDoc), w.String())
 }

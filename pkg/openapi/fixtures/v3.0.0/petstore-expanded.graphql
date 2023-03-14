@@ -1,0 +1,29 @@
+schema {
+    query: Query
+}
+
+type Query {
+    findPetById(id: Int): Pet
+    findPets(limit: Int, tags: [String]): [Pet]
+}
+
+type Mutation {
+    addPet(newPet: NewPet): Pet
+    deletePet(id: Int): Boolean
+}
+
+type Error {
+    code: Int
+    message: String
+}
+
+input NewPet {
+    name: String
+    tag: String
+}
+
+type Pet {
+    id: Int
+    name: String
+    tag: String
+}
