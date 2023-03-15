@@ -203,9 +203,11 @@ func (c *converter) importFullTypes() ([]introspection.FullType, error) {
 			}
 
 			defaultJSONSchema := getDefaultJSONSchema(operation)
-			err := c.processSchema(defaultJSONSchema)
-			if err != nil {
-				return nil, err
+			if defaultJSONSchema != nil {
+				err := c.processSchema(defaultJSONSchema)
+				if err != nil {
+					return nil, err
+				}
 			}
 
 			for statusCodeStr := range operation.Responses {
@@ -239,19 +241,26 @@ func extractTypeName(status int, operation *openapi3.Operation) string {
 		// Nil response?
 		return ""
 	}
-	schema := response.Value.Content.Get("application/json")
-	if schema == nil && len(response.Value.Content) == 0 {
+	schema := getJSONSchema(status, operation)
+	//mediaType := response.Value.Content.Get("application/json")
+	//if mediaType == nil && len(response.Value.Content) == 0 {
+	//	return ""
+	//}
+	if schema == nil {
 		return ""
 	}
-	if schema.Schema.Value.Type == "array" {
-		return extractFullTypeNameFromRef(schema.Schema.Value.Items.Ref)
+	if schema.Value.Type == "array" {
+		return extractFullTypeNameFromRef(schema.Value.Items.Ref)
 	}
-	return extractFullTypeNameFromRef(schema.Schema.Ref)
+	return extractFullTypeNameFromRef(schema.Ref)
 }
 
 func getJSONSchemaFromResponseRef(response *openapi3.ResponseRef) *openapi3.SchemaRef {
+	if response == nil {
+		return nil
+	}
 	var schema *openapi3.SchemaRef
-	for _, contentType := range []string{"application/json", "application/geo+json"} {
+	for _, contentType := range []string{"application/json", "application/geo+json", "text/plain"} {
 		content := response.Value.Content.Get(contentType)
 		if content != nil {
 			return content.Schema
@@ -272,6 +281,45 @@ func getJSONSchema(status int, operation *openapi3.Operation) *openapi3.SchemaRe
 	return getJSONSchemaFromResponseRef(response)
 }
 
+func (c *converter) importQueryTypeFieldParameter(field *introspection.Field, name string, schema *openapi3.SchemaRef) error {
+	paramType := schema.Value.Type
+	if paramType == "array" {
+		paramType = schema.Value.Items.Value.Type
+	}
+
+	typeRef, err := getTypeRef(paramType)
+	if err != nil {
+		return err
+	}
+
+	gqlType, err := getGraphQLType(paramType)
+	if err != nil {
+		return err
+	}
+
+	if schema.Value.Items != nil {
+		ofType := schema.Value.Items.Value.Type
+		ofTypeRef, err := getTypeRef(ofType)
+		if err != nil {
+			return err
+		}
+		typeRef.OfType = &ofTypeRef
+		gqlType = fmt.Sprintf("[%s]", gqlType)
+	}
+
+	typeRef.Name = &gqlType
+	iv := introspection.InputValue{
+		Name: name,
+		Type: typeRef,
+	}
+
+	field.Args = append(field.Args, iv)
+	sort.Slice(field.Args, func(i, j int) bool {
+		return field.Args[i].Name < field.Args[j].Name
+	})
+	return nil
+}
+
 func (c *converter) importQueryTypeFields(typeRef *introspection.TypeRef, operation *openapi3.Operation) (*introspection.Field, error) {
 	f := introspection.Field{
 		Name: strcase.ToLowerCamel(operation.OperationID),
@@ -279,41 +327,20 @@ func (c *converter) importQueryTypeFields(typeRef *introspection.TypeRef, operat
 	}
 
 	for _, parameter := range operation.Parameters {
-		paramType := parameter.Value.Schema.Value.Type
-		if paramType == "array" {
-			paramType = parameter.Value.Schema.Value.Items.Value.Type
-		}
-
-		typeRef, err := getTypeRef(paramType)
-		if err != nil {
-			return nil, err
-		}
-
-		gqlType, err := getGraphQLType(paramType)
-		if err != nil {
-			return nil, err
-		}
-
-		if parameter.Value.Schema.Value.Items != nil {
-			ofType := parameter.Value.Schema.Value.Items.Value.Type
-			ofTypeRef, err := getTypeRef(ofType)
-			if err != nil {
-				return nil, err
+		schema := parameter.Value.Schema
+		if schema == nil {
+			mediaType := parameter.Value.Content.Get("application/json")
+			if mediaType != nil {
+				schema = mediaType.Schema
 			}
-			typeRef.OfType = &ofTypeRef
-			gqlType = fmt.Sprintf("[%s]", gqlType)
 		}
-
-		typeRef.Name = &gqlType
-		iv := introspection.InputValue{
-			Name: parameter.Value.Name,
-			Type: typeRef,
+		if schema == nil {
+			continue
 		}
-
-		f.Args = append(f.Args, iv)
-		sort.Slice(f.Args, func(i, j int) bool {
-			return f.Args[i].Name < f.Args[j].Name
-		})
+		err := c.importQueryTypeFieldParameter(&f, parameter.Value.Name, schema)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &f, nil
 }
@@ -323,36 +350,52 @@ func (c *converter) importQueryType() (*introspection.FullType, error) {
 		Kind: introspection.OBJECT,
 		Name: "Query",
 	}
-	for _, openapiPath := range c.openapi.Paths {
+	for key, pathItem := range c.openapi.Paths {
 		for _, method := range []string{http.MethodGet} {
-			operation := openapiPath.GetOperation(method)
+			operation := pathItem.GetOperation(method)
 			if operation == nil {
 				// We only support HTTP GET operation.
 				continue
 			}
+			for statusCodeStr := range operation.Responses {
+				if statusCodeStr == "default" {
+					continue
+				}
+				status, err := strconv.Atoi(statusCodeStr)
+				if err != nil {
+					return nil, err
+				}
+				schema := getJSONSchema(status, operation)
+				if schema == nil {
+					continue
+				}
+				getJSONSchema(status, operation)
+				kind := getJSONSchema(status, operation).Value.Type
+				if kind == "" {
+					// TODO: why?
+					kind = "object"
+				}
 
-			kind := getJSONSchema(http.StatusOK, operation).Value.Type
-			if kind == "" {
-				// TODO: why?
-				kind = "object"
-			}
+				typeName := strcase.ToCamel(extractTypeName(status, operation))
+				typeRef, err := getTypeRef(kind)
+				if err != nil {
+					return nil, err
+				}
+				if kind == "array" {
+					// Array of some type
+					typeRef.OfType = &introspection.TypeRef{Kind: 3, Name: &typeName}
+				}
 
-			typeName := strcase.ToCamel(extractTypeName(http.StatusOK, operation))
-			typeRef, err := getTypeRef(kind)
-			if err != nil {
-				return nil, err
+				typeRef.Name = &typeName
+				queryField, err := c.importQueryTypeFields(&typeRef, operation)
+				if err != nil {
+					return nil, err
+				}
+				if queryField.Name == "" {
+					queryField.Name = strings.Trim(key, "/")
+				}
+				queryType.Fields = append(queryType.Fields, *queryField)
 			}
-			if kind == "array" {
-				// Array of some type
-				typeRef.OfType = &introspection.TypeRef{Kind: 3, Name: &typeName}
-			}
-
-			typeRef.Name = &typeName
-			queryField, err := c.importQueryTypeFields(&typeRef, operation)
-			if err != nil {
-				return nil, err
-			}
-			queryType.Fields = append(queryType.Fields, *queryField)
 		}
 	}
 	sort.Slice(queryType.Fields, func(i, j int) bool {
@@ -422,7 +465,7 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 			typeName := strcase.ToCamel(extractTypeName(status, operation))
 			if typeName == "" {
 				// TODO: https://stackoverflow.com/questions/44737043/is-it-possible-to-not-return-any-data-when-using-a-graphql-mutation/44773532#44773532
-				typeName = "Boolean"
+				typeName = "String"
 			}
 
 			typeRef, err := getTypeRef("object")
@@ -441,6 +484,9 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 				content := operation.RequestBody.Value.Content.Get("application/json")
 				if content == nil {
 					content = operation.RequestBody.Value.Content.Get("application/x-www-form-urlencoded")
+				}
+				if content == nil {
+					content = operation.RequestBody.Value.Content.Get("text/plain")
 				}
 				schema := content.Schema
 				inputValue, err = c.addParameters(extractFullTypeNameFromRef(schema.Ref), schema)
