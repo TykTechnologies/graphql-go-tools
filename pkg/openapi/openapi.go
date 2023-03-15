@@ -73,19 +73,19 @@ func extractFullTypeNameFromRef(ref string) string {
 	return parsed[len(parsed)-1]
 }
 
-func (c *converter) processSchemaProperties(fullType *introspection.FullType, schemaRef *openapi3.SchemaRef) error {
-	for propertyName, property := range schemaRef.Value.Properties {
-		gqlType, err := getGraphQLType(property.Value.Type)
+func (c *converter) processSchemaProperties(fullType *introspection.FullType, schemas openapi3.Schemas) error {
+	for name, schemaRef := range schemas {
+		gqlType, err := getGraphQLType(schemaRef.Value.Type)
 		if err != nil {
 			return err
 		}
-		typeRef, err := getTypeRef(property.Value.Type)
+		typeRef, err := getTypeRef(schemaRef.Value.Type)
 		if err != nil {
 			return err
 		}
 		typeRef.Name = &gqlType
 		field := introspection.Field{
-			Name: propertyName,
+			Name: name,
 			Type: typeRef,
 		}
 
@@ -133,11 +133,19 @@ func (c *converter) processArray(schema *openapi3.SchemaRef) error {
 		Kind: introspection.OBJECT,
 		Name: fullTypeName,
 	}
-	for _, item := range schema.Value.Items.Value.AllOf {
-		if item.Value.Type == "object" {
-			err := c.processSchemaProperties(&ft, item)
-			if err != nil {
-				return err
+	typeOfElements := schema.Value.Items.Value.Type
+	if typeOfElements == "object" {
+		err := c.processSchemaProperties(&ft, schema.Value.Items.Value.Properties)
+		if err != nil {
+			return err
+		}
+	} else {
+		for _, item := range schema.Value.Items.Value.AllOf {
+			if item.Value.Type == "object" {
+				err := c.processSchemaProperties(&ft, item.Value.Properties)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -157,7 +165,7 @@ func (c *converter) processObject(schema *openapi3.SchemaRef) error {
 		Kind: introspection.OBJECT,
 		Name: fullTypeName,
 	}
-	err := c.processSchemaProperties(&ft, schema)
+	err := c.processSchemaProperties(&ft, schema.Value.Properties)
 	if err != nil {
 		return err
 	}
@@ -191,13 +199,17 @@ func (c *converter) processSchema(schema *openapi3.SchemaRef) error {
 	} else if schema.Value.Type == "object" {
 		return c.processObject(schema)
 	}
+
+	sort.Slice(c.fullTypes, func(i, j int) bool {
+		return c.fullTypes[i].Name < c.fullTypes[j].Name
+	})
 	return nil
 }
 
 func (c *converter) importFullTypes() ([]introspection.FullType, error) {
-	for _, openapiPaths := range c.openapi.Paths {
+	for _, pathItem := range c.openapi.Paths {
 		for _, method := range []string{http.MethodGet, http.MethodPost, http.MethodDelete, http.MethodPut} {
-			operation := openapiPaths.GetOperation(method)
+			operation := pathItem.GetOperation(method)
 			if operation == nil {
 				continue
 			}

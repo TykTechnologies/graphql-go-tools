@@ -1,0 +1,24 @@
+schema {
+    query: Query
+    mutation: Mutation
+}
+
+type Query {
+    listPets(limit: Int): [Pet]
+    showPetById(petId: String): Pet
+}
+
+type Mutation {
+    createPets: String
+}
+
+type Error {
+    code: Int
+    message: String
+}
+
+type Pet {
+    id: Int
+    name: String
+    tag: String
+}
