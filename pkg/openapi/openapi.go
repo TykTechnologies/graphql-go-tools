@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/TykTechnologies/graphql-go-tools/pkg/ast"
@@ -51,7 +53,7 @@ func getParamTypeRef(kind string) (introspection.TypeRef, error) {
 	return introspection.TypeRef{}, errors.New("unknown type")
 }
 
-func openAPITypeToGQLType(openapiType string) (string, error) {
+func getGraphQLType(openapiType string) (string, error) {
 	switch openapiType {
 	case "string":
 		return string(literal.STRING), nil
@@ -71,9 +73,9 @@ func extractFullTypeNameFromRef(ref string) string {
 	return parsed[len(parsed)-1]
 }
 
-func (c *converter) processProperties(ft *introspection.FullType, schemaRef *openapi3.SchemaRef) error {
+func (c *converter) processSchemaProperties(fullType *introspection.FullType, schemaRef *openapi3.SchemaRef) error {
 	for propertyName, property := range schemaRef.Value.Properties {
-		gqlType, err := openAPITypeToGQLType(property.Value.Type)
+		gqlType, err := getGraphQLType(property.Value.Type)
 		if err != nil {
 			return err
 		}
@@ -82,13 +84,14 @@ func (c *converter) processProperties(ft *introspection.FullType, schemaRef *ope
 			return err
 		}
 		typeRef.Name = &gqlType
-		f := introspection.Field{
+		field := introspection.Field{
 			Name: propertyName,
 			Type: typeRef,
 		}
-		ft.Fields = append(ft.Fields, f)
-		sort.Slice(ft.Fields, func(i, j int) bool {
-			return ft.Fields[i].Name < ft.Fields[j].Name
+
+		fullType.Fields = append(fullType.Fields, field)
+		sort.Slice(fullType.Fields, func(i, j int) bool {
+			return fullType.Fields[i].Name < fullType.Fields[j].Name
 		})
 	}
 	return nil
@@ -96,7 +99,7 @@ func (c *converter) processProperties(ft *introspection.FullType, schemaRef *ope
 
 func (c *converter) processInputFields(ft *introspection.FullType, schemaRef *openapi3.SchemaRef) error {
 	for propertyName, property := range schemaRef.Value.Properties {
-		gqlType, err := openAPITypeToGQLType(property.Value.Type)
+		gqlType, err := getGraphQLType(property.Value.Type)
 		if err != nil {
 			return err
 		}
@@ -118,8 +121,8 @@ func (c *converter) processInputFields(ft *introspection.FullType, schemaRef *op
 	return nil
 }
 
-func (c *converter) processArray(media *openapi3.MediaType) error {
-	fullTypeName := extractFullTypeNameFromRef(media.Schema.Value.Items.Ref)
+func (c *converter) processArray(schema *openapi3.SchemaRef) error {
+	fullTypeName := extractFullTypeNameFromRef(schema.Value.Items.Ref)
 	_, ok := c.knownFullTypes[fullTypeName]
 	if ok {
 		return nil
@@ -130,9 +133,9 @@ func (c *converter) processArray(media *openapi3.MediaType) error {
 		Kind: introspection.OBJECT,
 		Name: fullTypeName,
 	}
-	for _, item := range media.Schema.Value.Items.Value.AllOf {
+	for _, item := range schema.Value.Items.Value.AllOf {
 		if item.Value.Type == "object" {
-			err := c.processProperties(&ft, item)
+			err := c.processSchemaProperties(&ft, item)
 			if err != nil {
 				return err
 			}
@@ -154,7 +157,7 @@ func (c *converter) processObject(schema *openapi3.SchemaRef) error {
 		Kind: introspection.OBJECT,
 		Name: fullTypeName,
 	}
-	err := c.processProperties(&ft, schema)
+	err := c.processSchemaProperties(&ft, schema)
 	if err != nil {
 		return err
 	}
@@ -182,25 +185,45 @@ func (c *converter) processInputObject(schema *openapi3.SchemaRef) error {
 	return nil
 }
 
-func (c *converter) processContent(media *openapi3.MediaType) error {
-	if media.Schema.Value.Type == "array" {
-		return c.processArray(media)
-	} else if media.Schema.Value.Type == "object" {
-		return c.processObject(media.Schema)
+func (c *converter) processSchema(schema *openapi3.SchemaRef) error {
+	if schema.Value.Type == "array" {
+		return c.processArray(schema)
+	} else if schema.Value.Type == "object" {
+		return c.processObject(schema)
 	}
 	return nil
 }
 
 func (c *converter) importFullTypes() ([]introspection.FullType, error) {
 	for _, openapiPaths := range c.openapi.Paths {
-		for _, response := range openapiPaths.Get.Responses {
-			mediaType := response.Value.Content.Get("application/json")
-			if mediaType == nil {
-				return nil, errors.New("only application/json is supported")
+		for _, method := range []string{http.MethodGet, http.MethodPost, http.MethodDelete, http.MethodPut} {
+			operation := openapiPaths.GetOperation(method)
+			if operation == nil {
+				continue
 			}
-			err := c.processContent(mediaType)
+
+			defaultJSONSchema := getDefaultJSONSchema(operation)
+			err := c.processSchema(defaultJSONSchema)
 			if err != nil {
 				return nil, err
+			}
+
+			for statusCodeStr := range operation.Responses {
+				if statusCodeStr == "default" {
+					continue
+				}
+				status, err := strconv.Atoi(statusCodeStr)
+				if err != nil {
+					return nil, err
+				}
+				schema := getJSONSchema(status, operation)
+				if schema == nil {
+					continue
+				}
+				err = c.processSchema(schema)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
@@ -226,10 +249,10 @@ func extractTypeName(status int, operation *openapi3.Operation) string {
 	return extractFullTypeNameFromRef(schema.Schema.Ref)
 }
 
-func getJSONSchema(status int, operation *openapi3.Operation) *openapi3.SchemaRef {
+func getJSONSchemaFromResponseRef(response *openapi3.ResponseRef) *openapi3.SchemaRef {
 	var schema *openapi3.SchemaRef
 	for _, contentType := range []string{"application/json", "application/geo+json"} {
-		content := operation.Responses.Get(status).Value.Content.Get(contentType)
+		content := response.Value.Content.Get(contentType)
 		if content != nil {
 			return content.Schema
 		}
@@ -237,75 +260,99 @@ func getJSONSchema(status int, operation *openapi3.Operation) *openapi3.SchemaRe
 	return schema
 }
 
+func getDefaultJSONSchema(operation *openapi3.Operation) *openapi3.SchemaRef {
+	return getJSONSchemaFromResponseRef(operation.Responses.Default())
+}
+
+func getJSONSchema(status int, operation *openapi3.Operation) *openapi3.SchemaRef {
+	response := operation.Responses.Get(status)
+	if response == nil {
+		return nil
+	}
+	return getJSONSchemaFromResponseRef(response)
+}
+
+func (c *converter) importQueryTypeFields(typeRef *introspection.TypeRef, operation *openapi3.Operation) (*introspection.Field, error) {
+	f := introspection.Field{
+		Name: strcase.ToLowerCamel(operation.OperationID),
+		Type: *typeRef,
+	}
+
+	for _, parameter := range operation.Parameters {
+		paramType := parameter.Value.Schema.Value.Type
+		if paramType == "array" {
+			paramType = parameter.Value.Schema.Value.Items.Value.Type
+		}
+
+		typeRef, err := getTypeRef(paramType)
+		if err != nil {
+			return nil, err
+		}
+
+		gqlType, err := getGraphQLType(paramType)
+		if err != nil {
+			return nil, err
+		}
+
+		if parameter.Value.Schema.Value.Items != nil {
+			ofType := parameter.Value.Schema.Value.Items.Value.Type
+			ofTypeRef, err := getTypeRef(ofType)
+			if err != nil {
+				return nil, err
+			}
+			typeRef.OfType = &ofTypeRef
+			gqlType = fmt.Sprintf("[%s]", gqlType)
+		}
+
+		typeRef.Name = &gqlType
+		iv := introspection.InputValue{
+			Name: parameter.Value.Name,
+			Type: typeRef,
+		}
+
+		f.Args = append(f.Args, iv)
+		sort.Slice(f.Args, func(i, j int) bool {
+			return f.Args[i].Name < f.Args[j].Name
+		})
+	}
+	return &f, nil
+}
+
 func (c *converter) importQueryType() (*introspection.FullType, error) {
-	// Query root type must be provided. We add an empty Query type with a dummy field.
 	queryType := &introspection.FullType{
 		Kind: introspection.OBJECT,
 		Name: "Query",
 	}
 	for _, openapiPath := range c.openapi.Paths {
-		for _, method := range []string{"GET"} {
+		for _, method := range []string{http.MethodGet} {
 			operation := openapiPath.GetOperation(method)
 			if operation == nil {
+				// We only support HTTP GET operation.
 				continue
 			}
-			kind := getJSONSchema(200, operation).Value.Type
+
+			kind := getJSONSchema(http.StatusOK, operation).Value.Type
 			if kind == "" {
+				// TODO: why?
 				kind = "object"
 			}
-			typeName := strcase.ToCamel(extractTypeName(200, operation))
 
+			typeName := strcase.ToCamel(extractTypeName(http.StatusOK, operation))
 			typeRef, err := getTypeRef(kind)
 			if err != nil {
 				return nil, err
 			}
 			if kind == "array" {
+				// Array of some type
 				typeRef.OfType = &introspection.TypeRef{Kind: 3, Name: &typeName}
 			}
 
 			typeRef.Name = &typeName
-			f := introspection.Field{
-				Name: strcase.ToLowerCamel(operation.OperationID),
-				Type: typeRef,
+			queryField, err := c.importQueryTypeFields(&typeRef, operation)
+			if err != nil {
+				return nil, err
 			}
-
-			for _, parameter := range operation.Parameters {
-				paramType := parameter.Value.Schema.Value.Type
-				if paramType == "array" {
-					paramType = parameter.Value.Schema.Value.Items.Value.Type
-				}
-
-				typeRef, err := getTypeRef(paramType)
-				if err != nil {
-					return nil, err
-				}
-
-				gqlType, err := openAPITypeToGQLType(paramType)
-				if err != nil {
-					return nil, err
-				}
-
-				if parameter.Value.Schema.Value.Items != nil {
-					otype := parameter.Value.Schema.Value.Items.Value.Type
-					ot, err := getTypeRef(otype)
-					if err != nil {
-						return nil, err
-					}
-					typeRef.OfType = &ot
-					gqlType = fmt.Sprintf("[%s]", gqlType)
-				}
-
-				typeRef.Name = &gqlType
-				iv := introspection.InputValue{
-					Name: parameter.Value.Name,
-					Type: typeRef,
-				}
-				f.Args = append(f.Args, iv)
-				sort.Slice(f.Args, func(i, j int) bool {
-					return f.Args[i].Name < f.Args[j].Name
-				})
-			}
-			queryType.Fields = append(queryType.Fields, f)
+			queryType.Fields = append(queryType.Fields, *queryField)
 		}
 	}
 	sort.Slice(queryType.Fields, func(i, j int) bool {
@@ -327,7 +374,7 @@ func (c *converter) addParameters(name string, schema *openapi3.SchemaRef) (*int
 
 	gqlType := name
 	if paramType != "object" {
-		gqlType, err = openAPITypeToGQLType(paramType)
+		gqlType, err = getGraphQLType(paramType)
 		if err != nil {
 			return nil, err
 		}
@@ -437,6 +484,9 @@ func ImportParsedOpenAPIv3Document(document *openapi3.T, report *operationreport
 	}
 	data.Schema.Types = append(data.Schema.Types, *queryType)
 
+	data.Schema.MutationType = &introspection.TypeName{
+		Name: "Mutation",
+	}
 	mutationType, err := c.importMutationType()
 	if err != nil {
 		report.AddInternalError(err)
