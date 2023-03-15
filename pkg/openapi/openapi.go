@@ -386,12 +386,12 @@ func (c *converter) addParameters(name string, schema *openapi3.SchemaRef) (*int
 	}
 
 	if schema.Value.Items != nil {
-		otype := schema.Value.Items.Value.Type
-		ot, err := getParamTypeRef(otype)
+		ofType := schema.Value.Items.Value.Type
+		ofTypeRef, err := getParamTypeRef(ofType)
 		if err != nil {
 			return nil, err
 		}
-		typeRef.OfType = &ot
+		typeRef.OfType = &ofTypeRef
 		gqlType = fmt.Sprintf("[%s]", gqlType)
 	}
 
