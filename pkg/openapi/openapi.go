@@ -3,7 +3,6 @@ package openapi
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -36,7 +35,7 @@ func getTypeRef(kind string) (introspection.TypeRef, error) {
 	case "array":
 		return introspection.TypeRef{Kind: 1}, nil
 	}
-	return introspection.TypeRef{}, errors.New("unknown type")
+	return introspection.TypeRef{}, fmt.Errorf("unknown type: %s", kind)
 }
 
 func getParamTypeRef(kind string) (introspection.TypeRef, error) {
@@ -50,7 +49,8 @@ func getParamTypeRef(kind string) (introspection.TypeRef, error) {
 	case "array":
 		return introspection.TypeRef{Kind: 1}, nil
 	}
-	return introspection.TypeRef{}, errors.New("unknown type")
+	panic("burda")
+	return introspection.TypeRef{}, fmt.Errorf("unknown type: %s", kind)
 }
 
 func getGraphQLType(openapiType string) (string, error) {
@@ -174,7 +174,7 @@ func (c *converter) processObject(schema *openapi3.SchemaRef) error {
 }
 
 func (c *converter) processInputObject(schema *openapi3.SchemaRef) error {
-	fullTypeName := extractFullTypeNameFromRef(schema.Ref)
+	fullTypeName := fmt.Sprintf("%sInput", extractFullTypeNameFromRef(schema.Ref))
 	_, ok := c.knownFullTypes[fullTypeName]
 	if ok {
 		return nil
@@ -254,10 +254,6 @@ func extractTypeName(status int, operation *openapi3.Operation) string {
 		return ""
 	}
 	schema := getJSONSchema(status, operation)
-	//mediaType := response.Value.Content.Get("application/json")
-	//if mediaType == nil && len(response.Value.Content) == 0 {
-	//	return ""
-	//}
 	if schema == nil {
 		return ""
 	}
@@ -272,10 +268,10 @@ func getJSONSchemaFromResponseRef(response *openapi3.ResponseRef) *openapi3.Sche
 		return nil
 	}
 	var schema *openapi3.SchemaRef
-	for _, contentType := range []string{"application/json", "application/geo+json", "text/plain"} {
-		content := response.Value.Content.Get(contentType)
-		if content != nil {
-			return content.Schema
+	for _, mime := range []string{"application/json"} {
+		mediaType := response.Value.Content.Get(mime)
+		if mediaType != nil {
+			return mediaType.Schema
 		}
 	}
 	return schema
@@ -291,6 +287,16 @@ func getJSONSchema(status int, operation *openapi3.Operation) *openapi3.SchemaRe
 		return nil
 	}
 	return getJSONSchemaFromResponseRef(response)
+}
+
+func getJSONSchemaFromRequestBody(operation *openapi3.Operation) *openapi3.SchemaRef {
+	for _, mime := range []string{"application/json"} {
+		mediaType := operation.RequestBody.Value.Content.Get(mime)
+		if mediaType != nil {
+			return mediaType.Schema
+		}
+	}
+	return nil
 }
 
 func (c *converter) importQueryTypeFieldParameter(field *introspection.Field, name string, schema *openapi3.SchemaRef) error {
@@ -434,6 +440,8 @@ func (c *converter) addParameters(name string, schema *openapi3.SchemaRef) (*int
 			return nil, err
 		}
 	} else {
+		name = fmt.Sprintf("%sInput", name)
+		gqlType = name
 		err = c.processInputObject(schema)
 		if err != nil {
 			return nil, err
@@ -458,13 +466,12 @@ func (c *converter) addParameters(name string, schema *openapi3.SchemaRef) (*int
 }
 
 func (c *converter) importMutationType() (*introspection.FullType, error) {
-	// Query root type must be provided. We add an empty Query type with a dummy field.
 	mutationType := &introspection.FullType{
 		Kind: introspection.OBJECT,
 		Name: "Mutation",
 	}
 	for _, openapiPath := range c.openapi.Paths {
-		for _, method := range []string{"POST", "PUT", "DELETE"} {
+		for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodDelete} {
 			operation := openapiPath.GetOperation(method)
 			if operation == nil {
 				continue
@@ -476,6 +483,7 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 			}
 			typeName := strcase.ToCamel(extractTypeName(status, operation))
 			if typeName == "" {
+				// IBM/openapi-to-graphql uses String as return type.
 				// TODO: https://stackoverflow.com/questions/44737043/is-it-possible-to-not-return-any-data-when-using-a-graphql-mutation/44773532#44773532
 				typeName = "String"
 			}
@@ -492,15 +500,7 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 
 			var inputValue *introspection.InputValue
 			if operation.RequestBody != nil {
-				// TODO: Find a new way to get schema
-				content := operation.RequestBody.Value.Content.Get("application/json")
-				if content == nil {
-					content = operation.RequestBody.Value.Content.Get("application/x-www-form-urlencoded")
-				}
-				if content == nil {
-					content = operation.RequestBody.Value.Content.Get("text/plain")
-				}
-				schema := content.Schema
+				schema := getJSONSchemaFromRequestBody(operation)
 				inputValue, err = c.addParameters(extractFullTypeNameFromRef(schema.Ref), schema)
 				if err != nil {
 					return nil, err
@@ -521,6 +521,9 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 			mutationType.Fields = append(mutationType.Fields, f)
 		}
 	}
+	sort.Slice(mutationType.Fields, func(i, j int) bool {
+		return mutationType.Fields[i].Name < mutationType.Fields[j].Name
+	})
 	return mutationType, nil
 }
 

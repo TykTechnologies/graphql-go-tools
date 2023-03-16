@@ -9,8 +9,8 @@ type Query {
 }
 
 type Mutation {
-    addPet(newPet: NewPet): Pet
-    deletePet(id: Int): Boolean
+    addPet(newPetInput: NewPetInput): Pet
+    deletePet(id: Int): String
 }
 
 type Error {
@@ -18,7 +18,7 @@ type Error {
     message: String
 }
 
-input NewPet {
+input NewPetInput {
     name: String
     tag: String
 }

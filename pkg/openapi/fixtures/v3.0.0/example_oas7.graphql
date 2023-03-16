@@ -1,0 +1,36 @@
+schema {
+    query: Query
+    mutation: Mutation
+}
+
+type Query {
+    findDeviceByName(deviceName: String): Device
+    findDevices: [Device]
+    user: User
+}
+
+type Mutation {
+    createDevice(deviceInput: DeviceInput): Device
+    replaceDeviceByName(deviceInput: DeviceInput): Device
+}
+
+type Device {
+    name: String
+    status: Boolean
+    userName: String
+}
+
+input DeviceInput {
+    name: String
+    status: Boolean
+    userName: String
+}
+
+type Error {
+    code: String
+    message: String
+}
+
+type User {
+    name: String
+}
