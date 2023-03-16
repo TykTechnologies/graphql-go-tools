@@ -470,9 +470,9 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 		Kind: introspection.OBJECT,
 		Name: "Mutation",
 	}
-	for _, openapiPath := range c.openapi.Paths {
+	for key, pathItem := range c.openapi.Paths {
 		for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodDelete} {
-			operation := openapiPath.GetOperation(method)
+			operation := pathItem.GetOperation(method)
 			if operation == nil {
 				continue
 			}
@@ -496,9 +496,17 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 					return nil, err
 				}
 				typeRef.Name = &typeName
+
 				f := introspection.Field{
 					Name: strcase.ToLowerCamel(operation.OperationID),
 					Type: typeRef,
+				}
+				if f.Name == "" {
+					key = strings.Replace(key, "/", " ", -1)
+					key = strings.Replace(key, "{", " ", -1)
+					key = strings.Replace(key, "}", " ", -1)
+					key = strings.TrimSpace(key)
+					f.Name = strcase.ToLowerCamel(fmt.Sprintf("%s %s", strings.ToLower(method), key))
 				}
 
 				var inputValue *introspection.InputValue

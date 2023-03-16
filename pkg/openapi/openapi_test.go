@@ -44,4 +44,7 @@ func TestOpenAPI_v3_0_0(t *testing.T) {
 		testFixtureFile(t, "v3.0.0", "example_oas7.json")
 	})
 
+	t.Run("EmployeesApiBasic.yaml", func(t *testing.T) {
+		testFixtureFile(t, "v3.0.0", "EmployeesApiBasic.yaml")
+	})
 }
