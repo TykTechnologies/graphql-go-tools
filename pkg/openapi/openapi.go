@@ -476,49 +476,53 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 			if operation == nil {
 				continue
 			}
-			// TODO: We can pick only one response type in UDG.
-			status := 200
-			if method == "DELETE" {
-				status = 204
-			}
-			typeName := strcase.ToCamel(extractTypeName(status, operation))
-			if typeName == "" {
-				// IBM/openapi-to-graphql uses String as return type.
-				// TODO: https://stackoverflow.com/questions/44737043/is-it-possible-to-not-return-any-data-when-using-a-graphql-mutation/44773532#44773532
-				typeName = "String"
-			}
-
-			typeRef, err := getTypeRef("object")
-			if err != nil {
-				return nil, err
-			}
-			typeRef.Name = &typeName
-			f := introspection.Field{
-				Name: strcase.ToLowerCamel(operation.OperationID),
-				Type: typeRef,
-			}
-
-			var inputValue *introspection.InputValue
-			if operation.RequestBody != nil {
-				schema := getJSONSchemaFromRequestBody(operation)
-				inputValue, err = c.addParameters(extractFullTypeNameFromRef(schema.Ref), schema)
+			for statusCodeStr := range operation.Responses {
+				if statusCodeStr == "default" {
+					continue
+				}
+				status, err := strconv.Atoi(statusCodeStr)
 				if err != nil {
 					return nil, err
 				}
-				f.Args = append(f.Args, *inputValue)
-			} else {
-				for _, parameter := range operation.Parameters {
-					inputValue, err = c.addParameters(parameter.Value.Name, parameter.Value.Schema)
+				typeName := strcase.ToCamel(extractTypeName(status, operation))
+				if typeName == "" {
+					// IBM/openapi-to-graphql uses String as return type.
+					// TODO: https://stackoverflow.com/questions/44737043/is-it-possible-to-not-return-any-data-when-using-a-graphql-mutation/44773532#44773532
+					typeName = "String"
+				}
+
+				typeRef, err := getTypeRef("object")
+				if err != nil {
+					return nil, err
+				}
+				typeRef.Name = &typeName
+				f := introspection.Field{
+					Name: strcase.ToLowerCamel(operation.OperationID),
+					Type: typeRef,
+				}
+
+				var inputValue *introspection.InputValue
+				if operation.RequestBody != nil {
+					schema := getJSONSchemaFromRequestBody(operation)
+					inputValue, err = c.addParameters(extractFullTypeNameFromRef(schema.Ref), schema)
 					if err != nil {
 						return nil, err
 					}
 					f.Args = append(f.Args, *inputValue)
+				} else {
+					for _, parameter := range operation.Parameters {
+						inputValue, err = c.addParameters(parameter.Value.Name, parameter.Value.Schema)
+						if err != nil {
+							return nil, err
+						}
+						f.Args = append(f.Args, *inputValue)
+					}
 				}
+				sort.Slice(f.Args, func(i, j int) bool {
+					return f.Args[i].Name < f.Args[j].Name
+				})
+				mutationType.Fields = append(mutationType.Fields, f)
 			}
-			sort.Slice(f.Args, func(i, j int) bool {
-				return f.Args[i].Name < f.Args[j].Name
-			})
-			mutationType.Fields = append(mutationType.Fields, f)
 		}
 	}
 	sort.Slice(mutationType.Fields, func(i, j int) bool {
@@ -545,15 +549,17 @@ func ImportParsedOpenAPIv3Document(document *openapi3.T, report *operationreport
 	}
 	data.Schema.Types = append(data.Schema.Types, *queryType)
 
-	data.Schema.MutationType = &introspection.TypeName{
-		Name: "Mutation",
-	}
 	mutationType, err := c.importMutationType()
 	if err != nil {
 		report.AddInternalError(err)
 		return nil
 	}
-	data.Schema.Types = append(data.Schema.Types, *mutationType)
+	if len(mutationType.Fields) > 0 {
+		data.Schema.MutationType = &introspection.TypeName{
+			Name: "Mutation",
+		}
+		data.Schema.Types = append(data.Schema.Types, *mutationType)
+	}
 
 	fullTypes, err := c.importFullTypes()
 	if err != nil {
