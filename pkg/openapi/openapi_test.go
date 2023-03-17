@@ -45,6 +45,7 @@ func TestOpenAPI_v3_0_0(t *testing.T) {
 	})
 
 	t.Run("EmployeesApiBasic.yaml", func(t *testing.T) {
+		// Source https://github.com/zosconnect/test-samples/blob/main/oas/EmployeesApiBasic.yaml
 		testFixtureFile(t, "v3.0.0", "EmployeesApiBasic.yaml")
 	})
 }

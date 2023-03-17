@@ -26,11 +26,6 @@ input DeviceInput {
     userName: String
 }
 
-type Error {
-    code: String
-    message: String
-}
-
 type User {
     name: String
 }

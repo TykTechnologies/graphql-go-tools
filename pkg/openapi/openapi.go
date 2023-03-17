@@ -23,6 +23,13 @@ type converter struct {
 	fullTypes      []introspection.FullType
 }
 
+func isValidResponse(status int) bool {
+	if status >= 200 && status < 300 {
+		return true
+	}
+	return false
+}
+
 // __TypeKind of introspection is an unexported type. In order to overcome the problem,
 // this function creates and returns a TypeRef for a given kind. kind is a AsyncAPI type.
 func getTypeRef(kind string) (introspection.TypeRef, error) {
@@ -214,14 +221,6 @@ func (c *converter) importFullTypes() ([]introspection.FullType, error) {
 				continue
 			}
 
-			defaultJSONSchema := getDefaultJSONSchema(operation)
-			if defaultJSONSchema != nil {
-				err := c.processSchema(defaultJSONSchema)
-				if err != nil {
-					return nil, err
-				}
-			}
-
 			for statusCodeStr := range operation.Responses {
 				if statusCodeStr == "default" {
 					continue
@@ -230,6 +229,10 @@ func (c *converter) importFullTypes() ([]introspection.FullType, error) {
 				if err != nil {
 					return nil, err
 				}
+				if !isValidResponse(status) {
+					continue
+				}
+
 				schema := getJSONSchema(status, operation)
 				if schema == nil {
 					continue
@@ -383,6 +386,11 @@ func (c *converter) importQueryType() (*introspection.FullType, error) {
 				if err != nil {
 					return nil, err
 				}
+
+				if !isValidResponse(status) {
+					continue
+				}
+
 				schema := getJSONSchema(status, operation)
 				if schema == nil {
 					continue
@@ -484,6 +492,11 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 				if err != nil {
 					return nil, err
 				}
+
+				if !isValidResponse(status) {
+					continue
+				}
+
 				typeName := strcase.ToCamel(extractTypeName(status, operation))
 				if typeName == "" {
 					// IBM/openapi-to-graphql uses String as return type.

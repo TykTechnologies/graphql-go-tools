@@ -13,11 +13,6 @@ type Mutation {
     deletePet(id: Int): String
 }
 
-type Error {
-    code: Int
-    message: String
-}
-
 input NewPetInput {
     name: String
     tag: String
