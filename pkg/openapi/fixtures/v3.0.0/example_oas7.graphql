@@ -4,13 +4,18 @@ schema {
 }
 
 type Query {
+    "Find a device by name."
     findDeviceByName(deviceName: String): Device
+    "Return a device collection."
     findDevices: [Device]
+    "Return a user."
     user: User
 }
 
 type Mutation {
+    "Create and return a device."
     createDevice(deviceInput: DeviceInput): Device
+    "Replace a device by name."
     replaceDeviceByName(deviceInput: DeviceInput): Device
 }
 

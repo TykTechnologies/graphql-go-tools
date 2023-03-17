@@ -24,8 +24,6 @@ func testFixtureFile(t *testing.T, version, name string) {
 	err = astprinter.PrintIndent(doc, nil, []byte("  "), w)
 	require.NoError(t, err)
 
-	fmt.Println(w.String())
-
 	name = strings.Trim(strings.Trim(name, ".yaml"), ".json")
 	graphqlDoc, err := os.ReadFile(fmt.Sprintf("./fixtures/%s/%s.graphql", version, name))
 	require.NoError(t, err)

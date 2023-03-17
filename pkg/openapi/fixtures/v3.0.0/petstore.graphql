@@ -4,11 +4,14 @@ schema {
 }
 
 type Query {
+    "List all pets"
     listPets(limit: Int): [Pet]
+    "Info for a specific pet"
     showPetById(petId: String): Pet
 }
 
 type Mutation {
+    "Create a pet"
     createPets: String
 }
 

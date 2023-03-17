@@ -31,6 +31,14 @@ func isValidResponse(status int) bool {
 	return false
 }
 
+func getOperationDescription(operation *openapi3.Operation) string {
+	var sb = strings.Builder{}
+	sb.WriteString(operation.Summary)
+	sb.WriteString("\n")
+	sb.WriteString(operation.Description)
+	return strings.TrimSpace(sb.String())
+}
+
 // __TypeKind of introspection is an unexported type. In order to overcome the problem,
 // this function creates and returns a TypeRef for a given kind. kind is a AsyncAPI type.
 func getTypeRef(kind string) (introspection.TypeRef, error) {
@@ -355,8 +363,9 @@ func (c *converter) importQueryTypeFieldParameter(field *introspection.Field, na
 
 func (c *converter) importQueryTypeFields(typeRef *introspection.TypeRef, operation *openapi3.Operation) (*introspection.Field, error) {
 	f := introspection.Field{
-		Name: strcase.ToLowerCamel(operation.OperationID),
-		Type: *typeRef,
+		Name:        strcase.ToLowerCamel(operation.OperationID),
+		Type:        *typeRef,
+		Description: getOperationDescription(operation),
 	}
 
 	for _, parameter := range operation.Parameters {
@@ -384,10 +393,10 @@ func (c *converter) importQueryType() (*introspection.FullType, error) {
 		Name: "Query",
 	}
 	for key, pathItem := range c.openapi.Paths {
+		// We only support HTTP GET operation.
 		for _, method := range []string{http.MethodGet} {
 			operation := pathItem.GetOperation(method)
 			if operation == nil {
-				// We only support HTTP GET operation.
 				continue
 			}
 			for statusCodeStr := range operation.Responses {
@@ -410,7 +419,7 @@ func (c *converter) importQueryType() (*introspection.FullType, error) {
 				getJSONSchema(status, operation)
 				kind := getJSONSchema(status, operation).Value.Type
 				if kind == "" {
-					// TODO: why?
+					// We assume that it is an object type.
 					kind = "object"
 				}
 
@@ -523,8 +532,9 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 				typeRef.Name = &typeName
 
 				f := introspection.Field{
-					Name: strcase.ToLowerCamel(operation.OperationID),
-					Type: typeRef,
+					Name:        strcase.ToLowerCamel(operation.OperationID),
+					Type:        typeRef,
+					Description: getOperationDescription(operation),
 				}
 				if f.Name == "" {
 					key = strings.Replace(key, "/", " ", -1)
