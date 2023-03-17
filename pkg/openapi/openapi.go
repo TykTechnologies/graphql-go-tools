@@ -3,6 +3,7 @@ package openapi
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -56,11 +57,10 @@ func getParamTypeRef(kind string) (introspection.TypeRef, error) {
 	case "array":
 		return introspection.TypeRef{Kind: 1}, nil
 	}
-	panic("burda")
 	return introspection.TypeRef{}, fmt.Errorf("unknown type: %s", kind)
 }
 
-func getGraphQLType(openapiType string) (string, error) {
+func getPrimitiveGraphQLTypeName(openapiType string) (string, error) {
 	switch openapiType {
 	case "string":
 		return string(literal.STRING), nil
@@ -75,6 +75,21 @@ func getGraphQLType(openapiType string) (string, error) {
 	}
 }
 
+func (c *converter) getGraphQLTypeName(schemaRef *openapi3.SchemaRef) (string, error) {
+	if schemaRef.Value.Type == "object" {
+		gqlType := extractFullTypeNameFromRef(schemaRef.Ref)
+		if gqlType == "" {
+			return "", errors.New("schema reference is empty")
+		}
+		err := c.processObject(schemaRef)
+		if err != nil {
+			return "", err
+		}
+		return gqlType, nil
+	}
+	return getPrimitiveGraphQLTypeName(schemaRef.Value.Type)
+}
+
 func extractFullTypeNameFromRef(ref string) string {
 	parsed := strings.Split(ref, "/")
 	return parsed[len(parsed)-1]
@@ -82,10 +97,11 @@ func extractFullTypeNameFromRef(ref string) string {
 
 func (c *converter) processSchemaProperties(fullType *introspection.FullType, schemas openapi3.Schemas) error {
 	for name, schemaRef := range schemas {
-		gqlType, err := getGraphQLType(schemaRef.Value.Type)
+		gqlType, err := c.getGraphQLTypeName(schemaRef)
 		if err != nil {
 			return err
 		}
+
 		typeRef, err := getTypeRef(schemaRef.Value.Type)
 		if err != nil {
 			return err
@@ -106,7 +122,7 @@ func (c *converter) processSchemaProperties(fullType *introspection.FullType, sc
 
 func (c *converter) processInputFields(ft *introspection.FullType, schemaRef *openapi3.SchemaRef) error {
 	for propertyName, property := range schemaRef.Value.Properties {
-		gqlType, err := getGraphQLType(property.Value.Type)
+		gqlType, err := getPrimitiveGraphQLTypeName(property.Value.Type)
 		if err != nil {
 			return err
 		}
@@ -280,10 +296,6 @@ func getJSONSchemaFromResponseRef(response *openapi3.ResponseRef) *openapi3.Sche
 	return schema
 }
 
-func getDefaultJSONSchema(operation *openapi3.Operation) *openapi3.SchemaRef {
-	return getJSONSchemaFromResponseRef(operation.Responses.Default())
-}
-
 func getJSONSchema(status int, operation *openapi3.Operation) *openapi3.SchemaRef {
 	response := operation.Responses.Get(status)
 	if response == nil {
@@ -313,7 +325,7 @@ func (c *converter) importQueryTypeFieldParameter(field *introspection.Field, na
 		return err
 	}
 
-	gqlType, err := getGraphQLType(paramType)
+	gqlType, err := getPrimitiveGraphQLTypeName(paramType)
 	if err != nil {
 		return err
 	}
@@ -443,7 +455,7 @@ func (c *converter) addParameters(name string, schema *openapi3.SchemaRef) (*int
 
 	gqlType := name
 	if paramType != "object" {
-		gqlType, err = getGraphQLType(paramType)
+		gqlType, err = getPrimitiveGraphQLTypeName(paramType)
 		if err != nil {
 			return nil, err
 		}

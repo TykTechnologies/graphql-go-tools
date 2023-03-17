@@ -24,6 +24,8 @@ func testFixtureFile(t *testing.T, version, name string) {
 	err = astprinter.PrintIndent(doc, nil, []byte("  "), w)
 	require.NoError(t, err)
 
+	fmt.Println(w.String())
+
 	name = strings.Trim(strings.Trim(name, ".yaml"), ".json")
 	graphqlDoc, err := os.ReadFile(fmt.Sprintf("./fixtures/%s/%s.graphql", version, name))
 	require.NoError(t, err)
@@ -47,5 +49,10 @@ func TestOpenAPI_v3_0_0(t *testing.T) {
 	t.Run("EmployeesApiBasic.yaml", func(t *testing.T) {
 		// Source https://github.com/zosconnect/test-samples/blob/main/oas/EmployeesApiBasic.yaml
 		testFixtureFile(t, "v3.0.0", "EmployeesApiBasic.yaml")
+	})
+
+	t.Run("EmployeesApi.yaml", func(t *testing.T) {
+		// Source https://github.com/zosconnect/test-samples/blob/main/oas/EmployeesApiBasic.yaml
+		testFixtureFile(t, "v3.0.0", "EmployeesApi.yaml")
 	})
 }
