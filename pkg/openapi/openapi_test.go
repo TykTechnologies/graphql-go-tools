@@ -53,4 +53,10 @@ func TestOpenAPI_v3_0_0(t *testing.T) {
 		// Source https://github.com/zosconnect/test-samples/blob/main/oas/EmployeesApiBasic.yaml
 		testFixtureFile(t, "v3.0.0", "EmployeesApi.yaml")
 	})
+
+	t.Run("example_oas3.json", func(t *testing.T) {
+		// Source: https://github.com/IBM/openapi-to-graphql/blob/master/packages/openapi-to-graphql/test/fixtures/example_oas3.json
+		testFixtureFile(t, "v3.0.0", "example_oas3.json")
+	})
+
 }

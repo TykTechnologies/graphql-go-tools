@@ -20,8 +20,10 @@ type Mutation {
 }
 
 type Device {
+    "The device name in the network"
     name: String
     status: Boolean
+    "The device owner Name"
     userName: String
 }
 
@@ -31,6 +33,8 @@ input DeviceInput {
     userName: String
 }
 
+"A user represents a natural person"
 type User {
+    "The legal name of a user"
     name: String
 }

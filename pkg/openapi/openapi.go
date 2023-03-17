@@ -100,7 +100,7 @@ func (c *converter) getGraphQLTypeName(schemaRef *openapi3.SchemaRef) (string, e
 
 func extractFullTypeNameFromRef(ref string) string {
 	parsed := strings.Split(ref, "/")
-	return parsed[len(parsed)-1]
+	return strcase.ToCamel(parsed[len(parsed)-1])
 }
 
 func (c *converter) processSchemaProperties(fullType *introspection.FullType, schemas openapi3.Schemas) error {
@@ -116,8 +116,9 @@ func (c *converter) processSchemaProperties(fullType *introspection.FullType, sc
 		}
 		typeRef.Name = &gqlType
 		field := introspection.Field{
-			Name: name,
-			Type: typeRef,
+			Name:        name,
+			Type:        typeRef,
+			Description: schemaRef.Value.Description,
 		}
 
 		fullType.Fields = append(fullType.Fields, field)
@@ -193,8 +194,9 @@ func (c *converter) processObject(schema *openapi3.SchemaRef) error {
 	c.knownFullTypes[fullTypeName] = struct{}{}
 
 	ft := introspection.FullType{
-		Kind: introspection.OBJECT,
-		Name: fullTypeName,
+		Kind:        introspection.OBJECT,
+		Name:        fullTypeName,
+		Description: schema.Value.Description,
 	}
 	err := c.processSchemaProperties(&ft, schema.Value.Properties)
 	if err != nil {
@@ -261,6 +263,7 @@ func (c *converter) importFullTypes() ([]introspection.FullType, error) {
 				if schema == nil {
 					continue
 				}
+
 				err = c.processSchema(schema)
 				if err != nil {
 					return nil, err
