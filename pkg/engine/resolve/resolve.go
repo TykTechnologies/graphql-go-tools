@@ -391,7 +391,7 @@ func New(ctx context.Context, fetcher *Fetcher, enableDataLoader bool) *Resolver
 	}
 }
 
-func (r *Resolver) resolveNode(ctx *Context, node Node, data []byte, bufPair *BufPair) (err error) {
+func (r *Resolver) resolveNode(ctx *Context, node Node, data []byte, fetchError error, bufPair *BufPair) (err error) {
 	switch n := node.(type) {
 	case *Object:
 		return r.resolveObject(ctx, n, data, bufPair)
@@ -922,7 +922,7 @@ func (r *Resolver) resolveBoolean(ctx *Context, boolean *Boolean, data []byte, b
 	return nil
 }
 
-func (r *Resolver) resolveString(ctx *Context, str *String, data []byte, stringBuf *BufPair) error {
+func (r *Resolver) resolveString(ctx *Context, str *String, data []byte, fetchError error, stringBuf *BufPair) error {
 	var (
 		value     []byte
 		valueType jsonparser.ValueType
@@ -949,6 +949,9 @@ func (r *Resolver) resolveString(ctx *Context, str *String, data []byte, stringB
 	}
 
 	if value == nil && !str.Nullable {
+		if fetchError != nil{
+			r.
+		}
 		return errNonNullableFieldValueIsNull
 	}
 
@@ -1063,12 +1066,13 @@ func (r *Resolver) resolveObject(ctx *Context, object *Object, data []byte, obje
 	}
 
 	var set *resultSet
+	var fetchError error
 	if object.Fetch != nil {
 		set = r.getResultSet()
 		defer r.freeResultSet(set)
 		err = r.resolveFetch(ctx, object.Fetch, data, set)
 		if err != nil {
-			return
+			fetchError = err
 		}
 		for i := range set.buffers {
 			r.MergeBufPairErrors(set.buffers[i], objectBuf)
