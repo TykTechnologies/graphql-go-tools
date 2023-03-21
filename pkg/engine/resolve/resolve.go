@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -940,7 +941,7 @@ func (r *Resolver) resolveString(ctx *Context, str *String, data []byte, fetchEr
 	value, valueType, _, err = jsonparser.Get(data, str.Path...)
 	if value == nil && fetchError != nil && str.Nullable {
 		r.resolveNull(stringBuf.Data)
-		r.addResolveError(ctx, stringBuf)
+		r.addError(ctx, fetchError, stringBuf)
 		return nil
 	}
 	if err != nil || valueType != jsonparser.String {
@@ -956,7 +957,7 @@ func (r *Resolver) resolveString(ctx *Context, str *String, data []byte, fetchEr
 		}
 		if !str.Nullable {
 			if fetchError != nil {
-				r.addResolveError(ctx, stringBuf)
+				r.addError(ctx, fetchError, stringBuf)
 			}
 			return errNonNullableFieldValueIsNull
 		}
@@ -1017,7 +1018,17 @@ func (r *Resolver) resolveNull(b *fastbuffer.FastBuffer) {
 	b.WriteBytes(null)
 }
 
+func (r *Resolver) addError(ctx *Context, err error, objectBuf *BufPair) {
+	r.writeError(ctx, err.Error(), objectBuf)
+}
+
 func (r *Resolver) addResolveError(ctx *Context, objectBuf *BufPair) {
+	r.writeError(ctx, string(unableToResolveMsg), objectBuf)
+}
+
+func (r *Resolver) writeError(ctx *Context, msg string, objectBuf *BufPair) {
+	msg = strings.ReplaceAll(msg, `"`, `\"`)
+	msg = fmt.Sprintf("error resolving: %s", msg)
 	locations, path := pool.BytesBuffer.Get(), pool.BytesBuffer.Get()
 	defer pool.BytesBuffer.Put(locations)
 	defer pool.BytesBuffer.Put(path)
@@ -1050,7 +1061,7 @@ func (r *Resolver) addResolveError(ctx *Context, objectBuf *BufPair) {
 		pathBytes = path.Bytes()
 	}
 
-	objectBuf.WriteErr(unableToResolveMsg, locations.Bytes(), pathBytes, nil)
+	objectBuf.WriteErr([]byte(msg), locations.Bytes(), pathBytes, nil)
 }
 
 func (r *Resolver) resolveObject(ctx *Context, object *Object, data []byte, objectBuf *BufPair) (err error) {
@@ -1101,7 +1112,6 @@ func (r *Resolver) resolveObject(ctx *Context, object *Object, data []byte, obje
 	first := true
 	skipCount := 0
 	for i := range object.Fields {
-
 		if object.Fields[i].SkipDirectiveDefined {
 			skip, err := jsonparser.GetBoolean(ctx.Variables, object.Fields[i].SkipVariableName)
 			if err == nil && skip {
