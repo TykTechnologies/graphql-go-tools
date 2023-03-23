@@ -23,7 +23,7 @@ require (
 	github.com/go-zookeeper/zk v1.0.2
 	github.com/gobwas/ws v1.0.4
 	github.com/golang/mock v1.4.1
-	github.com/google/go-cmp v0.5.8
+	github.com/google/go-cmp v0.5.9
 	github.com/gorilla/websocket v1.5.0
 	github.com/gotestyourself/gotestyourself v1.4.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.4
@@ -45,10 +45,12 @@ require (
 	github.com/sebdah/goldie v0.0.0-20180424091453-8784dd1ab561
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/viper v1.3.2
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	github.com/tidwall/gjson v1.11.0
 	github.com/tidwall/sjson v1.0.4
 	github.com/vektah/gqlparser/v2 v2.5.1
+	go.opentelemetry.io/otel v1.14.0
+	go.opentelemetry.io/otel/trace v1.14.0
 	go.uber.org/atomic v1.9.0
 	go.uber.org/zap v1.18.1
 	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f // indirect

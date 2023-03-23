@@ -1,8 +1,10 @@
 package graphql
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"go.opentelemetry.io/otel/trace"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -44,6 +46,10 @@ type Request struct {
 	request      resolve.Request
 
 	validForSchema map[uint64]ValidationResult
+
+	// TODO:
+	OpenTelemetryRootContext context.Context
+	OpenTelemetryTracer      trace.Tracer
 }
 
 func UnmarshalRequest(reader io.Reader, request *Request) error {

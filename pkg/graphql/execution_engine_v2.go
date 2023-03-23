@@ -231,24 +231,37 @@ func NewExecutionEngineV2(ctx context.Context, logger abstractlogger.Logger, eng
 }
 
 func (e *ExecutionEngineV2) Execute(ctx context.Context, operation *Request, writer resolve.FlushWriter, options ...ExecutionOptionsV2) error {
+	rootCtx, rootSpan := operation.OpenTelemetryTracer.Start(operation.OpenTelemetryRootContext, "Executing GraphQL Engine V2")
+	defer func() {
+		rootSpan.End()
+	}()
+
 	if !operation.IsNormalized() {
+		_, normalizeSpan := operation.OpenTelemetryTracer.Start(rootCtx, "GraphQL Normalization")
 		result, err := operation.Normalize(e.config.schema)
 		if err != nil {
+			normalizeSpan.End()
 			return err
 		}
 
 		if !result.Successful {
+			normalizeSpan.End()
 			return result.Errors
 		}
+		normalizeSpan.End()
 	}
 
+	_, validationSpan := operation.OpenTelemetryTracer.Start(rootCtx, "GraphQL Schema Validation")
 	result, err := operation.ValidateForSchema(e.config.schema)
 	if err != nil {
+		validationSpan.End()
 		return err
 	}
 	if !result.Valid {
+		validationSpan.End()
 		return result.Errors
 	}
+	validationSpan.End()
 
 	execContext := e.getExecutionCtx()
 	defer e.putExecutionCtx(execContext)
@@ -267,7 +280,9 @@ func (e *ExecutionEngineV2) Execute(ctx context.Context, operation *Request, wri
 
 	switch p := cachedPlan.(type) {
 	case *plan.SynchronousResponsePlan:
+		_, resolverSpan := operation.OpenTelemetryTracer.Start(rootCtx, "GraphQL Resolver")
 		err = e.resolver.ResolveGraphQLResponse(execContext.resolveContext, p.Response, nil, writer)
+		resolverSpan.End()
 	case *plan.SubscriptionResponsePlan:
 		err = e.resolver.ResolveGraphQLSubscription(execContext.resolveContext, p.Response, writer)
 	default:
