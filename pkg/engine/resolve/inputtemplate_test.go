@@ -56,8 +56,11 @@ func TestInputTemplate_Render(t *testing.T) {
 		t.Run("json object as graphql object", func(t *testing.T) {
 			runTest(t, renderer, `{"foo":{"bar":"baz"}}`, []string{"foo"}, `{"type":"object","properties":{"bar":{"type":"string"}}}`, false, `{"bar":"baz"}`)
 		})
+		t.Run("json object as graphql object with null on required type", func(t *testing.T) {
+			runTest(t, renderer, `{"foo":null}`, []string{"foo"}, `{"type":["string"]}`, true, ``)
+		})
 		t.Run("json object as graphql object with null", func(t *testing.T) {
-			runTest(t, renderer, `{"foo":null}`, []string{"foo"}, `{"type":"string"}`, false, `null`)
+			runTest(t, renderer, `{"foo":null}`, []string{"foo"}, `{"type":["string","null"]}`, false, `null`)
 		})
 		t.Run("json object as graphql object with number", func(t *testing.T) {
 			runTest(t, renderer, `{"foo":123}`, []string{"foo"}, `{"type":"integer"}`, false, `123`)
@@ -358,7 +361,7 @@ func TestInputTemplate_Render(t *testing.T) {
 							SegmentType:        VariableSegmentType,
 							VariableKind:       ContextVariableKind,
 							VariableSourcePath: []string{"x"},
-							Renderer:           NewJSONVariableRendererWithValidation(`{"type":"string"}`),
+							Renderer:           NewJSONVariableRendererWithValidation(`{"type":["string","null"]}`),
 						},
 						{
 							SegmentType: StaticSegmentType,
