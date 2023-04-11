@@ -102,6 +102,34 @@ func TestInputTemplate_Render(t *testing.T) {
 		t.Run("nested string", func(t *testing.T) {
 			runTest(t, renderer, `{"foo":{"bar":"value"}}`, []string{"foo", "bar"}, `{"type":"string"}`, false, `"value"`)
 		})
+		t.Run("on required scalars", func(t *testing.T) {
+			t.Run("error on required string scalar", func(t *testing.T) {
+				runTest(t, renderer, `{"foo":null}`, []string{"foo"}, `{"type":"string"}`, true, ``)
+			})
+			t.Run("error on required int scalar", func(t *testing.T) {
+				runTest(t, renderer, `{"foo":null}`, []string{"foo"}, `{"type":"integer"}`, true, ``)
+			})
+			t.Run("error on required float scalar", func(t *testing.T) {
+				runTest(t, renderer, `{"foo":null}`, []string{"foo"}, `{"type":"number"}`, true, ``)
+			})
+			t.Run("error on required boolean scalar", func(t *testing.T) {
+				runTest(t, renderer, `{"foo":null}`, []string{"foo"}, `{"type":"boolean"}`, true, ``)
+			})
+		})
+		t.Run("on non-required scalars", func(t *testing.T) {
+			t.Run("null on non-required string scalar", func(t *testing.T) {
+				runTest(t, renderer, `{"foo":null}`, []string{"foo"}, `{"type":["string","null"]}`, false, `null`)
+			})
+			t.Run("null on non-required int scalar", func(t *testing.T) {
+				runTest(t, renderer, `{"foo":null}`, []string{"foo"}, `{"type":["string","null"]}`, false, `null`)
+			})
+			t.Run("null on non-required float scalar", func(t *testing.T) {
+				runTest(t, renderer, `{"foo":null}`, []string{"foo"}, `{"type":["string","null"]}`, false, `null`)
+			})
+			t.Run("null on non-required boolean scalar", func(t *testing.T) {
+				runTest(t, renderer, `{"foo":null}`, []string{"foo"}, `{"type":["string","null"]}`, false, `null`)
+			})
+		})
 	})
 
 	t.Run("array with csv render string", func(t *testing.T) {
