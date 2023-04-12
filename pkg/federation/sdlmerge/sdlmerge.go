@@ -2,10 +2,11 @@ package sdlmerge
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/TykTechnologies/graphql-go-tools/pkg/asttransform"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/astvalidation"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/engine/plan"
-	"strings"
 
 	"github.com/TykTechnologies/graphql-go-tools/pkg/ast"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/astnormalization"
@@ -139,6 +140,7 @@ func (m *normalizer) setupWalkers() {
 			newRemoveInterfaceDefinitionDirective("key"),
 			newRemoveObjectTypeDefinitionDirective("key"),
 			newRemoveFieldDefinitionDirective("provides", "requires"),
+			newRemoveDuplicateScalarTypeDefinitionVisitor(),
 		},
 	}
 

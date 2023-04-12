@@ -12,7 +12,7 @@ type removeDuplicateScalarTypeDefinitionVisitor struct {
 	lastRef       int
 }
 
-func newRemoveDuplicateScalarTypeDefinitionVistior() *removeDuplicateScalarTypeDefinitionVisitor {
+func newRemoveDuplicateScalarTypeDefinitionVisitor() *removeDuplicateScalarTypeDefinitionVisitor {
 	return &removeDuplicateScalarTypeDefinitionVisitor{
 		nil,
 		make(map[string]bool),
