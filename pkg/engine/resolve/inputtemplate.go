@@ -73,8 +73,12 @@ func (i *InputTemplate) renderObjectVariable(ctx context.Context, variables []by
 func (i *InputTemplate) renderContextVariable(ctx *Context, segment TemplateSegment, preparedInput *fastbuffer.FastBuffer) error {
 	value, valueType, offset, err := jsonparser.Get(ctx.Variables, segment.VariableSourcePath...)
 	if err != nil || valueType == jsonparser.Null {
-		preparedInput.WriteBytes(literal.NULL)
-		return nil
+		if err == jsonparser.KeyPathNotFoundError {
+			preparedInput.WriteBytes(literal.NULL)
+			return nil
+		}
+
+		return segment.Renderer.RenderVariable(ctx, value, preparedInput)
 	}
 	if valueType == jsonparser.String {
 		value = ctx.Variables[offset-len(value)-2 : offset]
