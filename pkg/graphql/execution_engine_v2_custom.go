@@ -24,9 +24,9 @@ type CustomExecutionEngineV2ValidatorStage interface {
 }
 
 type CustomExecutionEngineV2ResolverStage interface {
-	Setup(ctx context.Context, operation *Request, options ...ExecutionOptionsV2)
+	Setup(ctx context.Context, postProcessor *postprocess.Processor, resolveContext *resolve.Context, operation *Request, options ...ExecutionOptionsV2)
 	Plan(postProcessor *postprocess.Processor, operation *Request, report *operationreport.Report) (plan.Plan, error)
-	Resolve(resolveContext *resolve.Context, plan plan.Plan, writer resolve.FlushWriter) error
+	Resolve(resolveContext *resolve.Context, planResult plan.Plan, writer resolve.FlushWriter) error
 	Teardown()
 }
 
@@ -120,11 +120,10 @@ func (c *CustomExecutionEngineV2Executor) Execute(ctx context.Context, operation
 		}
 	}
 
-	c.ExecutionStages.RequiredStages.ResolverStage.Setup(ctx, operation, options...)
-
 	execContext := c.getExecutionCtx()
 	defer c.putExecutionCtx(execContext)
 	execContext.prepare(ctx, operation.Variables, operation.request)
+	c.ExecutionStages.RequiredStages.ResolverStage.Setup(ctx, execContext.postProcessor, execContext.resolveContext, operation, options...)
 
 	var report operationreport.Report
 	planResult, err := c.ExecutionStages.RequiredStages.ResolverStage.Plan(execContext.postProcessor, operation, &report)

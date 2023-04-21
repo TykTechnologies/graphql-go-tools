@@ -168,7 +168,7 @@ func (t testCustomExecutionV2ValidationStage) ValidateForSchema(operation *Reque
 	return nil
 }
 
-func (t testCustomExecutionV2ResolverStage) Setup(ctx context.Context, operation *Request, options ...ExecutionOptionsV2) {
+func (t testCustomExecutionV2ResolverStage) Setup(ctx context.Context, postProcessor *postprocess.Processor, resolveContext *resolve.Context, operation *Request, options ...ExecutionOptionsV2) {
 }
 
 func (t testCustomExecutionV2ResolverStage) Plan(postProcessor *postprocess.Processor, operation *Request, report *operationreport.Report) (plan.Plan, error) {
@@ -182,7 +182,7 @@ func (t testCustomExecutionV2ResolverStage) Plan(postProcessor *postprocess.Proc
 	return &plan.SynchronousResponsePlan{}, nil
 }
 
-func (t testCustomExecutionV2ResolverStage) Resolve(resolveContext *resolve.Context, plan plan.Plan, writer resolve.FlushWriter) error {
+func (t testCustomExecutionV2ResolverStage) Resolve(resolveContext *resolve.Context, planResult plan.Plan, writer resolve.FlushWriter) error {
 	if t.failResolve {
 		return errFailedResolve
 	}
