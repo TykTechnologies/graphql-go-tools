@@ -45,7 +45,7 @@ func TestCustomExecutionEngineV2Stages_AllRequiredStagesProvided(t *testing.T) {
 	})
 }
 
-func TestExecuteCustomExecutionEngineV2ByStages(t *testing.T) {
+func TestCustomExecutionEngineV2Executor_Execute(t *testing.T) {
 	run := func(stages CustomExecutionEngineV2Stages, expectedErr error) func(t *testing.T) {
 		return func(t *testing.T) {
 			writer := NewEngineResultWriter()
