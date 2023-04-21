@@ -1,6 +1,7 @@
 package graphql
 
 import (
+	"bytes"
 	"compress/flate"
 	"compress/gzip"
 	"context"
@@ -2483,4 +2484,68 @@ func createCountriesSchema(t *testing.T) *Schema {
 	schema, err := NewSchemaFromString(countriesSchema)
 	require.NoError(t, err)
 	return schema
+}
+
+type benchmarkRoundTripper struct{}
+
+func (b benchmarkRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
+	body := bytes.NewBuffer([]byte(`{"hello":"world"}`))
+	return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(body)}, nil
+}
+
+func BenchmarkExecutionEngineV2_Execute(b *testing.B) {
+	schemaString := `type Query {
+	hello: String!
+}`
+	schema, _ := NewSchemaFromString(schemaString)
+
+	operation := Request{
+		OperationName: "",
+		Variables:     nil,
+		Query:         "{ hello }",
+	}
+
+	dataSources := []plan.DataSourceConfiguration{
+		{
+			RootNodes: []plan.TypeField{
+				{
+					TypeName:   "Query",
+					FieldNames: []string{"hello"},
+				},
+			},
+			ChildNodes: []plan.TypeField{},
+			Factory: &rest_datasource.Factory{
+				Client: &http.Client{
+					Transport: benchmarkRoundTripper{},
+				},
+			},
+			Custom: rest_datasource.ConfigJSON(rest_datasource.Configuration{
+				Fetch: rest_datasource.FetchConfiguration{
+					URL:    "https://example.com/",
+					Method: "GET",
+				},
+			}),
+		},
+	}
+	fields := []plan.FieldConfiguration{
+		{
+			TypeName:  "Query",
+			FieldName: "hello",
+			Arguments: []plan.ArgumentConfiguration{},
+		},
+	}
+
+	engineConf := NewEngineV2Configuration(schema)
+	engineConf.SetDataSources(dataSources)
+	engineConf.SetFieldConfigurations(fields)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	engine, _ := NewExecutionEngineV2(ctx, abstractlogger.Noop{}, engineConf)
+	for n := 0; n < b.N; n++ {
+		resultWriter := NewEngineResultWriter()
+		execCtx, execCtxCancel := context.WithCancel(context.Background())
+		_ = engine.Execute(execCtx, &operation, &resultWriter)
+		execCtxCancel()
+	}
 }
