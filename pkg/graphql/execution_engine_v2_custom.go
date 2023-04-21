@@ -46,10 +46,7 @@ type CustomExecutionEngineV2Stages struct {
 }
 
 func (c *CustomExecutionEngineV2Stages) AllRequiredStagesProvided() bool {
-	if c.RequiredStages.ResolverStage == nil {
-		return false
-	}
-	return true
+	return c.RequiredStages.ResolverStage != nil
 }
 
 type CustomExecutionEngineV2RequiredStages struct {
