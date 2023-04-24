@@ -326,3 +326,9 @@ func (e *ExecutionEngineV2) getCachedPlan(postProcessor *postprocess.Processor, 
 func (e *ExecutionEngineV2) GetWebsocketBeforeStartHook() WebsocketBeforeStartHook {
 	return e.config.websocketBeforeStartHook
 }
+
+// Interface Guards
+var (
+	_ CustomExecutionEngineV2   = (*ExecutionEngineV2)(nil)
+	_ ExecutionEngineV2Executor = (*ExecutionEngineV2)(nil)
+)

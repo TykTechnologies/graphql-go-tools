@@ -138,3 +138,8 @@ func (c *CustomExecutionEngineV2Executor) Execute(ctx context.Context, operation
 	c.ExecutionStages.RequiredStages.ResolverStage.Teardown()
 	return nil
 }
+
+// Interface Guards
+var (
+	_ ExecutionEngineV2Executor = (*CustomExecutionEngineV2Executor)(nil)
+)
