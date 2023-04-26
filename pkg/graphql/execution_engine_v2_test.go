@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
