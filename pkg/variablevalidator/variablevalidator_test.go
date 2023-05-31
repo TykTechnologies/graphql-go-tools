@@ -17,6 +17,7 @@ input CustomInput {
 
 type Query{
     simpleQuery(code: ID): String
+    inputOfInt(code: Int!): String
 }
 
 type Mutation {
@@ -27,6 +28,11 @@ const (
 	testQuery = `
 query testQuery($code: ID!){
   simpleQuery(code: $code)
+}
+`
+	testQueryInt = `
+query testQuery($code: Int!){
+  inputOfInt(code: $code)
 }
 `
 
@@ -50,6 +56,7 @@ func TestVariableValidator(t *testing.T) {
 	testCases := []struct {
 		name          string
 		operation     string
+		operationName string
 		variables     string
 		expectedError string
 	}{
@@ -57,6 +64,11 @@ func TestVariableValidator(t *testing.T) {
 			name:      "basic variable query",
 			operation: testQuery,
 			variables: `{"code":"NG"}`,
+		},
+		{
+			name:      "basic variable query of int",
+			operation: testQueryInt,
+			variables: `{"code":1}`,
 		},
 		{
 			name:          "missing variable",
@@ -77,9 +89,15 @@ func TestVariableValidator(t *testing.T) {
 			expectedError: `Validation for variable "in" failed: validation failed: /: {"optionalField":"te... "requiredField" value is required`,
 		},
 		{
-			name:      "multiple operation should validate single operation",
+			name:      "multiple operation should validate first operation",
 			operation: customMultipleOperation,
 			variables: `{"code":"NG"}`,
+		},
+		{
+			name:          "multiple operation should validate operation name",
+			operation:     customMultipleOperation,
+			operationName: "testMutation",
+			variables:     `{"in":{"requiredField":"test"}}`,
 		},
 	}
 	for _, c := range testCases {
@@ -91,7 +109,7 @@ func TestVariableValidator(t *testing.T) {
 
 			report := operationreport.Report{}
 			validator := NewVariableValidator()
-			validator.Validate(&operationDocument, &definitionDocument, nil, []byte(c.variables), &report)
+			validator.Validate(&operationDocument, &definitionDocument, []byte(c.operationName), []byte(c.variables), &report)
 
 			if c.expectedError == "" && report.HasErrors() {
 				t.Fatalf("expected no error, instead got %s", report.Error())
