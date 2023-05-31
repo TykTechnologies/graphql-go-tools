@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/ast"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/astvisitor"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/graphqljsonschema"
@@ -63,6 +64,10 @@ func (v *validatorVisitor) EnterVariableDefinition(ref int) {
 		return
 	}
 
+	if t == jsonparser.String {
+		variable = []byte(fmt.Sprintf(`"%s"`, string(variable)))
+	}
+
 	jsonSchema := graphqljsonschema.FromTypeRef(v.operation, v.definition, typeRef)
 	schemaValidator, err := graphqljsonschema.NewValidatorFromSchema(jsonSchema)
 	if err != nil {
@@ -76,7 +81,7 @@ func (v *validatorVisitor) EnterVariableDefinition(ref int) {
 }
 
 func (v *validatorVisitor) EnterOperationDefinition(ref int) {
-	if v.operationName == nil {
+	if len(v.operationName) == 0 {
 		v.currentOperation = ref
 		return
 	}

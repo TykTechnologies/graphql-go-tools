@@ -23,16 +23,28 @@ type Mutation {
     customInputNonNull(in: CustomInput!): String
 }`
 
-const testQuery = `
+const (
+	testQuery = `
 query testQuery($code: ID!){
   simpleQuery(code: $code)
 }
 `
 
-const customInputMutation = `
+	customInputMutation = `
 mutation testMutation($in: CustomInput!){
 	customInputNonNull(in: $in)
 }`
+
+	customMultipleOperation = `
+query testQuery($code: ID!){
+  simpleQuery(code: $code)
+}
+
+mutation testMutation($in: CustomInput!){
+	customInputNonNull(in: $in)
+}
+`
+)
 
 func TestVariableValidator(t *testing.T) {
 	testCases := []struct {
@@ -63,6 +75,11 @@ func TestVariableValidator(t *testing.T) {
 			operation:     customInputMutation,
 			variables:     `{"in":{"optionalField":"test"}}`,
 			expectedError: `Validation for variable "in" failed: validation failed: /: {"optionalField":"te... "requiredField" value is required`,
+		},
+		{
+			name:      "multiple operation should validate single operation",
+			operation: customMultipleOperation,
+			variables: `{"code":"NG"}`,
 		},
 	}
 	for _, c := range testCases {
