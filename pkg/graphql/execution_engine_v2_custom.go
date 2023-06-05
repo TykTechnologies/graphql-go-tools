@@ -75,9 +75,8 @@ func NewCustomExecutionEngineV2Executor(executionEngineV2 CustomExecutionEngineV
 			ResolverStage: executionEngineV2,
 		},
 		OptionalStages: &CustomExecutionEngineV2OptionalStages{
-			NormalizerStage:      executionEngineV2,
-			ValidatorStage:       executionEngineV2,
-			InputValidationStage: executionEngineV2,
+			NormalizerStage: executionEngineV2,
+			ValidatorStage:  executionEngineV2,
 		},
 	}
 
