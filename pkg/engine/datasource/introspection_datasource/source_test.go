@@ -38,6 +38,7 @@ func TestSource_Load(t *testing.T) {
 	}
 
 	t.Run("schema introspection", run(testSchema, `{"request_type":1}`, `schema_introspection`))
+	t.Run("schema introspection with custom root operation types", run(testSchemaWithCustomRootOperationTypes, `{"request_type":1}`, `schema_introspection_with_custom_root_operation_types`))
 	t.Run("type introspection", run(testSchema, `{"request_type":2,"type_name":"Query"}`, `type_introspection`))
 	t.Run("type introspection of not existing type", run(testSchema, `{"request_type":2,"type_name":"NotExisting"}`, `not_existing_type`))
 
@@ -78,3 +79,33 @@ type Droid {
     name: String!
 }
 `
+
+const testSchemaWithCustomRootOperationTypes = `
+schema {
+    query: CustomQuery
+	mutation: CustomMutation
+	subscription: CustomSubscription
+}
+
+type CustomQuery {
+    me: Droid @deprecated
+    droid(id: ID!): Droid
+}
+
+type CustomMutation {
+	destroyDroid(id: ID!): Boolean!
+}
+
+type CustomSubscription {
+	destroyedDroid: Droid
+}
+
+enum Episode {
+    NEWHOPE
+    EMPIRE
+    JEDI @deprecated
+}
+
+type Droid {
+    name: String!
+}`
