@@ -53,7 +53,6 @@ func (f *IntrospectionConfigFactory) BuildFieldConfigurations() (planFields plan
 }
 
 func (f *IntrospectionConfigFactory) BuildDataSourceConfiguration() plan.DataSourceConfiguration {
-
 	return plan.DataSourceConfiguration{
 		RootNodes: []plan.TypeField{
 			{
