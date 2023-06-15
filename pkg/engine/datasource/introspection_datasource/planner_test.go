@@ -281,7 +281,8 @@ func TestIntrospectionDataSourcePlanning(t *testing.T) {
 									{
 										Name: []byte("mutationType"),
 										Value: &resolve.Object{
-											Path: []string{"mutationType"},
+											Path:     []string{"mutationType"},
+											Nullable: true,
 											Fields: []*resolve.Field{
 												{
 													Name: []byte("name"),
@@ -304,7 +305,8 @@ func TestIntrospectionDataSourcePlanning(t *testing.T) {
 									{
 										Name: []byte("subscriptionType"),
 										Value: &resolve.Object{
-											Path: []string{"subscriptionType"},
+											Path:     []string{"subscriptionType"},
+											Nullable: true,
 											Fields: []*resolve.Field{
 												{
 													Name: []byte("name"),

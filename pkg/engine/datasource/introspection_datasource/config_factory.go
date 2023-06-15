@@ -53,10 +53,15 @@ func (f *IntrospectionConfigFactory) BuildFieldConfigurations() (planFields plan
 }
 
 func (f *IntrospectionConfigFactory) BuildDataSourceConfiguration() plan.DataSourceConfiguration {
+	queryTypeName := "Query"
+	if f.introspectionData.Schema.QueryType != nil && len(f.introspectionData.Schema.QueryType.Name) > 0 {
+		queryTypeName = f.introspectionData.Schema.QueryType.Name
+	}
+
 	return plan.DataSourceConfiguration{
 		RootNodes: []plan.TypeField{
 			{
-				TypeName:   "Query",
+				TypeName:   queryTypeName,
 				FieldNames: []string{"__schema", "__type"},
 			},
 			{
