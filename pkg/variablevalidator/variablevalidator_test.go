@@ -30,6 +30,13 @@ query testQuery($code: ID!){
   simpleQuery(code: $code)
 }
 `
+
+	testQueryNonNullInput = `
+query testQuery($code: ID){
+  simpleQuery(code: $code)
+}
+`
+
 	testQueryInt = `
 query testQuery($code: Int!){
   inputOfInt(code: $code)
@@ -98,6 +105,12 @@ func TestVariableValidator(t *testing.T) {
 			operation:     customMultipleOperation,
 			operationName: "testMutation",
 			variables:     `{"in":{"requiredField":"test"}}`,
+		},
+		{
+			name:          "invalid variable json",
+			operation:     testQueryNonNullInput,
+			variables:     `"\n            {\"code\":{\"code\":{\"in\":[\"PL\",\"UA\"],\"extra\":\"koza\"}}}\n        "`,
+			expectedError: `Required variable "$code" was not provided`,
 		},
 	}
 	for _, c := range testCases {

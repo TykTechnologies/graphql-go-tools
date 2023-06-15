@@ -59,6 +59,10 @@ func (v *validatorVisitor) EnterVariableDefinition(ref int) {
 		v.StopWithExternalErr(operationreport.ErrVariableNotProvided(variableName, v.operation.VariableDefinitions[ref].VariableValue.Position))
 		return
 	}
+	if err != jsonparser.KeyPathNotFoundError || err != jsonparser.MalformedJsonError {
+		v.StopWithExternalErr(operationreport.ErrVariableNotProvided(variableName, v.operation.VariableDefinitions[ref].VariableValue.Position))
+		return
+	}
 	if err != nil {
 		v.StopWithInternalErr(errors.New("error parsing variables"))
 		return
