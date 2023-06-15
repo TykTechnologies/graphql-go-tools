@@ -108,9 +108,14 @@ func TestVariableValidator(t *testing.T) {
 		},
 		{
 			name:          "invalid variable json",
-			operation:     testQueryNonNullInput,
+			operation:     testQuery,
 			variables:     `"\n            {\"code\":{\"code\":{\"in\":[\"PL\",\"UA\"],\"extra\":\"koza\"}}}\n        "`,
 			expectedError: `Required variable "$code" was not provided`,
+		},
+		{
+			name:      "invalid variable json non null input",
+			operation: testQueryNonNullInput,
+			variables: `"\n            {\"code\":{\"code\":{\"in\":[\"PL\",\"UA\"],\"extra\":\"koza\"}}}\n        "`,
 		},
 	}
 	for _, c := range testCases {
