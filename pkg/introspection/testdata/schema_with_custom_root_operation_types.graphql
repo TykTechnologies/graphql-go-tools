@@ -1,0 +1,6 @@
+schema {
+    query: CustomQuery
+    mutation: CustomMutation
+    subscription: CustomSubscription
+}
+

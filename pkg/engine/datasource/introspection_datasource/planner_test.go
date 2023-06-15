@@ -16,6 +16,26 @@ const (
 		}
 	`
 
+	schemaWithCustomRootOperationTypes = `
+		schema {
+			query: CustomQuery
+			mutation: CustomMutation
+			subscription: CustomSubscription
+		}
+
+		type CustomQuery {
+			friend: String
+		}
+
+		type CustomMutation {
+			addFriend: Boolean
+		}
+
+		type CustomSubscription {
+			lastAddedFriend: String
+		}
+	`
+
 	typeIntrospection = `
 		query typeIntrospection {
 			__type(name: "Query") {
@@ -29,6 +49,22 @@ const (
 		query typeIntrospection {
 			__schema {
 				queryType {
+					name
+				}
+			}
+		}
+	`
+
+	schemaIntrospectionForAllRootOperationTypeNames = `
+		query typeIntrospection {
+			__schema {
+				queryType {
+					name
+				}
+				mutationType {
+					name
+				}
+				subscriptionType {
 					name
 				}
 			}
@@ -50,21 +86,27 @@ const (
 )
 
 func TestIntrospectionDataSourcePlanning(t *testing.T) {
-	dataSourceIdentifier := []byte("introspection_datasource.Source")
+	runTest := func(schema string, introspectionQuery string, expectedPlan plan.Plan) func(t *testing.T) {
+		t.Helper()
 
-	introspectionData := &introspection.Data{}
-	introspectionData.Schema.QueryType = &introspection.TypeName{Name: "Query"}
+		introspectionData := &introspection.Data{}
+		introspectionData.Schema.QueryType = &introspection.TypeName{Name: "Query"}
 
-	cfgFactory := IntrospectionConfigFactory{introspectionData: introspectionData}
-	introspectionDataSource := cfgFactory.BuildDataSourceConfiguration()
-	introspectionDataSource.Factory = &Factory{}
+		cfgFactory := IntrospectionConfigFactory{introspectionData: introspectionData}
+		introspectionDataSource := cfgFactory.BuildDataSourceConfiguration()
+		introspectionDataSource.Factory = &Factory{}
 
-	planConfiguration := plan.Configuration{
-		DataSources: []plan.DataSourceConfiguration{introspectionDataSource},
-		Fields:      cfgFactory.BuildFieldConfigurations(),
+		planConfiguration := plan.Configuration{
+			DataSources: []plan.DataSourceConfiguration{introspectionDataSource},
+			Fields:      cfgFactory.BuildFieldConfigurations(),
+		}
+
+		return datasourcetesting.RunTest(schema, introspectionQuery, "", expectedPlan, planConfiguration)
 	}
 
-	t.Run("type introspection request", datasourcetesting.RunTest(schema, typeIntrospection, "",
+	dataSourceIdentifier := []byte("introspection_datasource.Source")
+
+	t.Run("type introspection request", runTest(schema, typeIntrospection,
 		&plan.SynchronousResponsePlan{
 			Response: &resolve.GraphQLResponse{
 				Data: &resolve.Object{
@@ -120,10 +162,9 @@ func TestIntrospectionDataSourcePlanning(t *testing.T) {
 				},
 			},
 		},
-		planConfiguration,
 	))
 
-	t.Run("schema introspection request", datasourcetesting.RunTest(schema, schemaIntrospection, "",
+	t.Run("schema introspection request", runTest(schema, schemaIntrospection,
 		&plan.SynchronousResponsePlan{
 			Response: &resolve.GraphQLResponse{
 				Data: &resolve.Object{
@@ -174,10 +215,108 @@ func TestIntrospectionDataSourcePlanning(t *testing.T) {
 				},
 			},
 		},
-		planConfiguration,
 	))
 
-	t.Run("type introspection request with fields args", datasourcetesting.RunTest(schema, typeIntrospectionWithArgs, "",
+	t.Run("schema introspection request with custom root operation types", runTest(schemaWithCustomRootOperationTypes, schemaIntrospectionForAllRootOperationTypeNames,
+		&plan.SynchronousResponsePlan{
+			Response: &resolve.GraphQLResponse{
+				Data: &resolve.Object{
+					Fetch: &resolve.SingleFetch{
+						BufferId:             0,
+						Input:                `{"request_type":1}`,
+						DataSource:           &Source{},
+						DataSourceIdentifier: dataSourceIdentifier,
+					},
+					Fields: []*resolve.Field{
+						{
+							BufferID:  0,
+							HasBuffer: true,
+							Name:      []byte("__schema"),
+							Position: resolve.Position{
+								Line:   3,
+								Column: 4,
+							},
+							Value: &resolve.Object{
+								Fields: []*resolve.Field{
+									{
+										Name: []byte("queryType"),
+										Value: &resolve.Object{
+											Path: []string{"queryType"},
+											Fields: []*resolve.Field{
+												{
+													Name: []byte("name"),
+													Value: &resolve.String{
+														Path:     []string{"name"},
+														Nullable: true,
+													},
+													Position: resolve.Position{
+														Line:   5,
+														Column: 6,
+													},
+												},
+											},
+										},
+										Position: resolve.Position{
+											Line:   4,
+											Column: 5,
+										},
+									},
+									{
+										Name: []byte("mutationType"),
+										Value: &resolve.Object{
+											Path: []string{"mutationType"},
+											Fields: []*resolve.Field{
+												{
+													Name: []byte("name"),
+													Value: &resolve.String{
+														Path:     []string{"name"},
+														Nullable: true,
+													},
+													Position: resolve.Position{
+														Line:   8,
+														Column: 6,
+													},
+												},
+											},
+										},
+										Position: resolve.Position{
+											Line:   7,
+											Column: 5,
+										},
+									},
+									{
+										Name: []byte("subscriptionType"),
+										Value: &resolve.Object{
+											Path: []string{"subscriptionType"},
+											Fields: []*resolve.Field{
+												{
+													Name: []byte("name"),
+													Value: &resolve.String{
+														Path:     []string{"name"},
+														Nullable: true,
+													},
+													Position: resolve.Position{
+														Line:   11,
+														Column: 6,
+													},
+												},
+											},
+										},
+										Position: resolve.Position{
+											Line:   10,
+											Column: 5,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	))
+
+	t.Run("type introspection request with fields args", runTest(schema, typeIntrospectionWithArgs,
 		&plan.SynchronousResponsePlan{
 			Response: &resolve.GraphQLResponse{
 				Data: &resolve.Object{
@@ -298,6 +437,5 @@ func TestIntrospectionDataSourcePlanning(t *testing.T) {
 				},
 			},
 		},
-		planConfiguration,
 	))
 }
