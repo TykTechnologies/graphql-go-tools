@@ -3,10 +3,15 @@ package introspection_datasource
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
+	"github.com/TykTechnologies/graphql-go-tools/internal/pkg/unsafeparser"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/asttransform"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/engine/datasourcetesting"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/engine/plan"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/engine/resolve"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/introspection"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/operationreport"
 )
 
 const (
@@ -87,21 +92,33 @@ const (
 
 func TestIntrospectionDataSourcePlanning(t *testing.T) {
 	runTest := func(schema string, introspectionQuery string, expectedPlan plan.Plan) func(t *testing.T) {
-		t.Helper()
+		return func(t *testing.T) {
+			t.Helper()
 
-		introspectionData := &introspection.Data{}
-		introspectionData.Schema.QueryType = &introspection.TypeName{Name: "Query"}
+			def := unsafeparser.ParseGraphqlDocumentString(schema)
+			err := asttransform.MergeDefinitionWithBaseSchema(&def)
+			require.NoError(t, err)
 
-		cfgFactory := IntrospectionConfigFactory{introspectionData: introspectionData}
-		introspectionDataSource := cfgFactory.BuildDataSourceConfiguration()
-		introspectionDataSource.Factory = &Factory{}
+			var (
+				introspectionData introspection.Data
+				report            operationreport.Report
+			)
 
-		planConfiguration := plan.Configuration{
-			DataSources: []plan.DataSourceConfiguration{introspectionDataSource},
-			Fields:      cfgFactory.BuildFieldConfigurations(),
+			gen := introspection.NewGenerator()
+			gen.Generate(&def, &report, &introspectionData)
+			require.False(t, report.HasErrors())
+
+			cfgFactory := IntrospectionConfigFactory{introspectionData: &introspectionData}
+			introspectionDataSource := cfgFactory.BuildDataSourceConfiguration()
+			introspectionDataSource.Factory = &Factory{}
+
+			planConfiguration := plan.Configuration{
+				DataSources: []plan.DataSourceConfiguration{introspectionDataSource},
+				Fields:      cfgFactory.BuildFieldConfigurations(),
+			}
+
+			datasourcetesting.RunTest(schema, introspectionQuery, "", expectedPlan, planConfiguration)(t)
 		}
-
-		return datasourcetesting.RunTest(schema, introspectionQuery, "", expectedPlan, planConfiguration)
 	}
 
 	dataSourceIdentifier := []byte("introspection_datasource.Source")
