@@ -166,8 +166,12 @@ Next:
 				}
 				typeRef := p.v.Operation.VariableDefinitions[variableDefRef].Type
 				typeName := p.v.Operation.TypeNameString(typeRef)
+				typeKind := p.v.Operation.Types[typeRef].TypeKind
 				query[i].rawMessage = []byte(`"` + query[i].Value + `"`)
-				if p.v.Operation.Types[typeRef].TypeKind == ast.TypeKindList || (typeName != "" && typeName != typeString) {
+				// if the type is not a nullable or non-nullable string, leave the rawMessage with quotes
+				if typeKind == ast.TypeKindList ||
+					(typeName != "" && typeName != typeString) ||
+					(typeKind == ast.TypeKindNonNull && p.v.Operation.TypeNameString(p.v.Operation.Types[typeRef].OfType) != typeString) {
 					query[i].rawMessage = []byte(query[i].Value)
 				}
 
