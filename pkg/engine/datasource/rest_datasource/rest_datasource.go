@@ -25,7 +25,9 @@ type Planner struct {
 	operationDefinition int
 }
 
-const typeInt = "Int"
+const (
+	typeString = "String"
+)
 
 func (p *Planner) DownstreamResponseFieldAlias(_ int) (alias string, exists bool) {
 	// the REST DataSourcePlanner doesn't rewrite upstream fields: skip
@@ -162,9 +164,10 @@ Next:
 				if !exists {
 					continue
 				}
-				typeName := p.v.Operation.TypeNameString(p.v.Operation.VariableDefinitions[variableDefRef].Type)
+				typeRef := p.v.Operation.VariableDefinitions[variableDefRef].Type
+				typeName := p.v.Operation.TypeNameString(typeRef)
 				query[i].rawMessage = []byte(`"` + query[i].Value + `"`)
-				if typeName == typeInt {
+				if p.v.Operation.Types[typeRef].TypeKind == ast.TypeKindList || (typeName != "" && typeName != typeString) {
 					query[i].rawMessage = []byte(query[i].Value)
 				}
 
