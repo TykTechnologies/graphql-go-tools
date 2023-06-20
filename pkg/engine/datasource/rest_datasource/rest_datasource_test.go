@@ -26,6 +26,7 @@ const (
 			withArgument(id: String!, name: String, optional: String): Friend
 			withArrayArguments(names: [String]): Friend
 			withIntArgument(limit: Int): Friend
+			withStringArgument(name: String!): Friend
 		}
 
 		type Subscription {
@@ -132,6 +133,14 @@ const (
 	intArgumentOperationNonNullableInt = `
 query ArgumentQuery($in: Int!) {
   			withIntArgument(limit: $in) {
+    			name
+  			}
+		}
+`
+
+	stringArgumentOperationNonNullableString = `
+query ArgumentQuery($in: String!) {
+  			withStringArgument(name: $in) {
     			name
   			}
 		}
@@ -1177,7 +1186,7 @@ func TestFastHttpJsonDataSourcePlanning(t *testing.T) {
 			DisableResolveFieldPositions: true,
 		},
 	))
-	t.Run("get request with non null string as query param", datasourcetesting.RunTest(schema, intArgumentOperationNonNullableInt, "ArgumentQuery",
+	t.Run("get request with non null int as query param", datasourcetesting.RunTest(schema, intArgumentOperationNonNullableInt, "ArgumentQuery",
 		&plan.SynchronousResponsePlan{
 			Response: &resolve.GraphQLResponse{
 				Data: &resolve.Object{
@@ -1244,6 +1253,79 @@ func TestFastHttpJsonDataSourcePlanning(t *testing.T) {
 				{
 					TypeName:              "Query",
 					FieldName:             "withIntArgument",
+					DisableDefaultMapping: true,
+				},
+			},
+			DisableResolveFieldPositions: true,
+		},
+	))
+	t.Run("get request with non null string as query param", datasourcetesting.RunTest(schema, stringArgumentOperationNonNullableString, "ArgumentQuery",
+		&plan.SynchronousResponsePlan{
+			Response: &resolve.GraphQLResponse{
+				Data: &resolve.Object{
+					Fetch: &resolve.SingleFetch{
+						BufferId:   0,
+						Input:      `{"query_params":[{"name":"name","value":"$$0$$"}],"method":"GET","url":"https://example.com/friend"}`,
+						DataSource: &Source{},
+						Variables: resolve.NewVariables(
+							&resolve.ContextVariable{
+								Path:     []string{"in"},
+								Renderer: resolve.NewPlainVariableRendererWithValidation(`{"type":["string"]}`),
+							},
+						),
+						DataSourceIdentifier: []byte("rest_datasource.Source"),
+						DisableDataLoader:    true,
+					},
+					Fields: []*resolve.Field{
+						{
+							BufferID:  0,
+							HasBuffer: true,
+							Name:      []byte("withStringArgument"),
+							Value: &resolve.Object{
+								Nullable: true,
+								Fields: []*resolve.Field{
+									{
+										Name: []byte("name"),
+										Value: &resolve.String{
+											Path:     []string{"name"},
+											Nullable: true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		plan.Configuration{
+			DataSources: []plan.DataSourceConfiguration{
+				{
+					RootNodes: []plan.TypeField{
+						{
+							TypeName:   "Query",
+							FieldNames: []string{"withStringArgument"},
+						},
+					},
+					Custom: ConfigJSON(Configuration{
+						Fetch: FetchConfiguration{
+							URL:    "https://example.com/friend",
+							Method: "GET",
+							Query: []QueryConfiguration{
+								{
+									Name:  "name",
+									Value: "{{ .arguments.name }}",
+								},
+							},
+						},
+					}),
+					Factory: &Factory{},
+				},
+			},
+			Fields: []plan.FieldConfiguration{
+				{
+					TypeName:              "Query",
+					FieldName:             "withStringArgument",
 					DisableDefaultMapping: true,
 				},
 			},
