@@ -131,7 +131,7 @@ func (p *Planner) ConfigureSubscription() plan.SubscriptionConfiguration {
 }
 
 var (
-	selectorRegex = regexp.MustCompile(`{{\s(.*?)\s}}`)
+	selectorRegex = regexp.MustCompile(`{{\s?(.*?)\s?}}`)
 )
 
 func (p *Planner) prepareQueryParams(field int, query []QueryConfiguration) []QueryConfiguration {
