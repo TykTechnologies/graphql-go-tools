@@ -3,11 +3,10 @@ module github.com/TykTechnologies/graphql-go-tools
 go 1.16
 
 require (
-	github.com/99designs/gqlgen v0.17.20
-	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
-	github.com/Masterminds/goutils v1.1.1 // indirect
+	github.com/99designs/gqlgen v0.17.22
+	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
-	github.com/Shopify/sarama v1.29.1
+	github.com/Shopify/sarama v1.38.1
 	github.com/asyncapi/parser-go v0.4.2
 	github.com/buger/jsonparser v1.1.1
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
@@ -22,7 +21,7 @@ require (
 	github.com/go-test/deep v1.0.8
 	github.com/go-zookeeper/zk v1.0.3
 	github.com/gobwas/ws v1.0.4
-	github.com/golang/mock v1.4.1
+	github.com/golang/mock v1.4.4
 	github.com/google/go-cmp v0.5.8
 	github.com/gorilla/websocket v1.5.0
 	github.com/gotestyourself/gotestyourself v1.4.0 // indirect
@@ -51,7 +50,6 @@ require (
 	github.com/vektah/gqlparser/v2 v2.5.1
 	go.uber.org/atomic v1.9.0
 	go.uber.org/zap v1.18.1
-	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 	gopkg.in/yaml.v2 v2.4.0
 	nhooyr.io/websocket v1.8.7
