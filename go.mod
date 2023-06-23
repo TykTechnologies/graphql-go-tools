@@ -20,7 +20,7 @@ require (
 	github.com/evanphx/json-patch/v5 v5.1.0
 	github.com/getkin/kin-openapi v0.89.0
 	github.com/go-test/deep v1.0.8
-	github.com/go-zookeeper/zk v1.0.2
+	github.com/go-zookeeper/zk v1.0.3
 	github.com/gobwas/ws v1.0.4
 	github.com/golang/mock v1.4.1
 	github.com/google/go-cmp v0.5.8
@@ -40,8 +40,8 @@ require (
 	github.com/opencontainers/runc v1.1.2 // indirect
 	github.com/ory/dockertest v3.3.5+incompatible
 	github.com/pelletier/go-toml v1.6.0 // indirect
-	github.com/qri-io/jsonschema v0.2.1
 	github.com/r3labs/sse/v2 v2.8.1
+	github.com/santhosh-tekuri/jsonschema/v5 v5.3.0
 	github.com/sebdah/goldie v0.0.0-20180424091453-8784dd1ab561
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/viper v1.3.2
