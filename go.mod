@@ -18,7 +18,6 @@ require (
 	github.com/eclipse/paho.mqtt.golang v1.2.0
 	github.com/evanphx/json-patch/v5 v5.1.0
 	github.com/getkin/kin-openapi v0.89.0
-	github.com/gin-gonic/gin v1.9.1 // indirect
 	github.com/go-test/deep v1.0.8
 	github.com/go-zookeeper/zk v1.0.3
 	github.com/gobwas/ws v1.0.4
@@ -40,6 +39,7 @@ require (
 	github.com/opencontainers/runc v1.1.7 // indirect
 	github.com/ory/dockertest v3.3.5+incompatible
 	github.com/pelletier/go-toml v1.6.0 // indirect
+	github.com/pvormste/websocket v1.8.8
 	github.com/r3labs/sse/v2 v2.8.1
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.0
 	github.com/sebdah/goldie v0.0.0-20180424091453-8784dd1ab561
@@ -53,7 +53,4 @@ require (
 	go.uber.org/zap v1.18.1
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 	gopkg.in/yaml.v2 v2.4.0
-	nhooyr.io/websocket v1.8.7
 )
-
-exclude github.com/gin-gonic/gin v1.6.3
