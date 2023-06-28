@@ -36,7 +36,7 @@ require (
 	github.com/nats-io/nats-server/v2 v2.3.2 // indirect
 	github.com/nats-io/nats.go v1.11.1-0.20210623165838-4b75fc59ae30
 	github.com/opencontainers/image-spec v1.0.2 // indirect
-	github.com/opencontainers/runc v1.1.7 // indirect
+	github.com/opencontainers/runc v1.1.5 // indirect
 	github.com/ory/dockertest v3.3.5+incompatible
 	github.com/pelletier/go-toml v1.6.0 // indirect
 	github.com/pvormste/websocket v1.8.8
@@ -45,7 +45,7 @@ require (
 	github.com/sebdah/goldie v0.0.0-20180424091453-8784dd1ab561
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/viper v1.3.2
-	github.com/stretchr/testify v1.8.3
+	github.com/stretchr/testify v1.8.1
 	github.com/tidwall/gjson v1.11.0
 	github.com/tidwall/sjson v1.0.4
 	github.com/vektah/gqlparser/v2 v2.5.1
