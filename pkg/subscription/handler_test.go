@@ -614,7 +614,7 @@ func TestHandler_Handle(t *testing.T) {
 				go handlerRoutineFunc()
 
 				time.Sleep(10 * time.Millisecond)
-				cancelFunc()
+				defer cancelFunc()
 
 				go sendChatMutation(t, chatServer.URL)
 
