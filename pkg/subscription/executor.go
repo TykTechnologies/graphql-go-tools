@@ -1,5 +1,7 @@
 package subscription
 
+//go:generate mockgen -destination=executor_mock_test.go -package=subscription . Executor,ExecutorPool
+
 import (
 	"context"
 
