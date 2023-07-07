@@ -34,18 +34,32 @@ func (m *MockProtocol) EXPECT() *MockProtocolMockRecorder {
 	return m.recorder
 }
 
-// Handle mocks base method.
-func (m *MockProtocol) Handle(arg0 context.Context, arg1 []byte) error {
+// EventHandler mocks base method.
+func (m *MockProtocol) EventHandler() EventHandler {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Handle", arg0, arg1)
+	ret := m.ctrl.Call(m, "EventHandler")
+	ret0, _ := ret[0].(EventHandler)
+	return ret0
+}
+
+// EventHandler indicates an expected call of EventHandler.
+func (mr *MockProtocolMockRecorder) EventHandler() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EventHandler", reflect.TypeOf((*MockProtocol)(nil).EventHandler))
+}
+
+// Handle mocks base method.
+func (m *MockProtocol) Handle(arg0 context.Context, arg1 Engine, arg2 []byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Handle", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Handle indicates an expected call of Handle.
-func (mr *MockProtocolMockRecorder) Handle(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockProtocolMockRecorder) Handle(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Handle", reflect.TypeOf((*MockProtocol)(nil).Handle), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Handle", reflect.TypeOf((*MockProtocol)(nil).Handle), arg0, arg1, arg2)
 }
 
 // MockEventHandler is a mock of EventHandler interface.

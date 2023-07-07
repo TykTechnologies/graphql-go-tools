@@ -24,9 +24,6 @@ const (
 	MessageTypeData                = "data"
 	MessageTypeError               = "error"
 	MessageTypeComplete            = "complete"
-
-	DefaultKeepAliveInterval          = "15s"
-	DefaultSubscriptionUpdateInterval = "1s"
 )
 
 // Message defines the actual subscription message which will be passed from client to server and vice versa.

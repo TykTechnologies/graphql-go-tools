@@ -1,5 +1,7 @@
 package subscription
 
+//go:generate mockgen -destination=engine_mock_test.go -package=subscription . Engine
+
 import (
 	"context"
 	"sync"
@@ -14,6 +16,7 @@ import (
 type Engine interface {
 	StartOperation(ctx context.Context, id string, payload []byte, eventHandler EventHandler) error
 	StopSubscription(id string, eventHandler EventHandler) error
+	TerminateAllConnections(eventHandler EventHandler) error
 }
 
 type ExecutorEngine struct {
@@ -55,6 +58,19 @@ func (e *ExecutorEngine) StartOperation(ctx context.Context, id string, payload 
 func (e *ExecutorEngine) StopSubscription(id string, eventHandler EventHandler) error {
 	e.subCancellations.Cancel(id)
 	eventHandler.Emit(EventTypeCompleted, id, nil, nil)
+	return nil
+}
+
+func (e *ExecutorEngine) TerminateAllConnections(eventHandler EventHandler) error {
+	if e.subCancellations.Len() == 0 {
+		return nil
+	}
+
+	for id := range e.subCancellations.cancellations {
+		e.subCancellations.Cancel(id)
+		eventHandler.Emit(EventTypeConnectionTerminate, id, []byte("connection terminated by server"), nil)
+	}
+
 	return nil
 }
 
@@ -162,3 +178,6 @@ func (e *ExecutorEngine) handleNonSubscriptionOperation(ctx context.Context, id 
 	eventHandler.Emit(EventTypeData, id, buf.Bytes(), err)
 	eventHandler.Emit(EventTypeCompleted, id, nil, nil)
 }
+
+// Interface Guards
+var _ Engine = (*ExecutorEngine)(nil)

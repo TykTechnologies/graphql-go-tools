@@ -385,6 +385,71 @@ func TestExecutorEngine_StopSubscription(t *testing.T) {
 	}, 50*time.Millisecond, 5*time.Millisecond)
 }
 
+func TestExecutorEngine_TerminateAllConnections(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ctx := context.Background()
+
+	payload := []byte(`{"query":"subscription { receiveData }"}`)
+
+	eventHandlerMock := NewMockEventHandler(ctrl)
+	eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeData), gomock.Any(), gomock.AssignableToTypeOf([]byte{}), gomock.Nil()).
+		MinTimes(3)
+	eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeConnectionTerminate), gomock.Any(), gomock.Eq([]byte("connection terminated by server")), gomock.Nil()).
+		Times(3)
+
+	executorMock := NewMockExecutor(ctrl)
+	executorMock.EXPECT().OperationType().
+		Return(ast.OperationTypeSubscription).
+		Times(3)
+	executorMock.EXPECT().SetContext(assignableToContextWithCancel(ctx)).
+		Times(3)
+	executorMock.EXPECT().Execute(gomock.AssignableToTypeOf(&graphql.EngineResultWriter{})).
+		Do(func(resultWriter *graphql.EngineResultWriter) {
+			_, _ = resultWriter.Write([]byte(`{ "data": { "receiveData": "newData" } }`))
+		}).
+		MinTimes(3)
+
+	executorPoolMock := NewMockExecutorPool(ctrl)
+	executorPoolMock.EXPECT().Get(gomock.Eq(payload)).
+		Return(executorMock, nil).
+		Times(3)
+	executorPoolMock.EXPECT().Put(gomock.Eq(executorMock)).
+		Times(3)
+
+	engine := ExecutorEngine{
+		logger:           abstractlogger.Noop{},
+		subCancellations: subscriptionCancellations{},
+		executorPool:     executorPoolMock,
+		bufferPool: &sync.Pool{
+			New: func() interface{} {
+				writer := graphql.NewEngineResultWriterFromBuffer(bytes.NewBuffer(make([]byte, 0, 1024)))
+				return &writer
+			},
+		},
+		subscriptionUpdateInterval: 2 * time.Millisecond,
+	}
+
+	assert.Eventually(t, func() bool {
+		err := engine.StartOperation(ctx, "1", payload, eventHandlerMock)
+		assert.NoError(t, err)
+		err = engine.StartOperation(ctx, "2", payload, eventHandlerMock)
+		assert.NoError(t, err)
+		err = engine.StartOperation(ctx, "3", payload, eventHandlerMock)
+		assert.NoError(t, err)
+		assert.Equal(t, 3, engine.subCancellations.Len())
+		<-time.After(5 * time.Millisecond)
+
+		err = engine.TerminateAllConnections(eventHandlerMock)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, engine.subCancellations.Len())
+		<-time.After(5 * time.Millisecond)
+
+		return true
+	}, 50*time.Millisecond, 5*time.Millisecond)
+}
+
 func assignableToContextWithCancel(ctx context.Context) gomock.Matcher {
 	ctxWithCancel, _ := context.WithCancel(ctx)
 	return gomock.AssignableToTypeOf(ctxWithCancel)

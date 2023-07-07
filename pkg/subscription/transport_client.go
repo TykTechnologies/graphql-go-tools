@@ -1,5 +1,7 @@
 package subscription
 
+//go:generate mockgen -destination=transport_client_mock_test.go -package=subscription . TransportClient
+
 // TransportClient provides an interface that can be implemented by any possible subscription client like websockets, mqtt, etc.
 // It operates with raw byte slices.
 type TransportClient interface {
