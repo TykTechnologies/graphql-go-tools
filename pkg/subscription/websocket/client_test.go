@@ -3,6 +3,7 @@ package websocket
 import (
 	"errors"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -117,4 +118,40 @@ func TestClient_isClosedConnectionError(t *testing.T) {
 		isClosedConnectionError := websocketClient.isClosedConnectionError(wsutil.ClosedError{})
 		assert.True(t, isClosedConnectionError)
 	})
+}
+
+type TestClient struct {
+	mu              *sync.Mutex
+	messageToClient []byte
+	shouldFail      bool
+}
+
+func NewTestClient(shouldFail bool) *TestClient {
+	return &TestClient{
+		mu:              &sync.Mutex{},
+		messageToClient: nil,
+		shouldFail:      shouldFail,
+	}
+}
+
+func (t *TestClient) ReadBytesFromClient() ([]byte, error) {
+	return nil, nil
+}
+
+func (t *TestClient) WriteBytesToClient(message []byte) error {
+	if t.shouldFail {
+		return errors.New("shouldFail is true")
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.messageToClient = message
+	return nil
+}
+
+func (t *TestClient) IsConnected() bool {
+	return false
+}
+
+func (t *TestClient) Disconnect() error {
+	return nil
 }
