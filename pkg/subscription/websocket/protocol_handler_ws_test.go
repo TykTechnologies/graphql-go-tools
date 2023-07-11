@@ -86,7 +86,7 @@ func TestGraphQLWSMessageWriter_WriteKeepAlive(t *testing.T) {
 			client: testClient,
 			mu:     &sync.Mutex{},
 		}
-		err := writer.WriteKeepAlive("1")
+		err := writer.WriteKeepAlive()
 		assert.Error(t, err)
 	})
 	t.Run("should successfully write keep-alive (ka) message to client", func(t *testing.T) {
@@ -96,8 +96,8 @@ func TestGraphQLWSMessageWriter_WriteKeepAlive(t *testing.T) {
 			client: testClient,
 			mu:     &sync.Mutex{},
 		}
-		expectedMessage := []byte(`{"id":"1","type":"ka"}`)
-		err := writer.WriteKeepAlive("1")
+		expectedMessage := []byte(`{"type":"ka"}`)
+		err := writer.WriteKeepAlive()
 		assert.NoError(t, err)
 		assert.Equal(t, expectedMessage, testClient.messageToClient)
 	})
