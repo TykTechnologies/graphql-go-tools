@@ -19,8 +19,7 @@ var ErrCouldNotReadMessageFromClient = errors.New("could not read message from c
 type EventType int
 
 const (
-	EventTypeNone EventType = iota
-	EventTypeError
+	EventTypeError = iota
 	EventTypeData
 	EventTypeCompleted
 	EventTypeConnectionTerminate

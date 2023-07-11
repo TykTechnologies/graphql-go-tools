@@ -1,8 +1,11 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"sync"
+	"time"
 
 	"github.com/jensneuse/abstractlogger"
 
@@ -71,9 +74,8 @@ func (g *GraphQLWSMessageWriter) WriteComplete(id string) error {
 	return g.write(message)
 }
 
-func (g *GraphQLWSMessageWriter) WriteKeepAlive(id string) error {
+func (g *GraphQLWSMessageWriter) WriteKeepAlive() error {
 	message := &GraphQLWSMessage{
-		Id:      id,
 		Type:    GraphQLWSMessageTypeConnectionKeepAlive,
 		Payload: nil,
 	}
@@ -140,8 +142,118 @@ func (g *GraphQLWSMessageWriter) write(message *GraphQLWSMessage) error {
 	return g.client.WriteBytesToClient(jsonData)
 }
 
-type ProtocolGraphQLWSHandler struct {
+type GraphQLWSWriteEventHandler struct {
 	logger abstractlogger.Logger
-	reader GraphQLWSMessageReader
 	writer GraphQLWSMessageWriter
+}
+
+func (g *GraphQLWSWriteEventHandler) Emit(eventType subscription.EventType, id string, data []byte, err error) {
+	messageType := ""
+	switch eventType {
+	case subscription.EventTypeCompleted:
+		messageType = GraphQLWSMessageTypeComplete
+	case subscription.EventTypeData:
+		messageType = GraphQLWSMessageTypeData
+	case subscription.EventTypeError:
+		messageType = GraphQLWSMessageTypeError
+	case subscription.EventTypeConnectionError:
+		messageType = GraphQLWSMessageTypeConnectionError
+	case subscription.EventTypeConnectionTerminate:
+		messageType = GraphQLWSMessageTypeConnectionTerminate
+	}
+
+	g.HandleWriteEvent(messageType, id, data, err)
+}
+
+func (g *GraphQLWSWriteEventHandler) HandleWriteEvent(messageType string, id string, data []byte, providedErr error) {
+	var err error
+	switch messageType {
+	case GraphQLWSMessageTypeComplete:
+		err = g.writer.WriteComplete(id)
+	case GraphQLWSMessageTypeData:
+		err = g.writer.WriteData(id, data)
+	case GraphQLWSMessageTypeError:
+		err = g.writer.WriteError(id, graphql.RequestErrorsFromError(err))
+	case GraphQLWSMessageTypeConnectionError:
+		err = g.writer.WriteConnectionError(providedErr.Error())
+	case GraphQLWSMessageTypeConnectionTerminate:
+		err = g.writer.WriteTerminate(providedErr.Error())
+	case GraphQLWSMessageTypeConnectionKeepAlive:
+		err = g.writer.WriteKeepAlive()
+	case GraphQLWSMessageTypeConnectionAck:
+		err = g.writer.WriteAck()
+	default:
+		g.logger.Warn("websocket.GraphQLWSWriteEventHandler.Handle: on event handling with unknown message type",
+			abstractlogger.Error(err),
+			abstractlogger.String("id", id),
+			abstractlogger.String("type", messageType),
+			abstractlogger.ByteString("payload", data),
+			abstractlogger.Error(providedErr),
+		)
+		return
+	}
+	if err != nil {
+		g.logger.Error("websocket.GraphQLWSWriteEventHandler.Handle: on event handling",
+			abstractlogger.Error(err),
+			abstractlogger.String("id", id),
+			abstractlogger.String("type", messageType),
+			abstractlogger.ByteString("payload", data),
+			abstractlogger.Error(providedErr),
+		)
+	}
+}
+
+type ProtocolGraphQLWSHandler struct {
+	logger            abstractlogger.Logger
+	reader            GraphQLWSMessageReader
+	writeEventHandler GraphQLWSWriteEventHandler
+	keepAliveInterval time.Duration
+}
+
+func (p *ProtocolGraphQLWSHandler) Handle(ctx context.Context, engine subscription.Engine, data []byte) error {
+	message, err := p.reader.Read(data)
+	if err != nil {
+		p.logger.Error("websocket.ProtocolGraphQLWSHandler.Handle: on message reading",
+			abstractlogger.Error(err),
+			abstractlogger.ByteString("payload", data),
+		)
+	}
+
+	switch message.Type {
+	case GraphQLWSMessageTypeConnectionInit:
+		ctx, err = p.handleInit(ctx, message.Payload)
+		if err != nil {
+			p.writeEventHandler.HandleWriteEvent(GraphQLWSMessageTypeConnectionTerminate, "", nil, errors.New("failed to accept the websocket connection"))
+			return engine.TerminateAllConnections(&p.writeEventHandler)
+		}
+
+		go p.handleKeepAlive(ctx)
+	case GraphQLWSMessageTypeStart:
+		return engine.StartOperation(ctx, message.Id, message.Payload, &p.writeEventHandler)
+	case GraphQLWSMessageTypeStop:
+		return engine.StopSubscription(message.Id, &p.writeEventHandler)
+	case GraphQLWSMessageTypeConnectionTerminate:
+		return engine.TerminateAllConnections(&p.writeEventHandler)
+	}
+
+	return nil
+}
+
+func (p *ProtocolGraphQLWSHandler) EventHandler() subscription.EventHandler {
+	return &p.writeEventHandler
+}
+
+func (p *ProtocolGraphQLWSHandler) handleInit(ctx context.Context, payload []byte) (context.Context, error) {
+	return nil, nil
+}
+
+func (p *ProtocolGraphQLWSHandler) handleKeepAlive(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(p.keepAliveInterval):
+			p.writeEventHandler.HandleWriteEvent(GraphQLWSMessageTypeConnectionKeepAlive, "", nil, nil)
+		}
+	}
 }
