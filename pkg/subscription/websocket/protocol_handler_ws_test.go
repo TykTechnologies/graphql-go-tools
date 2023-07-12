@@ -1,15 +1,19 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/jensneuse/abstractlogger"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/TykTechnologies/graphql-go-tools/pkg/graphql"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/subscription"
 )
 
 func TestGraphQLWSMessageReader_Read(t *testing.T) {
@@ -203,4 +207,111 @@ func TestGraphQLWSMessageWriter_WriteAck(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, expectedMessage, testClient.readMessageToClient())
 	})
+}
+
+func TestProtocolGraphQLWSHandler_Handle(t *testing.T) {
+	t.Run("should return connection_error when an unexpected message type is used", func(t *testing.T) {
+		testClient := NewTestClient(false)
+		protocol := NewTestProtocolGraphQLWSHandler(testClient)
+
+		ctrl := gomock.NewController(t)
+		mockEngine := NewMockEngine(ctrl)
+
+		ctx, cancelFunc := context.WithCancel(context.Background())
+		defer cancelFunc()
+
+		expectedMessage := []byte(`{"type":"connection_error","payload":"unexpected message type: something"}`)
+		err := protocol.Handle(ctx, mockEngine, []byte(`{"type":"something"}`))
+		assert.NoError(t, err)
+		assert.Equal(t, testClient.readMessageToClient(), expectedMessage)
+	})
+
+	t.Run("should terminate connections on connection_terminate from client", func(t *testing.T) {
+		testClient := NewTestClient(false)
+		protocol := NewTestProtocolGraphQLWSHandler(testClient)
+
+		ctrl := gomock.NewController(t)
+		mockEngine := NewMockEngine(ctrl)
+		mockEngine.EXPECT().TerminateAllConnections(gomock.Eq(protocol.EventHandler()))
+
+		ctx, cancelFunc := context.WithCancel(context.Background())
+		defer cancelFunc()
+
+		err := protocol.Handle(ctx, mockEngine, []byte(`{"type":"connection_terminate"}`))
+		assert.NoError(t, err)
+	})
+
+	t.Run("should init connection and respond with ack and ka", func(t *testing.T) {
+		testClient := NewTestClient(false)
+		protocol := NewTestProtocolGraphQLWSHandler(testClient)
+		protocol.keepAliveInterval = 5 * time.Millisecond
+
+		ctrl := gomock.NewController(t)
+		mockEngine := NewMockEngine(ctrl)
+
+		ctx, cancelFunc := context.WithCancel(context.Background())
+
+		assert.Eventually(t, func() bool {
+			expectedMessageAck := []byte(`{"type":"connection_ack"}`)
+			expectedMessageKeepAlive := []byte(`{"type":"ka"}`)
+			err := protocol.Handle(ctx, mockEngine, []byte(`{"type":"connection_init"}`))
+			assert.NoError(t, err)
+			assert.Equal(t, expectedMessageAck, testClient.readMessageToClient())
+
+			<-time.After(6 * time.Millisecond)
+			assert.Equal(t, expectedMessageKeepAlive, testClient.readMessageToClient())
+			cancelFunc()
+
+			return true
+		}, 15*time.Millisecond, 5*time.Millisecond)
+
+	})
+
+	t.Run("should start an operation on start from client", func(t *testing.T) {
+		testClient := NewTestClient(false)
+		protocol := NewTestProtocolGraphQLWSHandler(testClient)
+
+		ctx, cancelFunc := context.WithCancel(context.Background())
+		defer cancelFunc()
+
+		ctrl := gomock.NewController(t)
+		mockEngine := NewMockEngine(ctrl)
+		mockEngine.EXPECT().StartOperation(gomock.Eq(ctx), "1", []byte(`{"query":"{ hello }"}`), gomock.Eq(protocol.EventHandler()))
+
+		err := protocol.Handle(ctx, mockEngine, []byte(`{"id":"1","type":"start","payload":{"query":"{ hello }"}}`))
+		assert.NoError(t, err)
+	})
+
+	t.Run("should stop a subscription on stop from client", func(t *testing.T) {
+		testClient := NewTestClient(false)
+		protocol := NewTestProtocolGraphQLWSHandler(testClient)
+
+		ctx, cancelFunc := context.WithCancel(context.Background())
+		defer cancelFunc()
+
+		ctrl := gomock.NewController(t)
+		mockEngine := NewMockEngine(ctrl)
+		mockEngine.EXPECT().StopSubscription("1", gomock.Eq(protocol.EventHandler()))
+
+		err := protocol.Handle(ctx, mockEngine, []byte(`{"id":"1","type":"stop"}`))
+		assert.NoError(t, err)
+	})
+}
+
+func NewTestProtocolGraphQLWSHandler(testClient subscription.TransportClient) *ProtocolGraphQLWSHandler {
+	return &ProtocolGraphQLWSHandler{
+		logger: abstractlogger.Noop{},
+		reader: GraphQLWSMessageReader{
+			logger: abstractlogger.Noop{},
+		},
+		writeEventHandler: GraphQLWSWriteEventHandler{
+			logger: abstractlogger.Noop{},
+			writer: GraphQLWSMessageWriter{
+				logger: abstractlogger.Noop{},
+				mu:     &sync.Mutex{},
+				client: testClient,
+			},
+		},
+		keepAliveInterval: 30,
+	}
 }
