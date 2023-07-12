@@ -122,14 +122,14 @@ func TestClient_isClosedConnectionError(t *testing.T) {
 
 type TestClient struct {
 	mu              *sync.Mutex
-	messageToClient []byte
+	messageToClient chan []byte
 	shouldFail      bool
 }
 
 func NewTestClient(shouldFail bool) *TestClient {
 	return &TestClient{
 		mu:              &sync.Mutex{},
-		messageToClient: nil,
+		messageToClient: make(chan []byte, 1),
 		shouldFail:      shouldFail,
 	}
 }
@@ -144,7 +144,7 @@ func (t *TestClient) WriteBytesToClient(message []byte) error {
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	t.messageToClient = message
+	t.messageToClient <- message
 	return nil
 }
 
@@ -154,4 +154,10 @@ func (t *TestClient) IsConnected() bool {
 
 func (t *TestClient) Disconnect() error {
 	return nil
+}
+
+func (t *TestClient) readMessageToClient() []byte {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return <-t.messageToClient
 }

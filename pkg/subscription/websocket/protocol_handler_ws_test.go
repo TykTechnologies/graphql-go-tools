@@ -49,7 +49,7 @@ func TestGraphQLWSMessageWriter_WriteData(t *testing.T) {
 		expectedMessage := []byte(`{"id":"1","type":"data","payload":{"data":{"hello":"world"}}}`)
 		err := writer.WriteData("1", []byte(`{"data":{"hello":"world"}}`))
 		assert.NoError(t, err)
-		assert.Equal(t, expectedMessage, testClient.messageToClient)
+		assert.Equal(t, expectedMessage, testClient.readMessageToClient())
 	})
 }
 
@@ -74,7 +74,7 @@ func TestGraphQLWSMessageWriter_WriteComplete(t *testing.T) {
 		expectedMessage := []byte(`{"id":"1","type":"complete"}`)
 		err := writer.WriteComplete("1")
 		assert.NoError(t, err)
-		assert.Equal(t, expectedMessage, testClient.messageToClient)
+		assert.Equal(t, expectedMessage, testClient.readMessageToClient())
 	})
 }
 
@@ -99,7 +99,7 @@ func TestGraphQLWSMessageWriter_WriteKeepAlive(t *testing.T) {
 		expectedMessage := []byte(`{"type":"ka"}`)
 		err := writer.WriteKeepAlive()
 		assert.NoError(t, err)
-		assert.Equal(t, expectedMessage, testClient.messageToClient)
+		assert.Equal(t, expectedMessage, testClient.readMessageToClient())
 	})
 }
 
@@ -124,7 +124,7 @@ func TestGraphQLWSMessageWriter_WriteTerminate(t *testing.T) {
 		expectedMessage := []byte(`{"type":"connection_terminate","payload":"failed to accept the websocket connection"}`)
 		err := writer.WriteTerminate(`failed to accept the websocket connection`)
 		assert.NoError(t, err)
-		assert.Equal(t, expectedMessage, testClient.messageToClient)
+		assert.Equal(t, expectedMessage, testClient.readMessageToClient())
 	})
 }
 
@@ -149,7 +149,7 @@ func TestGraphQLWSMessageWriter_WriteConnectionError(t *testing.T) {
 		expectedMessage := []byte(`{"type":"connection_error","payload":"could not read message from client"}`)
 		err := writer.WriteConnectionError(`could not read message from client`)
 		assert.NoError(t, err)
-		assert.Equal(t, expectedMessage, testClient.messageToClient)
+		assert.Equal(t, expectedMessage, testClient.readMessageToClient())
 	})
 }
 
@@ -176,7 +176,7 @@ func TestGraphQLWSMessageWriter_WriteError(t *testing.T) {
 		requestErrors := graphql.RequestErrorsFromError(errors.New("request error"))
 		err := writer.WriteError("1", requestErrors)
 		assert.NoError(t, err)
-		assert.Equal(t, expectedMessage, testClient.messageToClient)
+		assert.Equal(t, expectedMessage, testClient.readMessageToClient())
 	})
 }
 
@@ -201,6 +201,6 @@ func TestGraphQLWSMessageWriter_WriteAck(t *testing.T) {
 		expectedMessage := []byte(`{"type":"connection_ack"}`)
 		err := writer.WriteAck()
 		assert.NoError(t, err)
-		assert.Equal(t, expectedMessage, testClient.messageToClient)
+		assert.Equal(t, expectedMessage, testClient.readMessageToClient())
 	})
 }
