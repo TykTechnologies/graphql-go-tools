@@ -394,10 +394,10 @@ func TestExecutorEngine_TerminateAllConnections(t *testing.T) {
 	payload := []byte(`{"query":"subscription { receiveData }"}`)
 
 	eventHandlerMock := NewMockEventHandler(ctrl)
+	eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeConnectionTerminatedByServer), gomock.Eq(""), gomock.Eq([]byte("connection terminated by server")), gomock.Nil()).
+		Times(1)
 	eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeData), gomock.Any(), gomock.AssignableToTypeOf([]byte{}), gomock.Nil()).
 		MinTimes(3)
-	eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeConnectionTerminate), gomock.Any(), gomock.Eq([]byte("connection terminated by server")), gomock.Nil()).
-		Times(3)
 
 	executorMock := NewMockExecutor(ctrl)
 	executorMock.EXPECT().OperationType().

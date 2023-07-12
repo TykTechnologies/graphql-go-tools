@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -25,6 +26,8 @@ const (
 	GraphQLWSMessageTypeError               = "error"
 	GraphQLWSMessageTypeComplete            = "complete"
 )
+
+var ErrGraphQLWSUnexpectedMessageType = errors.New("unexpected message type")
 
 type GraphQLWSMessage struct {
 	Id      string          `json:"id,omitempty"`
@@ -158,8 +161,8 @@ func (g *GraphQLWSWriteEventHandler) Emit(eventType subscription.EventType, id s
 		messageType = GraphQLWSMessageTypeError
 	case subscription.EventTypeConnectionError:
 		messageType = GraphQLWSMessageTypeConnectionError
-	case subscription.EventTypeConnectionTerminate:
-		messageType = GraphQLWSMessageTypeConnectionTerminate
+	default:
+		return
 	}
 
 	g.HandleWriteEvent(messageType, id, data, err)
@@ -176,14 +179,12 @@ func (g *GraphQLWSWriteEventHandler) HandleWriteEvent(messageType string, id str
 		err = g.writer.WriteError(id, graphql.RequestErrorsFromError(err))
 	case GraphQLWSMessageTypeConnectionError:
 		err = g.writer.WriteConnectionError(providedErr.Error())
-	case GraphQLWSMessageTypeConnectionTerminate:
-		err = g.writer.WriteTerminate(providedErr.Error())
 	case GraphQLWSMessageTypeConnectionKeepAlive:
 		err = g.writer.WriteKeepAlive()
 	case GraphQLWSMessageTypeConnectionAck:
 		err = g.writer.WriteAck()
 	default:
-		g.logger.Warn("websocket.GraphQLWSWriteEventHandler.Handle: on event handling with unknown message type",
+		g.logger.Warn("websocket.GraphQLWSWriteEventHandler.Handle: on write event handling with unexpected message type",
 			abstractlogger.Error(err),
 			abstractlogger.String("id", id),
 			abstractlogger.String("type", messageType),
@@ -193,7 +194,7 @@ func (g *GraphQLWSWriteEventHandler) HandleWriteEvent(messageType string, id str
 		return
 	}
 	if err != nil {
-		g.logger.Error("websocket.GraphQLWSWriteEventHandler.Handle: on event handling",
+		g.logger.Error("websocket.GraphQLWSWriteEventHandler.Handle: on write event handling",
 			abstractlogger.Error(err),
 			abstractlogger.String("id", id),
 			abstractlogger.String("type", messageType),
@@ -208,6 +209,7 @@ type ProtocolGraphQLWSHandler struct {
 	reader            GraphQLWSMessageReader
 	writeEventHandler GraphQLWSWriteEventHandler
 	keepAliveInterval time.Duration
+	initFunc          InitFunc
 }
 
 func (p *ProtocolGraphQLWSHandler) Handle(ctx context.Context, engine subscription.Engine, data []byte) error {
@@ -223,7 +225,7 @@ func (p *ProtocolGraphQLWSHandler) Handle(ctx context.Context, engine subscripti
 	case GraphQLWSMessageTypeConnectionInit:
 		ctx, err = p.handleInit(ctx, message.Payload)
 		if err != nil {
-			p.writeEventHandler.HandleWriteEvent(GraphQLWSMessageTypeConnectionTerminate, "", nil, errors.New("failed to accept the websocket connection"))
+			p.writeEventHandler.HandleWriteEvent(GraphQLWSMessageTypeConnectionError, "", nil, errors.New("failed to accept the websocket connection"))
 			return engine.TerminateAllConnections(&p.writeEventHandler)
 		}
 
@@ -234,6 +236,8 @@ func (p *ProtocolGraphQLWSHandler) Handle(ctx context.Context, engine subscripti
 		return engine.StopSubscription(message.Id, &p.writeEventHandler)
 	case GraphQLWSMessageTypeConnectionTerminate:
 		return engine.TerminateAllConnections(&p.writeEventHandler)
+	default:
+		p.writeEventHandler.HandleWriteEvent(GraphQLWSMessageTypeConnectionError, message.Id, nil, fmt.Errorf("%s: %s", ErrGraphQLWSUnexpectedMessageType.Error(), message.Type))
 	}
 
 	return nil
@@ -244,7 +248,20 @@ func (p *ProtocolGraphQLWSHandler) EventHandler() subscription.EventHandler {
 }
 
 func (p *ProtocolGraphQLWSHandler) handleInit(ctx context.Context, payload []byte) (context.Context, error) {
-	return nil, nil
+	initCtx := ctx
+	if p.initFunc != nil && len(payload) > 0 {
+		var initPayload InitPayload
+		initPayload = payload
+
+		// check initial payload to see whether to accept the websocket connection
+		var err error
+		if initCtx, err = p.initFunc(ctx, initPayload); err != nil {
+			return initCtx, err
+		}
+	}
+
+	p.writeEventHandler.HandleWriteEvent(GraphQLWSMessageTypeConnectionAck, "", nil, nil)
+	return initCtx, nil
 }
 
 func (p *ProtocolGraphQLWSHandler) handleKeepAlive(ctx context.Context) {

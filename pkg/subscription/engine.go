@@ -1,6 +1,7 @@
 package subscription
 
 //go:generate mockgen -destination=engine_mock_test.go -package=subscription . Engine
+//go:generate mockgen -destination=websocket/engine_mock_test.go -package=websocket . Engine
 
 import (
 	"context"
@@ -68,9 +69,9 @@ func (e *ExecutorEngine) TerminateAllConnections(eventHandler EventHandler) erro
 
 	for id := range e.subCancellations.cancellations {
 		e.subCancellations.Cancel(id)
-		eventHandler.Emit(EventTypeConnectionTerminate, id, []byte("connection terminated by server"), nil)
 	}
 
+	eventHandler.Emit(EventTypeConnectionTerminatedByServer, "", []byte("connection terminated by server"), nil)
 	return nil
 }
 

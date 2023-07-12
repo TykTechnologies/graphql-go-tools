@@ -371,7 +371,7 @@ func (h *Handler) sendComplete(id string) {
 	}
 }
 
-// handleConnectionTerminate will handle a comnnection terminate message.
+// handleConnectionTerminate will handle a connection terminate message.
 func (h *Handler) handleConnectionTerminate() {
 	err := h.client.Disconnect()
 	if err != nil {
