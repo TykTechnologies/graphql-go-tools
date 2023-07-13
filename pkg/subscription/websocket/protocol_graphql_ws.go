@@ -204,12 +204,59 @@ func (g *GraphQLWSWriteEventHandler) HandleWriteEvent(messageType string, id str
 	}
 }
 
+type ProtocolGraphQLWSHandlerOptions struct {
+	Logger                  abstractlogger.Logger
+	WebSocketInitFunc       InitFunc
+	CustomKeepAliveInterval time.Duration
+}
+
 type ProtocolGraphQLWSHandler struct {
 	logger            abstractlogger.Logger
 	reader            GraphQLWSMessageReader
 	writeEventHandler GraphQLWSWriteEventHandler
 	keepAliveInterval time.Duration
 	initFunc          InitFunc
+}
+
+func NewProtocolGraphQLWSHandler(client subscription.TransportClient) (*ProtocolGraphQLWSHandler, error) {
+	return NewProtocolGraphQLWSHandlerWithOptions(client, ProtocolGraphQLWSHandlerOptions{})
+}
+
+func NewProtocolGraphQLWSHandlerWithOptions(client subscription.TransportClient, opts ProtocolGraphQLWSHandlerOptions) (*ProtocolGraphQLWSHandler, error) {
+	protocolHandler := &ProtocolGraphQLWSHandler{
+		logger: abstractlogger.Noop{},
+		reader: GraphQLWSMessageReader{
+			logger: abstractlogger.Noop{},
+		},
+		writeEventHandler: GraphQLWSWriteEventHandler{
+			logger: abstractlogger.Noop{},
+			writer: GraphQLWSMessageWriter{
+				logger: abstractlogger.Noop{},
+				client: client,
+				mu:     &sync.Mutex{},
+			},
+		},
+		initFunc: opts.WebSocketInitFunc,
+	}
+
+	if opts.Logger != nil {
+		protocolHandler.logger = opts.Logger
+		protocolHandler.reader.logger = opts.Logger
+		protocolHandler.writeEventHandler.logger = opts.Logger
+		protocolHandler.writeEventHandler.writer.logger = opts.Logger
+	}
+
+	if opts.CustomKeepAliveInterval != 0 {
+		protocolHandler.keepAliveInterval = opts.CustomKeepAliveInterval
+	} else {
+		parsedKeepAliveInterval, err := time.ParseDuration(subscription.DefaultKeepAliveInterval)
+		if err != nil {
+			return nil, err
+		}
+		protocolHandler.keepAliveInterval = parsedKeepAliveInterval
+	}
+
+	return protocolHandler, nil
 }
 
 func (p *ProtocolGraphQLWSHandler) Handle(ctx context.Context, engine subscription.Engine, data []byte) error {
