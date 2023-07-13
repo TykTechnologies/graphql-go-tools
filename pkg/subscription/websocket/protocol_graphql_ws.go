@@ -176,7 +176,7 @@ func (g *GraphQLWSWriteEventHandler) HandleWriteEvent(messageType string, id str
 	case GraphQLWSMessageTypeData:
 		err = g.writer.WriteData(id, data)
 	case GraphQLWSMessageTypeError:
-		err = g.writer.WriteError(id, graphql.RequestErrorsFromError(err))
+		err = g.writer.WriteError(id, graphql.RequestErrorsFromError(providedErr))
 	case GraphQLWSMessageTypeConnectionError:
 		err = g.writer.WriteConnectionError(providedErr.Error())
 	case GraphQLWSMessageTypeConnectionKeepAlive:
