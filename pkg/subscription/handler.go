@@ -93,6 +93,7 @@ func NewUniversalProtocolHandlerWithOptions(client TransportClient, protocol Pro
 			}
 			engine.subscriptionUpdateInterval = subscriptionUpdateInterval
 		}
+		handler.engine = &engine
 	}
 
 	return &handler, nil

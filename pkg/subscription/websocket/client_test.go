@@ -121,21 +121,28 @@ func TestClient_isClosedConnectionError(t *testing.T) {
 }
 
 type TestClient struct {
-	mu              *sync.Mutex
-	messageToClient chan []byte
-	shouldFail      bool
+	mu                *sync.Mutex
+	messageFromClient chan []byte
+	messageToClient   chan []byte
+	isConnected       bool
+	shouldFail        bool
 }
 
 func NewTestClient(shouldFail bool) *TestClient {
 	return &TestClient{
-		mu:              &sync.Mutex{},
-		messageToClient: make(chan []byte, 1),
-		shouldFail:      shouldFail,
+		mu:                &sync.Mutex{},
+		messageFromClient: make(chan []byte, 1),
+		messageToClient:   make(chan []byte, 1),
+		isConnected:       true,
+		shouldFail:        shouldFail,
 	}
 }
 
 func (t *TestClient) ReadBytesFromClient() ([]byte, error) {
-	return nil, nil
+	if t.shouldFail {
+		return nil, errors.New("shouldFail is true")
+	}
+	return <-t.messageFromClient, nil
 }
 
 func (t *TestClient) WriteBytesToClient(message []byte) error {
@@ -149,15 +156,20 @@ func (t *TestClient) WriteBytesToClient(message []byte) error {
 }
 
 func (t *TestClient) IsConnected() bool {
-	return false
+	return t.isConnected
 }
 
 func (t *TestClient) Disconnect() error {
+	t.isConnected = false
 	return nil
 }
 
 func (t *TestClient) readMessageToClient() []byte {
+	return <-t.messageToClient
+}
+
+func (t *TestClient) writeMessageFromClient(message []byte) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	return <-t.messageToClient
+	t.messageFromClient <- message
 }
