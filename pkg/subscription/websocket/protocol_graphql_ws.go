@@ -341,3 +341,7 @@ func (p *ProtocolGraphQLWSHandler) handleKeepAlive(ctx context.Context) {
 		}
 	}
 }
+
+// Interface guards
+var _ subscription.EventHandler = (*GraphQLWSWriteEventHandler)(nil)
+var _ subscription.Protocol = (*ProtocolGraphQLWSHandler)(nil)

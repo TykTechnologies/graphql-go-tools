@@ -7,6 +7,8 @@ import (
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 	"github.com/jensneuse/abstractlogger"
+
+	"github.com/TykTechnologies/graphql-go-tools/pkg/subscription"
 )
 
 // Client is an actual implementation of the subscription client interface.
@@ -70,7 +72,7 @@ func (c *Client) WriteBytesToClient(message []byte) error {
 	return nil
 }
 
-// IsConnected will indicate if the websocket conenction is still established.
+// IsConnected will indicate if the websocket connection is still established.
 func (c *Client) IsConnected() bool {
 	return !c.isClosedConnection
 }
@@ -92,3 +94,6 @@ func (c *Client) isClosedConnectionError(err error) bool {
 
 	return c.isClosedConnection
 }
+
+// Interface Guard
+var _ subscription.TransportClient = (*Client)(nil)
