@@ -14,26 +14,29 @@ import (
 	"github.com/TykTechnologies/graphql-go-tools/pkg/subscription"
 )
 
+// GraphQLWSMessageType is a type that defines graphql-ws message type names.
+type GraphQLWSMessageType string
+
 const (
-	GraphQLWSMessageTypeConnectionInit      = "connection_init"
-	GraphQLWSMessageTypeConnectionAck       = "connection_ack"
-	GraphQLWSMessageTypeConnectionError     = "connection_error"
-	GraphQLWSMessageTypeConnectionTerminate = "connection_terminate"
-	GraphQLWSMessageTypeConnectionKeepAlive = "ka"
-	GraphQLWSMessageTypeStart               = "start"
-	GraphQLWSMessageTypeStop                = "stop"
-	GraphQLWSMessageTypeData                = "data"
-	GraphQLWSMessageTypeError               = "error"
-	GraphQLWSMessageTypeComplete            = "complete"
+	GraphQLWSMessageTypeConnectionInit      GraphQLWSMessageType = "connection_init"
+	GraphQLWSMessageTypeConnectionAck       GraphQLWSMessageType = "connection_ack"
+	GraphQLWSMessageTypeConnectionError     GraphQLWSMessageType = "connection_error"
+	GraphQLWSMessageTypeConnectionTerminate GraphQLWSMessageType = "connection_terminate"
+	GraphQLWSMessageTypeConnectionKeepAlive GraphQLWSMessageType = "ka"
+	GraphQLWSMessageTypeStart               GraphQLWSMessageType = "start"
+	GraphQLWSMessageTypeStop                GraphQLWSMessageType = "stop"
+	GraphQLWSMessageTypeData                GraphQLWSMessageType = "data"
+	GraphQLWSMessageTypeError               GraphQLWSMessageType = "error"
+	GraphQLWSMessageTypeComplete            GraphQLWSMessageType = "complete"
 )
 
 var ErrGraphQLWSUnexpectedMessageType = errors.New("unexpected message type")
 
 // GraphQLWSMessage is the struct that can be (de)serialized to the graphql-ws message format.
 type GraphQLWSMessage struct {
-	Id      string          `json:"id,omitempty"`
-	Type    string          `json:"type"`
-	Payload json.RawMessage `json:"payload,omitempty"`
+	Id      string               `json:"id,omitempty"`
+	Type    GraphQLWSMessageType `json:"type"`
+	Payload json.RawMessage      `json:"payload,omitempty"`
 }
 
 // GraphQLWSMessageReader can be used to read graphql-ws messages.
@@ -146,7 +149,7 @@ func (g *GraphQLWSMessageWriter) write(message *GraphQLWSMessage) error {
 		g.logger.Error("websocket.GraphQLWSMessageWriter.write: on json marshal",
 			abstractlogger.Error(err),
 			abstractlogger.String("id", message.Id),
-			abstractlogger.String("type", message.Type),
+			abstractlogger.String("type", string(message.Type)),
 			abstractlogger.ByteString("payload", message.Payload),
 		)
 		return err
@@ -164,7 +167,7 @@ type GraphQLWSWriteEventHandler struct {
 
 // Emit is an implementation of subscription.EventHandler. It forwards events to the HandleWriteEvent.
 func (g *GraphQLWSWriteEventHandler) Emit(eventType subscription.EventType, id string, data []byte, err error) {
-	messageType := ""
+	messageType := GraphQLWSMessageType("")
 	switch eventType {
 	case subscription.EventTypeCompleted:
 		messageType = GraphQLWSMessageTypeComplete
@@ -182,7 +185,7 @@ func (g *GraphQLWSWriteEventHandler) Emit(eventType subscription.EventType, id s
 }
 
 // HandleWriteEvent forwards messages to the underlying writer.
-func (g *GraphQLWSWriteEventHandler) HandleWriteEvent(messageType string, id string, data []byte, providedErr error) {
+func (g *GraphQLWSWriteEventHandler) HandleWriteEvent(messageType GraphQLWSMessageType, id string, data []byte, providedErr error) {
 	var err error
 	switch messageType {
 	case GraphQLWSMessageTypeComplete:
@@ -201,7 +204,7 @@ func (g *GraphQLWSWriteEventHandler) HandleWriteEvent(messageType string, id str
 		g.logger.Warn("websocket.GraphQLWSWriteEventHandler.Handle: on write event handling with unexpected message type",
 			abstractlogger.Error(err),
 			abstractlogger.String("id", id),
-			abstractlogger.String("type", messageType),
+			abstractlogger.String("type", string(messageType)),
 			abstractlogger.ByteString("payload", data),
 			abstractlogger.Error(providedErr),
 		)
@@ -211,7 +214,7 @@ func (g *GraphQLWSWriteEventHandler) HandleWriteEvent(messageType string, id str
 		g.logger.Error("websocket.GraphQLWSWriteEventHandler.Handle: on write event handling",
 			abstractlogger.Error(err),
 			abstractlogger.String("id", id),
-			abstractlogger.String("type", messageType),
+			abstractlogger.String("type", string(messageType)),
 			abstractlogger.ByteString("payload", data),
 			abstractlogger.Error(providedErr),
 		)
