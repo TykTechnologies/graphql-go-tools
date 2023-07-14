@@ -14,12 +14,14 @@ import (
 	"github.com/TykTechnologies/graphql-go-tools/pkg/graphql"
 )
 
+// Engine defines the function for a subscription engine.
 type Engine interface {
 	StartOperation(ctx context.Context, id string, payload []byte, eventHandler EventHandler) error
 	StopSubscription(id string, eventHandler EventHandler) error
 	TerminateAllConnections(eventHandler EventHandler) error
 }
 
+// ExecutorEngine is an implementation of Engine and works with subscription.Executor.
 type ExecutorEngine struct {
 	logger abstractlogger.Logger
 	// subCancellations is map containing the cancellation functions to every active subscription.
@@ -32,6 +34,7 @@ type ExecutorEngine struct {
 	subscriptionUpdateInterval time.Duration
 }
 
+// StartOperation will start any operation.
 func (e *ExecutorEngine) StartOperation(ctx context.Context, id string, payload []byte, eventHandler EventHandler) error {
 	executor, err := e.executorPool.Get(payload)
 	if err != nil {
@@ -56,12 +59,14 @@ func (e *ExecutorEngine) StartOperation(ctx context.Context, id string, payload 
 	return nil
 }
 
+// StopSubscription will stop an active subscription.
 func (e *ExecutorEngine) StopSubscription(id string, eventHandler EventHandler) error {
 	e.subCancellations.Cancel(id)
 	eventHandler.Emit(EventTypeCompleted, id, nil, nil)
 	return nil
 }
 
+// TerminateAllConnections will cancel all active subscriptions.
 func (e *ExecutorEngine) TerminateAllConnections(eventHandler EventHandler) error {
 	if e.subCancellations.Len() == 0 {
 		return nil

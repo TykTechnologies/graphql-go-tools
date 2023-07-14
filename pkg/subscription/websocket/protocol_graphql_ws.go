@@ -29,16 +29,19 @@ const (
 
 var ErrGraphQLWSUnexpectedMessageType = errors.New("unexpected message type")
 
+// GraphQLWSMessage is the struct that can be (de)serialized to the graphql-ws message format.
 type GraphQLWSMessage struct {
 	Id      string          `json:"id,omitempty"`
 	Type    string          `json:"type"`
 	Payload json.RawMessage `json:"payload,omitempty"`
 }
 
+// GraphQLWSMessageReader can be used to read graphql-ws messages.
 type GraphQLWSMessageReader struct {
 	logger abstractlogger.Logger
 }
 
+// Read deserializes a byte slice to the GraphQLWSMessage struct.
 func (g *GraphQLWSMessageReader) Read(data []byte) (*GraphQLWSMessage, error) {
 	var message GraphQLWSMessage
 	err := json.Unmarshal(data, &message)
@@ -53,12 +56,14 @@ func (g *GraphQLWSMessageReader) Read(data []byte) (*GraphQLWSMessage, error) {
 	return &message, nil
 }
 
+// GraphQLWSMessageWriter can be used to write graphql-ws messages to a transport client.
 type GraphQLWSMessageWriter struct {
 	logger abstractlogger.Logger
 	client subscription.TransportClient
 	mu     *sync.Mutex
 }
 
+// WriteData writes a message of type 'data' to the transport client.
 func (g *GraphQLWSMessageWriter) WriteData(id string, responseData []byte) error {
 	message := &GraphQLWSMessage{
 		Id:      id,
@@ -68,6 +73,7 @@ func (g *GraphQLWSMessageWriter) WriteData(id string, responseData []byte) error
 	return g.write(message)
 }
 
+// WriteComplete writes a message of type 'complete' to the transport client.
 func (g *GraphQLWSMessageWriter) WriteComplete(id string) error {
 	message := &GraphQLWSMessage{
 		Id:      id,
@@ -77,6 +83,7 @@ func (g *GraphQLWSMessageWriter) WriteComplete(id string) error {
 	return g.write(message)
 }
 
+// WriteKeepAlive writes a message of type 'ka' to the transport client.
 func (g *GraphQLWSMessageWriter) WriteKeepAlive() error {
 	message := &GraphQLWSMessage{
 		Type:    GraphQLWSMessageTypeConnectionKeepAlive,
@@ -85,6 +92,7 @@ func (g *GraphQLWSMessageWriter) WriteKeepAlive() error {
 	return g.write(message)
 }
 
+// WriteTerminate writes a message of type 'connection_terminate' to the transport client.
 func (g *GraphQLWSMessageWriter) WriteTerminate(reason string) error {
 	payloadBytes, err := json.Marshal(reason)
 	if err != nil {
@@ -97,6 +105,7 @@ func (g *GraphQLWSMessageWriter) WriteTerminate(reason string) error {
 	return g.write(message)
 }
 
+// WriteConnectionError writes a message of type 'connection_error' to the transport client.
 func (g *GraphQLWSMessageWriter) WriteConnectionError(reason string) error {
 	payloadBytes, err := json.Marshal(reason)
 	if err != nil {
@@ -109,6 +118,7 @@ func (g *GraphQLWSMessageWriter) WriteConnectionError(reason string) error {
 	return g.write(message)
 }
 
+// WriteError writes a message of type 'error' to the transport client.
 func (g *GraphQLWSMessageWriter) WriteError(id string, errors graphql.RequestErrors) error {
 	payloadBytes, err := json.Marshal(errors)
 	if err != nil {
@@ -122,6 +132,7 @@ func (g *GraphQLWSMessageWriter) WriteError(id string, errors graphql.RequestErr
 	return g.write(message)
 }
 
+// WriteAck writes a message of type 'connection_ack' to the transport client.
 func (g *GraphQLWSMessageWriter) WriteAck() error {
 	message := &GraphQLWSMessage{
 		Type: GraphQLWSMessageTypeConnectionAck,
@@ -145,11 +156,13 @@ func (g *GraphQLWSMessageWriter) write(message *GraphQLWSMessage) error {
 	return g.client.WriteBytesToClient(jsonData)
 }
 
+// GraphQLWSWriteEventHandler can be used to handle subscription events and forward them to a GraphQLWSMessageWriter.
 type GraphQLWSWriteEventHandler struct {
 	logger abstractlogger.Logger
 	writer GraphQLWSMessageWriter
 }
 
+// Emit is an implementation of subscription.EventHandler. It forwards events to the HandleWriteEvent.
 func (g *GraphQLWSWriteEventHandler) Emit(eventType subscription.EventType, id string, data []byte, err error) {
 	messageType := ""
 	switch eventType {
@@ -168,6 +181,7 @@ func (g *GraphQLWSWriteEventHandler) Emit(eventType subscription.EventType, id s
 	g.HandleWriteEvent(messageType, id, data, err)
 }
 
+// HandleWriteEvent forwards messages to the underlying writer.
 func (g *GraphQLWSWriteEventHandler) HandleWriteEvent(messageType string, id string, data []byte, providedErr error) {
 	var err error
 	switch messageType {
@@ -204,12 +218,14 @@ func (g *GraphQLWSWriteEventHandler) HandleWriteEvent(messageType string, id str
 	}
 }
 
+// ProtocolGraphQLWSHandlerOptions can be used to provide options to the graphql-ws protocol handler.
 type ProtocolGraphQLWSHandlerOptions struct {
 	Logger                  abstractlogger.Logger
 	WebSocketInitFunc       InitFunc
 	CustomKeepAliveInterval time.Duration
 }
 
+// ProtocolGraphQLWSHandler is able to handle the graphql-ws protocol.
 type ProtocolGraphQLWSHandler struct {
 	logger            abstractlogger.Logger
 	reader            GraphQLWSMessageReader
@@ -218,10 +234,12 @@ type ProtocolGraphQLWSHandler struct {
 	initFunc          InitFunc
 }
 
+// NewProtocolGraphQLWSHandler creates a new ProtocolGraphQLWSHandler with default options.
 func NewProtocolGraphQLWSHandler(client subscription.TransportClient) (*ProtocolGraphQLWSHandler, error) {
 	return NewProtocolGraphQLWSHandlerWithOptions(client, ProtocolGraphQLWSHandlerOptions{})
 }
 
+// NewProtocolGraphQLWSHandlerWithOptions creates a new ProtocolGraphQLWSHandler. It requires an option struct.
 func NewProtocolGraphQLWSHandlerWithOptions(client subscription.TransportClient, opts ProtocolGraphQLWSHandlerOptions) (*ProtocolGraphQLWSHandler, error) {
 	protocolHandler := &ProtocolGraphQLWSHandler{
 		logger: abstractlogger.Noop{},
@@ -259,6 +277,7 @@ func NewProtocolGraphQLWSHandlerWithOptions(client subscription.TransportClient,
 	return protocolHandler, nil
 }
 
+// Handle will handle the actual graphql-ws protocol messages. It's an implementation of subscription.Protocol.
 func (p *ProtocolGraphQLWSHandler) Handle(ctx context.Context, engine subscription.Engine, data []byte) error {
 	message, err := p.reader.Read(data)
 	if err != nil {
@@ -290,6 +309,7 @@ func (p *ProtocolGraphQLWSHandler) Handle(ctx context.Context, engine subscripti
 	return nil
 }
 
+// EventHandler returns the underlying graphql-ws event handler. It's an implementation of subscription.Protocol.
 func (p *ProtocolGraphQLWSHandler) EventHandler() subscription.EventHandler {
 	return &p.writeEventHandler
 }

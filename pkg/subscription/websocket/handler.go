@@ -10,14 +10,16 @@ import (
 	"github.com/TykTechnologies/graphql-go-tools/pkg/subscription"
 )
 
+// Protocol defines the protocol names as type.
 type Protocol string
 
 const (
 	ProtocolGraphQLWS Protocol = "graphql-ws"
 )
 
-var DefaultProtocol Protocol = ProtocolGraphQLWS
+var DefaultProtocol = ProtocolGraphQLWS
 
+// HandleOptions can be used to pass options to the websocket handler.
 type HandleOptions struct {
 	Logger                           abstractlogger.Logger
 	WebSocketInitFunc                InitFunc
@@ -27,44 +29,54 @@ type HandleOptions struct {
 	CustomSubscriptionEngine         subscription.Engine
 }
 
+// HandleOptionFunc can be used to define option functions.
 type HandleOptionFunc func(opts *HandleOptions)
 
+// WithLogger is a function that sets a logger for the websocket handler.
 func WithLogger(logger abstractlogger.Logger) HandleOptionFunc {
 	return func(opts *HandleOptions) {
 		opts.Logger = logger
 	}
 }
 
+// WithInitFunc is a function that sets the init function for the websocket handler.
 func WithInitFunc(initFunc InitFunc) HandleOptionFunc {
 	return func(opts *HandleOptions) {
 		opts.WebSocketInitFunc = initFunc
 	}
 }
 
+// WithCustomClient is a function that set a custom transport client for the websocket handler.
 func WithCustomClient(client subscription.TransportClient) HandleOptionFunc {
 	return func(opts *HandleOptions) {
 		opts.CustomClient = client
 	}
 }
 
+// WithCustomKeepAliveInterval is a function that sets a custom keep-alive interval for the websocket handler.
 func WithCustomKeepAliveInterval(keepAliveInterval time.Duration) HandleOptionFunc {
 	return func(opts *HandleOptions) {
 		opts.CustomKeepAliveInterval = keepAliveInterval
 	}
 }
 
+// WithCustomSubscriptionUpdateInterval is a function that sets a custom subscription update interval for the
+// websocket handler.
 func WithCustomSubscriptionUpdateInterval(subscriptionUpdateInterval time.Duration) HandleOptionFunc {
 	return func(opts *HandleOptions) {
 		opts.CustomSubscriptionUpdateInterval = subscriptionUpdateInterval
 	}
 }
 
+// WithCustomSubscriptionEngine is a function that sets a custom subscription engine for the websocket handler.
 func WithCustomSubscriptionEngine(subscriptionEngine subscription.Engine) HandleOptionFunc {
 	return func(opts *HandleOptions) {
 		opts.CustomSubscriptionEngine = subscriptionEngine
 	}
 }
 
+// Handle will handle the websocket subscription. It can take optional option functions to customize the handler
+// behavior.
 func Handle(done chan bool, errChan chan error, conn net.Conn, executorPool subscription.ExecutorPool, options ...HandleOptionFunc) {
 	definedOptions := HandleOptions{
 		Logger: abstractlogger.Noop{},
@@ -77,6 +89,7 @@ func Handle(done chan bool, errChan chan error, conn net.Conn, executorPool subs
 	HandleWithOptions(done, errChan, conn, executorPool, definedOptions)
 }
 
+// HandleWithOptions will handle the websocket connection. It requires an option struct to define the behavior.
 func HandleWithOptions(done chan bool, errChan chan error, conn net.Conn, executorPool subscription.ExecutorPool, options HandleOptions) {
 	// Use noop logger to prevent nil pointers if none was provided
 	if options.Logger == nil {

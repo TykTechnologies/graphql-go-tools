@@ -16,6 +16,7 @@ import (
 
 var ErrCouldNotReadMessageFromClient = errors.New("could not read message from client")
 
+// EventType can be used to define subscription events decoupled from any protocols.
 type EventType int
 
 const (
@@ -27,29 +28,33 @@ const (
 	EventTypeConnectionError
 )
 
+// Protocol defines an interface for a subscription protocol decoupled from the underlying transport.
 type Protocol interface {
 	Handle(ctx context.Context, engine Engine, message []byte) error
 	EventHandler() EventHandler
 }
 
+// EventHandler is an interface that handles subscription events.
 type EventHandler interface {
 	Emit(eventType EventType, id string, data []byte, err error)
 }
 
+// UniversalProtocolHandlerOptions is struct that defines options for the UniversalProtocolHandler.
 type UniversalProtocolHandlerOptions struct {
 	Logger                           abstractlogger.Logger
 	CustomSubscriptionUpdateInterval time.Duration
 	CustomEngine                     Engine
 }
 
+// UniversalProtocolHandler can handle any protocol by using the Protocol interface.
 type UniversalProtocolHandler struct {
-	logger abstractlogger.Logger
-	// client will hold the subscription client implementation.
+	logger   abstractlogger.Logger
 	client   TransportClient
 	protocol Protocol
 	engine   Engine
 }
 
+// NewUniversalProtocolHandler creates a new UniversalProtocolHandler.
 func NewUniversalProtocolHandler(client TransportClient, protocol Protocol, executorPool ExecutorPool) (*UniversalProtocolHandler, error) {
 	options := UniversalProtocolHandlerOptions{
 		Logger: abstractlogger.Noop{},
@@ -58,6 +63,7 @@ func NewUniversalProtocolHandler(client TransportClient, protocol Protocol, exec
 	return NewUniversalProtocolHandlerWithOptions(client, protocol, executorPool, options)
 }
 
+// NewUniversalProtocolHandlerWithOptions creates a new UniversalProtocolHandler. It requires an option struct.
 func NewUniversalProtocolHandlerWithOptions(client TransportClient, protocol Protocol, executorPool ExecutorPool, options UniversalProtocolHandlerOptions) (*UniversalProtocolHandler, error) {
 	handler := UniversalProtocolHandler{
 		logger:   abstractlogger.Noop{},
@@ -99,6 +105,7 @@ func NewUniversalProtocolHandlerWithOptions(client TransportClient, protocol Pro
 	return &handler, nil
 }
 
+// Handle will handle the subscription logic and forward messages to the actual protocol handler.
 func (u *UniversalProtocolHandler) Handle(ctx context.Context) {
 	defer func() {
 		err := u.engine.TerminateAllConnections(u.protocol.EventHandler())
