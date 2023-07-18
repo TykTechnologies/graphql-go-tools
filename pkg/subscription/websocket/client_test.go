@@ -18,6 +18,14 @@ import (
 	"github.com/TykTechnologies/graphql-go-tools/pkg/subscription"
 )
 
+type testServerWebsocketResponse struct {
+	data        []byte
+	opCode      ws.OpCode
+	statusCode  ws.StatusCode
+	closeReason string
+	err         error
+}
+
 func TestClient_WriteToClient(t *testing.T) {
 	t.Run("should write successfully to client", func(t *testing.T) {
 		connToServer, connToClient := net.Pipe()
@@ -207,6 +215,83 @@ func TestClient_Disconnect(t *testing.T) {
 	})
 }
 
+func TestClient_DisconnectWithReason(t *testing.T) {
+	t.Run("disconnect with invalid reason", func(t *testing.T) {
+		connToServer, connToClient := net.Pipe()
+		websocketClient := NewClient(abstractlogger.NoopLogger, connToClient)
+		serverResponseChan := make(chan testServerWebsocketResponse)
+
+		go readServerResponse(serverResponseChan, connToServer)
+
+		go func() {
+			err := websocketClient.DisconnectWithReason(
+				"invalid reason",
+			)
+			assert.NoError(t, err)
+		}()
+
+		assert.Eventually(t, func() bool {
+			actualServerResult := <-serverResponseChan
+			assert.NoError(t, actualServerResult.err)
+			assert.Equal(t, ws.OpClose, actualServerResult.opCode)
+			assert.Equal(t, ws.StatusCode(4400), actualServerResult.statusCode)
+			assert.Equal(t, "unknown reason", actualServerResult.closeReason)
+			assert.Equal(t, true, websocketClient.isClosedConnection)
+			return true
+		}, 15*time.Millisecond, 2*time.Millisecond)
+	})
+
+	t.Run("disconnect with reason", func(t *testing.T) {
+		connToServer, connToClient := net.Pipe()
+		websocketClient := NewClient(abstractlogger.NoopLogger, connToClient)
+		serverResponseChan := make(chan testServerWebsocketResponse)
+
+		go readServerResponse(serverResponseChan, connToServer)
+
+		go func() {
+			err := websocketClient.DisconnectWithReason(
+				NewCloseReason(ws.StatusCode(4400), "error occurred"),
+			)
+			assert.NoError(t, err)
+		}()
+
+		assert.Eventually(t, func() bool {
+			actualServerResult := <-serverResponseChan
+			assert.NoError(t, actualServerResult.err)
+			assert.Equal(t, ws.OpClose, actualServerResult.opCode)
+			assert.Equal(t, ws.StatusCode(4400), actualServerResult.statusCode)
+			assert.Equal(t, "error occurred", actualServerResult.closeReason)
+			assert.Equal(t, true, websocketClient.isClosedConnection)
+			return true
+		}, 15*time.Millisecond, 2*time.Millisecond)
+	})
+
+	t.Run("disconnect with compiled reason", func(t *testing.T) {
+		connToServer, connToClient := net.Pipe()
+		websocketClient := NewClient(abstractlogger.NoopLogger, connToClient)
+		serverResponseChan := make(chan testServerWebsocketResponse)
+
+		go readServerResponse(serverResponseChan, connToServer)
+
+		go func() {
+			err := websocketClient.DisconnectWithReason(
+				CompiledCloseReasonNormal,
+			)
+			assert.NoError(t, err)
+		}()
+
+		assert.Eventually(t, func() bool {
+			actualServerResult := <-serverResponseChan
+			assert.NoError(t, actualServerResult.err)
+			assert.Equal(t, ws.OpClose, actualServerResult.opCode)
+			assert.Equal(t, ws.StatusCode(1000), actualServerResult.statusCode)
+			assert.Equal(t, "Normal Closure", actualServerResult.closeReason)
+			assert.Equal(t, true, websocketClient.isClosedConnection)
+			return true
+		}, 15*time.Millisecond, 2*time.Millisecond)
+	})
+}
+
 func TestClient_isClosedConnectionError(t *testing.T) {
 	_, connToClient := net.Pipe()
 
@@ -279,6 +364,10 @@ func (t *TestClient) Disconnect() error {
 	return nil
 }
 
+func (t *TestClient) DisconnectWithReason(reason interface{}) error {
+	return nil
+}
+
 func (t *TestClient) readMessageToClient() []byte {
 	return <-t.messageToClient
 }
@@ -336,4 +425,23 @@ func (f *FakeConn) SetReadDeadline(t time.Time) error {
 
 func (f *FakeConn) SetWriteDeadline(t time.Time) error {
 	panic("implement me")
+}
+
+func readServerResponse(responseChan chan testServerWebsocketResponse, connToServer net.Conn) {
+	var statusCode ws.StatusCode
+	var closeReason string
+	frame, err := ws.ReadFrame(connToServer)
+	if err == nil {
+		statusCode, closeReason = ws.ParseCloseFrameData(frame.Payload)
+	}
+
+	response := testServerWebsocketResponse{
+		data:        frame.Payload,
+		opCode:      frame.Header.OpCode,
+		statusCode:  statusCode,
+		closeReason: closeReason,
+		err:         err,
+	}
+
+	responseChan <- response
 }
