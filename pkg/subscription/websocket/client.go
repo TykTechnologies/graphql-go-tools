@@ -92,10 +92,10 @@ func (c *Client) Disconnect() error {
 
 // isClosedConnectionError will indicate if the given error is a connection closed error.
 func (c *Client) isClosedConnectionError(err error) bool {
-	if errors.Is(err, wsutil.ClosedError{}) {
+	var closedErr wsutil.ClosedError
+	if errors.As(err, &closedErr) {
 		c.isClosedConnection = true
 	}
-
 	return c.isClosedConnection
 }
 

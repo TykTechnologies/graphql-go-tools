@@ -121,15 +121,28 @@ func TestClient_Disconnect(t *testing.T) {
 
 func TestClient_isClosedConnectionError(t *testing.T) {
 	_, connToClient := net.Pipe()
-	websocketClient := NewClient(abstractlogger.NoopLogger, connToClient)
 
 	t.Run("should not close connection when it is not a closed connection error", func(t *testing.T) {
+		websocketClient := NewClient(abstractlogger.NoopLogger, connToClient)
+		require.False(t, websocketClient.isClosedConnection)
+
 		isClosedConnectionError := websocketClient.isClosedConnectionError(errors.New("no closed connection err"))
 		assert.False(t, isClosedConnectionError)
 	})
 
 	t.Run("should close connection when it is a closed connection error", func(t *testing.T) {
+		websocketClient := NewClient(abstractlogger.NoopLogger, connToClient)
+		require.False(t, websocketClient.isClosedConnection)
+
 		isClosedConnectionError := websocketClient.isClosedConnectionError(wsutil.ClosedError{})
+		assert.True(t, isClosedConnectionError)
+		websocketClient.isClosedConnection = false
+
+		require.False(t, websocketClient.isClosedConnection)
+		isClosedConnectionError = websocketClient.isClosedConnectionError(wsutil.ClosedError{
+			Code:   ws.StatusNormalClosure,
+			Reason: "Normal Closure",
+		})
 		assert.True(t, isClosedConnectionError)
 	})
 }
