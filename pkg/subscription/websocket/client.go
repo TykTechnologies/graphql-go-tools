@@ -39,7 +39,7 @@ func (c *Client) ReadBytesFromClient() ([]byte, error) {
 			return nil, nil
 		}
 
-		c.logger.Error("websocket.Client.ReadBytesFromClient()",
+		c.logger.Error("websocket.Client.ReadBytesFromClient: after reading from client",
 			abstractlogger.Error(err),
 			abstractlogger.ByteString("data", data),
 			abstractlogger.Any("opCode", opCode),
@@ -61,7 +61,7 @@ func (c *Client) WriteBytesToClient(message []byte) error {
 
 	err := wsutil.WriteServerMessage(c.clientConn, ws.OpText, message)
 	if err != nil {
-		c.logger.Error("websocket.Client.WriteBytesToClient()",
+		c.logger.Error("websocket.Client.WriteBytesToClient: after writing to client",
 			abstractlogger.Error(err),
 			abstractlogger.ByteString("message", message),
 		)
@@ -79,7 +79,7 @@ func (c *Client) IsConnected() bool {
 
 // Disconnect will close the websocket connection.
 func (c *Client) Disconnect() error {
-	c.logger.Debug("http.GraphQLHTTPRequestHandler.Disconnect()",
+	c.logger.Debug("websocket.Client.Disconnect: before disconnect",
 		abstractlogger.String("message", "disconnecting client"),
 	)
 	c.isClosedConnection = true
