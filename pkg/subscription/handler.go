@@ -107,6 +107,7 @@ func NewUniversalProtocolHandlerWithOptions(client TransportClient, protocol Pro
 
 // Handle will handle the subscription logic and forward messages to the actual protocol handler.
 func (u *UniversalProtocolHandler) Handle(ctx context.Context) {
+	ctxWithCancel, cancel := context.WithCancel(ctx)
 	defer func() {
 		err := u.engine.TerminateAllConnections(u.protocol.EventHandler())
 		if err != nil {
@@ -114,6 +115,7 @@ func (u *UniversalProtocolHandler) Handle(ctx context.Context) {
 				abstractlogger.Error(err),
 			)
 		}
+		cancel()
 	}()
 
 	for {
@@ -137,7 +139,7 @@ func (u *UniversalProtocolHandler) Handle(ctx context.Context) {
 
 			u.protocol.EventHandler().Emit(EventTypeConnectionError, "", nil, ErrCouldNotReadMessageFromClient)
 		} else if len(message) > 0 {
-			err := u.protocol.Handle(ctx, u.engine, message)
+			err := u.protocol.Handle(ctxWithCancel, u.engine, message)
 			if err != nil {
 				u.logger.Error("subscription.UniversalProtocolHandler.Handle: on protocol handling message",
 					abstractlogger.Error(err),
@@ -146,7 +148,7 @@ func (u *UniversalProtocolHandler) Handle(ctx context.Context) {
 		}
 
 		select {
-		case <-ctx.Done():
+		case <-ctxWithCancel.Done():
 			return
 		default:
 			continue

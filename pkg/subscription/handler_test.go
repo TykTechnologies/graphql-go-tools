@@ -162,7 +162,7 @@ func TestUniversalProtocolHandler_Handle(t *testing.T) {
 		protocolMock.EXPECT().EventHandler().
 			Return(eventHandlerMock).
 			Times(1)
-		protocolMock.EXPECT().Handle(gomock.Eq(ctx), gomock.Eq(engineMock), gomock.Eq([]byte(`{"type":"start","id":"1","payload":"{\"query\":\"{ hello }\”}"}`))).
+		protocolMock.EXPECT().Handle(assignableToContextWithCancel(ctx), gomock.Eq(engineMock), gomock.Eq([]byte(`{"type":"start","id":"1","payload":"{\"query\":\"{ hello }\”}"}`))).
 			Return(nil).
 			MinTimes(1)
 
