@@ -126,7 +126,10 @@ func (u *UniversalProtocolHandler) Handle(ctx context.Context) {
 		}
 
 		message, err := u.client.ReadBytesFromClient()
-		if err != nil {
+		if errors.Is(err, ErrTransportClientClosedConnection) {
+			u.logger.Debug("subscription.UniversalProtocolHandler.Handle: reading from a closed connection")
+			return
+		} else if err != nil {
 			u.logger.Error("subscription.UniversalProtocolHandler.Handle: on reading bytes from client",
 				abstractlogger.Error(err),
 				abstractlogger.ByteString("message", message),
