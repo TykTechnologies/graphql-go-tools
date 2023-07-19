@@ -84,6 +84,7 @@ func TestClient_ReadFromClient(t *testing.T) {
 
 		_, err = websocketClient.ReadBytesFromClient()
 		assert.Equal(t, subscription.ErrTransportClientClosedConnection, err)
+		assert.True(t, websocketClient.isClosedConnection)
 	})
 }
 

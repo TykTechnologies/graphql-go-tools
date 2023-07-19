@@ -36,6 +36,7 @@ func (c *Client) ReadBytesFromClient() ([]byte, error) {
 
 	data, opCode, err := wsutil.ReadClientData(c.clientConn)
 	if err == io.EOF {
+		c.isClosedConnection = true
 		return nil, subscription.ErrTransportClientClosedConnection
 	} else if err != nil {
 		if c.isClosedConnectionError(err) {
