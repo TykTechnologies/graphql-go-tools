@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"errors"
+	"io"
 	"net"
 
 	"github.com/gobwas/ws"
@@ -34,9 +35,11 @@ func (c *Client) ReadBytesFromClient() ([]byte, error) {
 	var opCode ws.OpCode
 
 	data, opCode, err := wsutil.ReadClientData(c.clientConn)
-	if err != nil {
+	if err == io.EOF {
+		return nil, subscription.ErrTransportClientClosedConnection
+	} else if err != nil {
 		if c.isClosedConnectionError(err) {
-			return nil, nil
+			return nil, subscription.ErrTransportClientClosedConnection
 		}
 
 		c.logger.Error("websocket.Client.ReadBytesFromClient: after reading from client",
@@ -56,7 +59,7 @@ func (c *Client) ReadBytesFromClient() ([]byte, error) {
 // WriteBytesToClient will write a subscription message to the websocket client.
 func (c *Client) WriteBytesToClient(message []byte) error {
 	if c.isClosedConnection {
-		return nil
+		return subscription.ErrTransportClientClosedConnection
 	}
 
 	err := wsutil.WriteServerMessage(c.clientConn, ws.OpText, message)

@@ -12,6 +12,8 @@ import (
 	"github.com/jensneuse/abstractlogger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/TykTechnologies/graphql-go-tools/pkg/subscription"
 )
 
 func TestClient_WriteToClient(t *testing.T) {
@@ -46,7 +48,7 @@ func TestClient_WriteToClient(t *testing.T) {
 		websocketClient.isClosedConnection = true
 
 		err = websocketClient.WriteBytesToClient([]byte(""))
-		assert.NoError(t, err)
+		assert.Equal(t, subscription.ErrTransportClientClosedConnection, err)
 	})
 }
 
@@ -71,6 +73,17 @@ func TestClient_ReadFromClient(t *testing.T) {
 		messageFromClient, err := websocketClient.ReadBytesFromClient()
 		assert.NoError(t, err)
 		assert.Equal(t, messageToServer, messageFromClient)
+	})
+	t.Run("should detect a closed connection", func(t *testing.T) {
+		connToServer, connToClient := net.Pipe()
+		websocketClient := NewClient(abstractlogger.NoopLogger, connToClient)
+		err := connToServer.Close()
+		require.NoError(t, err)
+
+		time.Sleep(5 * time.Millisecond)
+
+		_, err = websocketClient.ReadBytesFromClient()
+		assert.Equal(t, subscription.ErrTransportClientClosedConnection, err)
 	})
 }
 
