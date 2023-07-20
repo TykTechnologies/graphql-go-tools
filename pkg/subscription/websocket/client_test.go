@@ -250,7 +250,7 @@ func TestClient_DisconnectWithReason(t *testing.T) {
 
 		go func() {
 			err := websocketClient.DisconnectWithReason(
-				NewCloseReason(ws.StatusCode(4400), "error occurred"),
+				NewCloseReason(4400, "error occurred"),
 			)
 			assert.NoError(t, err)
 		}()

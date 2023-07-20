@@ -21,9 +21,9 @@ var CompiledCloseReasonNormal CompiledCloseReason = ws.MustCompileFrame(
 	)),
 )
 
-func NewCloseReason(code ws.StatusCode, reason string) CloseReason {
+func NewCloseReason(code uint16, reason string) CloseReason {
 	wsCloseFrame := ws.NewCloseFrame(ws.NewCloseFrameBody(
-		code, reason,
+		ws.StatusCode(code), reason,
 	))
 	return CloseReason(wsCloseFrame)
 }
@@ -119,7 +119,7 @@ func (c *Client) DisconnectWithReason(reason interface{}) error {
 		c.logger.Error("websocket.Client.DisconnectWithReason: on reason/frame parsing",
 			abstractlogger.String("message", "unknown reason provided"),
 		)
-		frame := NewCloseReason(ws.StatusCode(4400), "unknown reason")
+		frame := NewCloseReason(4400, "unknown reason")
 		err = c.writeFrame(ws.Frame(frame))
 	}
 
