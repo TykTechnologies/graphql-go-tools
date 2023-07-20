@@ -109,7 +109,7 @@ func NewUniversalProtocolHandlerWithOptions(client TransportClient, protocol Pro
 func (u *UniversalProtocolHandler) Handle(ctx context.Context) {
 	ctxWithCancel, cancel := context.WithCancel(ctx)
 	defer func() {
-		err := u.engine.TerminateAllConnections(u.protocol.EventHandler())
+		err := u.engine.TerminateAllSubscriptions(u.protocol.EventHandler())
 		if err != nil {
 			u.logger.Error("subscription.UniversalProtocolHandler.Handle: on terminate connections",
 				abstractlogger.Error(err),

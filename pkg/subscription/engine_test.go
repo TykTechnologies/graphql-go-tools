@@ -441,7 +441,7 @@ func TestExecutorEngine_TerminateAllConnections(t *testing.T) {
 		assert.Equal(t, 3, engine.subCancellations.Len())
 		<-time.After(5 * time.Millisecond)
 
-		err = engine.TerminateAllConnections(eventHandlerMock)
+		err = engine.TerminateAllSubscriptions(eventHandlerMock)
 		assert.NoError(t, err)
 		assert.Equal(t, 0, engine.subCancellations.Len())
 		<-time.After(5 * time.Millisecond)

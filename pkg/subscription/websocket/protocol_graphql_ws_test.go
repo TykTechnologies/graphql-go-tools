@@ -280,7 +280,7 @@ func TestProtocolGraphQLWSHandler_Handle(t *testing.T) {
 
 		ctrl := gomock.NewController(t)
 		mockEngine := NewMockEngine(ctrl)
-		mockEngine.EXPECT().TerminateAllConnections(gomock.Eq(protocol.EventHandler()))
+		mockEngine.EXPECT().TerminateAllSubscriptions(gomock.Eq(protocol.EventHandler()))
 
 		ctx, cancelFunc := context.WithCancel(context.Background())
 		defer cancelFunc()

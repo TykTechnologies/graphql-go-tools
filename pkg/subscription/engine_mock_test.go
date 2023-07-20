@@ -62,16 +62,16 @@ func (mr *MockEngineMockRecorder) StopSubscription(arg0, arg1 interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StopSubscription", reflect.TypeOf((*MockEngine)(nil).StopSubscription), arg0, arg1)
 }
 
-// TerminateAllConnections mocks base method.
-func (m *MockEngine) TerminateAllConnections(arg0 EventHandler) error {
+// TerminateAllSubscriptions mocks base method.
+func (m *MockEngine) TerminateAllSubscriptions(arg0 EventHandler) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "TerminateAllConnections", arg0)
+	ret := m.ctrl.Call(m, "TerminateAllSubscriptions", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// TerminateAllConnections indicates an expected call of TerminateAllConnections.
-func (mr *MockEngineMockRecorder) TerminateAllConnections(arg0 interface{}) *gomock.Call {
+// TerminateAllSubscriptions indicates an expected call of TerminateAllSubscriptions.
+func (mr *MockEngineMockRecorder) TerminateAllSubscriptions(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TerminateAllConnections", reflect.TypeOf((*MockEngine)(nil).TerminateAllConnections), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TerminateAllSubscriptions", reflect.TypeOf((*MockEngine)(nil).TerminateAllSubscriptions), arg0)
 }

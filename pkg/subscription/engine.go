@@ -18,7 +18,7 @@ import (
 type Engine interface {
 	StartOperation(ctx context.Context, id string, payload []byte, eventHandler EventHandler) error
 	StopSubscription(id string, eventHandler EventHandler) error
-	TerminateAllConnections(eventHandler EventHandler) error
+	TerminateAllSubscriptions(eventHandler EventHandler) error
 }
 
 // ExecutorEngine is an implementation of Engine and works with subscription.Executor.
@@ -66,8 +66,8 @@ func (e *ExecutorEngine) StopSubscription(id string, eventHandler EventHandler) 
 	return nil
 }
 
-// TerminateAllConnections will cancel all active subscriptions.
-func (e *ExecutorEngine) TerminateAllConnections(eventHandler EventHandler) error {
+// TerminateAllSubscriptions will cancel all active subscriptions.
+func (e *ExecutorEngine) TerminateAllSubscriptions(eventHandler EventHandler) error {
 	if e.subCancellations.Len() == 0 {
 		return nil
 	}

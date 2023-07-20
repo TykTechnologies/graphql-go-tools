@@ -29,7 +29,7 @@ func TestUniversalProtocolHandler_Handle(t *testing.T) {
 			Times(1)
 
 		engineMock := NewMockEngine(ctrl)
-		engineMock.EXPECT().TerminateAllConnections(eventHandlerMock).
+		engineMock.EXPECT().TerminateAllSubscriptions(eventHandlerMock).
 			Times(1)
 
 		ctx, cancelFunc := context.WithCancel(context.Background())
@@ -71,7 +71,7 @@ func TestUniversalProtocolHandler_Handle(t *testing.T) {
 			Times(1)
 
 		engineMock := NewMockEngine(ctrl)
-		engineMock.EXPECT().TerminateAllConnections(eventHandlerMock).
+		engineMock.EXPECT().TerminateAllSubscriptions(eventHandlerMock).
 			Times(1)
 
 		ctx, cancelFunc := context.WithCancel(context.Background())
@@ -116,7 +116,7 @@ func TestUniversalProtocolHandler_Handle(t *testing.T) {
 			MinTimes(1)
 
 		engineMock := NewMockEngine(ctrl)
-		engineMock.EXPECT().TerminateAllConnections(eventHandlerMock).
+		engineMock.EXPECT().TerminateAllSubscriptions(eventHandlerMock).
 			Times(1)
 
 		ctx, cancelFunc := context.WithCancel(context.Background())
@@ -155,7 +155,7 @@ func TestUniversalProtocolHandler_Handle(t *testing.T) {
 
 		eventHandlerMock := NewMockEventHandler(ctrl)
 		engineMock := NewMockEngine(ctrl)
-		engineMock.EXPECT().TerminateAllConnections(eventHandlerMock).
+		engineMock.EXPECT().TerminateAllSubscriptions(eventHandlerMock).
 			Times(1)
 
 		protocolMock := NewMockProtocol(ctrl)
