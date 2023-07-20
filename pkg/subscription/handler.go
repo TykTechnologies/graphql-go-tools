@@ -20,12 +20,13 @@ var ErrCouldNotReadMessageFromClient = errors.New("could not read message from c
 type EventType int
 
 const (
-	EventTypeError EventType = iota
-	EventTypeData
-	EventTypeCompleted
-	EventTypeConnectionTerminatedByClient
-	EventTypeConnectionTerminatedByServer
-	EventTypeConnectionError
+	EventTypeOnError EventType = iota
+	EventTypeOnSubscriptionData
+	EventTypeOnSubscriptionCompleted
+	EventTypeOnNonSubscriptionExecutionResult
+	EventTypeOnConnectionTerminatedByClient
+	EventTypeOnConnectionTerminatedByServer
+	EventTypeOnConnectionError
 )
 
 // Protocol defines an interface for a subscription protocol decoupled from the underlying transport.

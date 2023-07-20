@@ -149,7 +149,7 @@ func TestUniversalProtocolHandler_Handle(t *testing.T) {
 			MinTimes(1)
 
 		eventHandlerMock := NewMockEventHandler(ctrl)
-		eventHandlerMock.EXPECT().Emit(EventTypeConnectionError, gomock.Eq(""), gomock.Nil(), gomock.Eq(ErrCouldNotReadMessageFromClient)).
+		eventHandlerMock.EXPECT().Emit(EventTypeOnConnectionError, gomock.Eq(""), gomock.Nil(), gomock.Eq(ErrCouldNotReadMessageFromClient)).
 			MinTimes(1)
 
 		protocolMock := NewMockProtocol(ctrl)

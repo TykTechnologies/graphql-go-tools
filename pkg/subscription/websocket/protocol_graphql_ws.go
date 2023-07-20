@@ -169,13 +169,17 @@ type GraphQLWSWriteEventHandler struct {
 func (g *GraphQLWSWriteEventHandler) Emit(eventType subscription.EventType, id string, data []byte, err error) {
 	messageType := GraphQLWSMessageType("")
 	switch eventType {
-	case subscription.EventTypeCompleted:
+	case subscription.EventTypeOnSubscriptionCompleted:
 		messageType = GraphQLWSMessageTypeComplete
-	case subscription.EventTypeData:
+	case subscription.EventTypeOnSubscriptionData:
 		messageType = GraphQLWSMessageTypeData
-	case subscription.EventTypeError:
+	case subscription.EventTypeOnNonSubscriptionExecutionResult:
+		g.HandleWriteEvent(GraphQLWSMessageTypeData, id, data, err)
+		g.HandleWriteEvent(GraphQLWSMessageTypeComplete, id, data, err)
+		return
+	case subscription.EventTypeOnError:
 		messageType = GraphQLWSMessageTypeError
-	case subscription.EventTypeConnectionError:
+	case subscription.EventTypeOnConnectionError:
 		messageType = GraphQLWSMessageTypeConnectionError
 	default:
 		return
@@ -201,7 +205,7 @@ func (g *GraphQLWSWriteEventHandler) HandleWriteEvent(messageType GraphQLWSMessa
 	case GraphQLWSMessageTypeConnectionAck:
 		err = g.writer.WriteAck()
 	default:
-		g.logger.Warn("websocket.GraphQLWSWriteEventHandler.Handle: on write event handling with unexpected message type",
+		g.logger.Warn("websocket.GraphQLWSWriteEventHandler.HandleWriteEvent: on write event handling with unexpected message type",
 			abstractlogger.Error(err),
 			abstractlogger.String("id", id),
 			abstractlogger.String("type", string(messageType)),
@@ -211,7 +215,7 @@ func (g *GraphQLWSWriteEventHandler) HandleWriteEvent(messageType GraphQLWSMessa
 		return
 	}
 	if err != nil {
-		g.logger.Error("websocket.GraphQLWSWriteEventHandler.Handle: on write event handling",
+		g.logger.Error("websocket.GraphQLWSWriteEventHandler.HandleWriteEvent: on write event handling",
 			abstractlogger.Error(err),
 			abstractlogger.String("id", id),
 			abstractlogger.String("type", string(messageType)),

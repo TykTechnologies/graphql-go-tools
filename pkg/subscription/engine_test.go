@@ -55,9 +55,9 @@ func TestExecutorEngine_StartOperation(t *testing.T) {
 				Times(2)
 
 			eventHandlerMock := NewMockEventHandler(ctrl)
-			eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeError), gomock.Eq(idQuery), gomock.Nil(), gomock.Any()).
+			eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeOnError), gomock.Eq(idQuery), gomock.Nil(), gomock.Any()).
 				Times(1)
-			eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeError), gomock.Eq(idMutation), gomock.Nil(), gomock.Any()).
+			eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeOnError), gomock.Eq(idMutation), gomock.Nil(), gomock.Any()).
 				Times(1)
 
 			engine := ExecutorEngine{
@@ -121,13 +121,9 @@ func TestExecutorEngine_StartOperation(t *testing.T) {
 				Times(2)
 
 			eventHandlerMock := NewMockEventHandler(ctrl)
-			eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeData), gomock.Eq(idQuery), gomock.AssignableToTypeOf([]byte{}), gomock.Nil()).
+			eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeOnNonSubscriptionExecutionResult), gomock.Eq(idQuery), gomock.AssignableToTypeOf([]byte{}), gomock.Nil()).
 				Times(1)
-			eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeData), gomock.Eq(idMutation), gomock.AssignableToTypeOf([]byte{}), gomock.Nil()).
-				Times(1)
-			eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeCompleted), gomock.Eq(idQuery), gomock.Nil(), gomock.Nil()).
-				Times(1)
-			eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeCompleted), gomock.Eq(idMutation), gomock.Nil(), gomock.Nil()).
+			eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeOnNonSubscriptionExecutionResult), gomock.Eq(idMutation), gomock.AssignableToTypeOf([]byte{}), gomock.Nil()).
 				Times(1)
 
 			engine := ExecutorEngine{
@@ -185,7 +181,7 @@ func TestExecutorEngine_StartOperation(t *testing.T) {
 				Times(1)
 
 			eventHandlerMock := NewMockEventHandler(ctrl)
-			eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeError), gomock.Eq(id), gomock.Nil(), gomock.Any()).
+			eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeOnError), gomock.Eq(id), gomock.Nil(), gomock.Any()).
 				MinTimes(2)
 
 			engine := ExecutorEngine{
@@ -238,7 +234,7 @@ func TestExecutorEngine_StartOperation(t *testing.T) {
 				Times(1)
 
 			eventHandlerMock := NewMockEventHandler(ctrl)
-			eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeData), gomock.Eq(id), gomock.AssignableToTypeOf([]byte{}), gomock.Nil()).
+			eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeOnSubscriptionData), gomock.Eq(id), gomock.AssignableToTypeOf([]byte{}), gomock.Nil()).
 				MinTimes(2)
 
 			engine := ExecutorEngine{
@@ -293,9 +289,9 @@ func TestExecutorEngine_StartOperation(t *testing.T) {
 			Times(1)
 
 		eventHandlerMock := NewMockEventHandler(ctrl)
-		eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeError), gomock.Eq(id), gomock.Nil(), gomock.Any()).
+		eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeOnError), gomock.Eq(id), gomock.Nil(), gomock.Any()).
 			Times(1)
-		eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeData), gomock.Eq(id), gomock.AssignableToTypeOf([]byte{}), gomock.Nil()).
+		eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeOnSubscriptionData), gomock.Eq(id), gomock.AssignableToTypeOf([]byte{}), gomock.Nil()).
 			Times(1)
 
 		engine := ExecutorEngine{
@@ -334,9 +330,9 @@ func TestExecutorEngine_StopSubscription(t *testing.T) {
 	payload := []byte(`{"query":"subscription { receiveData }"}`)
 
 	eventHandlerMock := NewMockEventHandler(ctrl)
-	eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeCompleted), gomock.Eq(id), gomock.Nil(), gomock.Nil()).
+	eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeOnSubscriptionCompleted), gomock.Eq(id), gomock.Nil(), gomock.Nil()).
 		Times(1)
-	eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeData), gomock.Eq(id), gomock.AssignableToTypeOf([]byte{}), gomock.Nil()).
+	eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeOnSubscriptionData), gomock.Eq(id), gomock.AssignableToTypeOf([]byte{}), gomock.Nil()).
 		MinTimes(1)
 
 	executorMock := NewMockExecutor(ctrl)
@@ -395,9 +391,9 @@ func TestExecutorEngine_TerminateAllConnections(t *testing.T) {
 	payload := []byte(`{"query":"subscription { receiveData }"}`)
 
 	eventHandlerMock := NewMockEventHandler(ctrl)
-	eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeConnectionTerminatedByServer), gomock.Eq(""), gomock.Eq([]byte("connection terminated by server")), gomock.Nil()).
+	eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeOnConnectionTerminatedByServer), gomock.Eq(""), gomock.Eq([]byte("connection terminated by server")), gomock.Nil()).
 		Times(1)
-	eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeData), gomock.Any(), gomock.AssignableToTypeOf([]byte{}), gomock.Nil()).
+	eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeOnSubscriptionData), gomock.Any(), gomock.AssignableToTypeOf([]byte{}), gomock.Nil()).
 		MinTimes(3)
 
 	executorMock := NewMockExecutor(ctrl)

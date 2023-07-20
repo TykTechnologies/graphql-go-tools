@@ -210,33 +210,50 @@ func TestGraphQLWSMessageWriter_WriteAck(t *testing.T) {
 }
 
 func TestGraphQLWSWriteEventHandler_Emit(t *testing.T) {
-	t.Run("should write completed", func(t *testing.T) {
+	t.Run("should write on completed", func(t *testing.T) {
 		testClient := NewTestClient(false)
 		writeEventHandler := NewTestGraphQLWSWriteEventHandler(testClient)
-		writeEventHandler.Emit(subscription.EventTypeCompleted, "1", nil, nil)
+		writeEventHandler.Emit(subscription.EventTypeOnSubscriptionCompleted, "1", nil, nil)
 		expectedMessage := []byte(`{"id":"1","type":"complete"}`)
 		assert.Equal(t, expectedMessage, testClient.readMessageToClient())
 	})
-	t.Run("should write data", func(t *testing.T) {
+	t.Run("should write on data", func(t *testing.T) {
 		testClient := NewTestClient(false)
 		writeEventHandler := NewTestGraphQLWSWriteEventHandler(testClient)
-		writeEventHandler.Emit(subscription.EventTypeData, "1", []byte(`{ "data": { "hello": "world" } }`), nil)
+		writeEventHandler.Emit(subscription.EventTypeOnSubscriptionData, "1", []byte(`{ "data": { "hello": "world" } }`), nil)
 		expectedMessage := []byte(`{"id":"1","type":"data","payload":{"data":{"hello":"world"}}}`)
 		assert.Equal(t, expectedMessage, testClient.readMessageToClient())
 	})
-	t.Run("should write error", func(t *testing.T) {
+	t.Run("should write on error", func(t *testing.T) {
 		testClient := NewTestClient(false)
 		writeEventHandler := NewTestGraphQLWSWriteEventHandler(testClient)
-		writeEventHandler.Emit(subscription.EventTypeError, "1", nil, errors.New("error occurred"))
+		writeEventHandler.Emit(subscription.EventTypeOnError, "1", nil, errors.New("error occurred"))
 		expectedMessage := []byte(`{"id":"1","type":"error","payload":[{"message":"error occurred"}]}`)
 		assert.Equal(t, expectedMessage, testClient.readMessageToClient())
 	})
-	t.Run("should write connection_error", func(t *testing.T) {
+	t.Run("should write on connection_error", func(t *testing.T) {
 		testClient := NewTestClient(false)
 		writeEventHandler := NewTestGraphQLWSWriteEventHandler(testClient)
-		writeEventHandler.Emit(subscription.EventTypeConnectionError, "", nil, errors.New("connection error occurred"))
+		writeEventHandler.Emit(subscription.EventTypeOnConnectionError, "", nil, errors.New("connection error occurred"))
 		expectedMessage := []byte(`{"type":"connection_error","payload":"connection error occurred"}`)
 		assert.Equal(t, expectedMessage, testClient.readMessageToClient())
+	})
+	t.Run("should write on non-subscription execution result", func(t *testing.T) {
+		testClient := NewTestClient(false)
+		writeEventHandler := NewTestGraphQLWSWriteEventHandler(testClient)
+		go func() {
+			writeEventHandler.Emit(subscription.EventTypeOnNonSubscriptionExecutionResult, "1", []byte(`{ "data": { "hello": "world" } }`), nil)
+		}()
+
+		assert.Eventually(t, func() bool {
+			expectedDataMessage := []byte(`{"id":"1","type":"data","payload":{"data":{"hello":"world"}}}`)
+			actualDataMessage := testClient.readMessageToClient()
+			assert.Equal(t, expectedDataMessage, actualDataMessage)
+			expectedCompleteMessage := []byte(`{"id":"1","type":"complete"}`)
+			actualCompleteMessage := testClient.readMessageToClient()
+			assert.Equal(t, expectedCompleteMessage, actualCompleteMessage)
+			return true
+		}, 10*time.Millisecond, 2*time.Millisecond)
 	})
 }
 
