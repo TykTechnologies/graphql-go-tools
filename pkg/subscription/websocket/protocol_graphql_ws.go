@@ -62,8 +62,8 @@ func (g *GraphQLWSMessageReader) Read(data []byte) (*GraphQLWSMessage, error) {
 // GraphQLWSMessageWriter can be used to write graphql-ws messages to a transport client.
 type GraphQLWSMessageWriter struct {
 	logger abstractlogger.Logger
-	client subscription.TransportClient
 	mu     *sync.Mutex
+	Client subscription.TransportClient
 }
 
 // WriteData writes a message of type 'data' to the transport client.
@@ -156,13 +156,13 @@ func (g *GraphQLWSMessageWriter) write(message *GraphQLWSMessage) error {
 	}
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	return g.client.WriteBytesToClient(jsonData)
+	return g.Client.WriteBytesToClient(jsonData)
 }
 
 // GraphQLWSWriteEventHandler can be used to handle subscription events and forward them to a GraphQLWSMessageWriter.
 type GraphQLWSWriteEventHandler struct {
 	logger abstractlogger.Logger
-	writer GraphQLWSMessageWriter
+	Writer GraphQLWSMessageWriter
 }
 
 // Emit is an implementation of subscription.EventHandler. It forwards events to the HandleWriteEvent.
@@ -193,17 +193,17 @@ func (g *GraphQLWSWriteEventHandler) HandleWriteEvent(messageType GraphQLWSMessa
 	var err error
 	switch messageType {
 	case GraphQLWSMessageTypeComplete:
-		err = g.writer.WriteComplete(id)
+		err = g.Writer.WriteComplete(id)
 	case GraphQLWSMessageTypeData:
-		err = g.writer.WriteData(id, data)
+		err = g.Writer.WriteData(id, data)
 	case GraphQLWSMessageTypeError:
-		err = g.writer.WriteError(id, graphql.RequestErrorsFromError(providedErr))
+		err = g.Writer.WriteError(id, graphql.RequestErrorsFromError(providedErr))
 	case GraphQLWSMessageTypeConnectionError:
-		err = g.writer.WriteConnectionError(providedErr.Error())
+		err = g.Writer.WriteConnectionError(providedErr.Error())
 	case GraphQLWSMessageTypeConnectionKeepAlive:
-		err = g.writer.WriteKeepAlive()
+		err = g.Writer.WriteKeepAlive()
 	case GraphQLWSMessageTypeConnectionAck:
-		err = g.writer.WriteAck()
+		err = g.Writer.WriteAck()
 	default:
 		g.logger.Warn("websocket.GraphQLWSWriteEventHandler.HandleWriteEvent: on write event handling with unexpected message type",
 			abstractlogger.Error(err),
@@ -255,9 +255,9 @@ func NewProtocolGraphQLWSHandlerWithOptions(client subscription.TransportClient,
 		},
 		writeEventHandler: GraphQLWSWriteEventHandler{
 			logger: abstractlogger.Noop{},
-			writer: GraphQLWSMessageWriter{
+			Writer: GraphQLWSMessageWriter{
 				logger: abstractlogger.Noop{},
-				client: client,
+				Client: client,
 				mu:     &sync.Mutex{},
 			},
 		},
@@ -268,7 +268,7 @@ func NewProtocolGraphQLWSHandlerWithOptions(client subscription.TransportClient,
 		protocolHandler.logger = opts.Logger
 		protocolHandler.reader.logger = opts.Logger
 		protocolHandler.writeEventHandler.logger = opts.Logger
-		protocolHandler.writeEventHandler.writer.logger = opts.Logger
+		protocolHandler.writeEventHandler.Writer.logger = opts.Logger
 	}
 
 	if opts.CustomKeepAliveInterval != 0 {

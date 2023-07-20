@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync"
 
 	"github.com/jensneuse/abstractlogger"
@@ -72,8 +73,8 @@ func (g *GraphQLTransportWSMessageReader) DeserializeSubscribePayload(message *G
 // GraphQLTransportWSMessageWriter can be used to write graphql-transport-ws messages to a transport client.
 type GraphQLTransportWSMessageWriter struct {
 	logger abstractlogger.Logger
-	client subscription.TransportClient
 	mu     *sync.Mutex
+	Client subscription.TransportClient
 }
 
 // WriteConnectionAck writes a message of type 'connection_ack' to the transport client.
@@ -148,5 +149,77 @@ func (g *GraphQLTransportWSMessageWriter) write(message *GraphQLTransportWSMessa
 	}
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	return g.client.WriteBytesToClient(jsonData)
+	return g.Client.WriteBytesToClient(jsonData)
+}
+
+// GraphQLTransportWSWriteEventHandler can be used to handle subscription events and forward them to a GraphQLTransportWSMessageWriter.
+type GraphQLTransportWSWriteEventHandler struct {
+	logger abstractlogger.Logger
+	Writer GraphQLTransportWSMessageWriter
+}
+
+// Emit is an implementation of subscription.EventHandler. It forwards events to the HandleWriteEvent.
+func (g *GraphQLTransportWSWriteEventHandler) Emit(eventType subscription.EventType, id string, data []byte, err error) {
+	messageType := GraphQLTransportWSMessageType("")
+	switch eventType {
+	case subscription.EventTypeOnSubscriptionCompleted:
+		messageType = GraphQLTransportWSMessageTypeComplete
+	case subscription.EventTypeOnSubscriptionData:
+		messageType = GraphQLTransportWSMessageTypeNext
+	case subscription.EventTypeOnNonSubscriptionExecutionResult:
+		g.HandleWriteEvent(GraphQLTransportWSMessageTypeNext, id, data, err)
+		g.HandleWriteEvent(GraphQLTransportWSMessageTypeComplete, id, data, err)
+		return
+	case subscription.EventTypeOnError:
+		messageType = GraphQLTransportWSMessageTypeError
+	case subscription.EventTypeOnConnectionError:
+
+	default:
+		return
+	}
+
+	g.HandleWriteEvent(messageType, id, data, err)
+}
+
+// HandleWriteEvent forwards messages to the underlying writer.
+func (g *GraphQLTransportWSWriteEventHandler) HandleWriteEvent(messageType GraphQLTransportWSMessageType, id string, data []byte, providedErr error) {
+	var err error
+	switch messageType {
+	case GraphQLTransportWSMessageTypeComplete:
+		err = g.Writer.WriteComplete(id)
+	case GraphQLTransportWSMessageTypeNext:
+		err = g.Writer.WriteNext(id, data)
+	case GraphQLTransportWSMessageTypeError:
+		err = g.Writer.WriteError(id, graphql.RequestErrorsFromError(providedErr))
+	case GraphQLTransportWSMessageTypeConnectionAck:
+		err = g.Writer.WriteConnectionAck()
+	case GraphQLTransportWSMessageTypePing:
+		err = g.Writer.WritePing(data)
+	case GraphQLTransportWSMessageTypePong:
+		err = g.Writer.WritePong(data)
+	default:
+		g.logger.Warn("websocket.GraphQLTransportWSWriteEventHandler.HandleWriteEvent: on write event handling with unexpected message type",
+			abstractlogger.Error(err),
+			abstractlogger.String("id", id),
+			abstractlogger.String("type", string(messageType)),
+			abstractlogger.ByteString("payload", data),
+			abstractlogger.Error(providedErr),
+		)
+		err = g.Writer.Client.DisconnectWithReason(
+			NewCloseReason(
+				4400,
+				fmt.Sprintf("invalid type '%s'", string(messageType)),
+			),
+		)
+		return
+	}
+	if err != nil {
+		g.logger.Error("websocket.GraphQLTransportWSWriteEventHandler.HandleWriteEvent: on write event handling",
+			abstractlogger.Error(err),
+			abstractlogger.String("id", id),
+			abstractlogger.String("type", string(messageType)),
+			abstractlogger.ByteString("payload", data),
+			abstractlogger.Error(providedErr),
+		)
+	}
 }

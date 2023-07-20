@@ -4,11 +4,13 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/jensneuse/abstractlogger"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/TykTechnologies/graphql-go-tools/pkg/graphql"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/subscription"
 )
 
 func TestGraphQLTransportWSMessageReader_Read(t *testing.T) {
@@ -88,7 +90,7 @@ func TestGraphQLTransportWSMessageWriter_WriteConnectionAck(t *testing.T) {
 		testClient := NewTestClient(true)
 		writer := GraphQLTransportWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		err := writer.WriteConnectionAck()
@@ -98,7 +100,7 @@ func TestGraphQLTransportWSMessageWriter_WriteConnectionAck(t *testing.T) {
 		testClient := NewTestClient(false)
 		writer := GraphQLTransportWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		expectedMessage := []byte(`{"type":"connection_ack"}`)
@@ -113,7 +115,7 @@ func TestGraphQLTransportWSMessageWriter_WritePing(t *testing.T) {
 		testClient := NewTestClient(true)
 		writer := GraphQLTransportWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		err := writer.WritePing(nil)
@@ -123,7 +125,7 @@ func TestGraphQLTransportWSMessageWriter_WritePing(t *testing.T) {
 		testClient := NewTestClient(false)
 		writer := GraphQLTransportWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		expectedMessage := []byte(`{"type":"ping"}`)
@@ -135,7 +137,7 @@ func TestGraphQLTransportWSMessageWriter_WritePing(t *testing.T) {
 		testClient := NewTestClient(false)
 		writer := GraphQLTransportWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		expectedMessage := []byte(`{"type":"ping","payload":{"connected_since":"10min"}}`)
@@ -150,7 +152,7 @@ func TestGraphQLTransportWSMessageWriter_WritePong(t *testing.T) {
 		testClient := NewTestClient(true)
 		writer := GraphQLTransportWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		err := writer.WritePong(nil)
@@ -160,7 +162,7 @@ func TestGraphQLTransportWSMessageWriter_WritePong(t *testing.T) {
 		testClient := NewTestClient(false)
 		writer := GraphQLTransportWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		expectedMessage := []byte(`{"type":"pong"}`)
@@ -172,7 +174,7 @@ func TestGraphQLTransportWSMessageWriter_WritePong(t *testing.T) {
 		testClient := NewTestClient(false)
 		writer := GraphQLTransportWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		expectedMessage := []byte(`{"type":"pong","payload":{"connected_since":"10min"}}`)
@@ -187,7 +189,7 @@ func TestGraphQLTransportWSMessageWriter_WriteNext(t *testing.T) {
 		testClient := NewTestClient(true)
 		writer := GraphQLTransportWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		err := writer.WriteNext("1", nil)
@@ -197,7 +199,7 @@ func TestGraphQLTransportWSMessageWriter_WriteNext(t *testing.T) {
 		testClient := NewTestClient(false)
 		writer := GraphQLTransportWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		expectedMessage := []byte(`{"id":"1","type":"next","payload":{"data":{"hello":"world"}}}`)
@@ -212,7 +214,7 @@ func TestGraphQLTransportWSMessageWriter_WriteError(t *testing.T) {
 		testClient := NewTestClient(true)
 		writer := GraphQLTransportWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		err := writer.WriteError("1", nil)
@@ -222,7 +224,7 @@ func TestGraphQLTransportWSMessageWriter_WriteError(t *testing.T) {
 		testClient := NewTestClient(false)
 		writer := GraphQLTransportWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		expectedMessage := []byte(`{"id":"1","type":"error","payload":[{"message":"request error"}]}`)
@@ -238,7 +240,7 @@ func TestGraphQLTransportWSMessageWriter_WriteComplete(t *testing.T) {
 		testClient := NewTestClient(true)
 		writer := GraphQLTransportWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		err := writer.WriteComplete("1")
@@ -248,7 +250,7 @@ func TestGraphQLTransportWSMessageWriter_WriteComplete(t *testing.T) {
 		testClient := NewTestClient(false)
 		writer := GraphQLTransportWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		expectedMessage := []byte(`{"id":"1","type":"complete"}`)
@@ -256,4 +258,94 @@ func TestGraphQLTransportWSMessageWriter_WriteComplete(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, expectedMessage, testClient.readMessageToClient())
 	})
+}
+
+func TestGraphQLTransportWSWriteEventHandler_Emit(t *testing.T) {
+	t.Run("should write on completed", func(t *testing.T) {
+		testClient := NewTestClient(false)
+		writeEventHandler := NewTestGraphQLTransportWSWriteEventHandler(testClient)
+		writeEventHandler.Emit(subscription.EventTypeOnSubscriptionCompleted, "1", nil, nil)
+		expectedMessage := []byte(`{"id":"1","type":"complete"}`)
+		assert.Equal(t, expectedMessage, testClient.readMessageToClient())
+	})
+	t.Run("should write on data", func(t *testing.T) {
+		testClient := NewTestClient(false)
+		writeEventHandler := NewTestGraphQLTransportWSWriteEventHandler(testClient)
+		writeEventHandler.Emit(subscription.EventTypeOnSubscriptionData, "1", []byte(`{ "data": { "hello": "world" } }`), nil)
+		expectedMessage := []byte(`{"id":"1","type":"next","payload":{"data":{"hello":"world"}}}`)
+		assert.Equal(t, expectedMessage, testClient.readMessageToClient())
+	})
+	t.Run("should write on non-subscription execution result", func(t *testing.T) {
+		testClient := NewTestClient(false)
+		writeEventHandler := NewTestGraphQLTransportWSWriteEventHandler(testClient)
+		go func() {
+			writeEventHandler.Emit(subscription.EventTypeOnNonSubscriptionExecutionResult, "1", []byte(`{ "data": { "hello": "world" } }`), nil)
+		}()
+
+		assert.Eventually(t, func() bool {
+			expectedDataMessage := []byte(`{"id":"1","type":"next","payload":{"data":{"hello":"world"}}}`)
+			actualDataMessage := testClient.readMessageToClient()
+			assert.Equal(t, expectedDataMessage, actualDataMessage)
+			expectedCompleteMessage := []byte(`{"id":"1","type":"complete"}`)
+			actualCompleteMessage := testClient.readMessageToClient()
+			assert.Equal(t, expectedCompleteMessage, actualCompleteMessage)
+			return true
+		}, 10*time.Millisecond, 2*time.Millisecond)
+	})
+	t.Run("should write on error", func(t *testing.T) {
+		testClient := NewTestClient(false)
+		writeEventHandler := NewTestGraphQLTransportWSWriteEventHandler(testClient)
+		writeEventHandler.Emit(subscription.EventTypeOnError, "1", nil, errors.New("error occurred"))
+		expectedMessage := []byte(`{"id":"1","type":"error","payload":[{"message":"error occurred"}]}`)
+		assert.Equal(t, expectedMessage, testClient.readMessageToClient())
+	})
+	/*t.Run("should write on connection_error", func(t *testing.T) {
+		testClient := NewTestClient(false)
+		writeEventHandler := NewTestGraphQLWSWriteEventHandler(testClient)
+		writeEventHandler.Emit(subscription.EventTypeOnConnectionError, "", nil, errors.New("connection error occurred"))
+		expectedMessage := []byte(`{"type":"connection_error","payload":"connection error occurred"}`)
+		assert.Equal(t, expectedMessage, testClient.readMessageToClient())
+	})
+	*/
+}
+
+func TestGraphQLTransportWSWriteEventHandler_HandleWriteEvent(t *testing.T) {
+	t.Run("should write connection_ack", func(t *testing.T) {
+		testClient := NewTestClient(false)
+		writeEventHandler := NewTestGraphQLTransportWSWriteEventHandler(testClient)
+		writeEventHandler.HandleWriteEvent(GraphQLTransportWSMessageTypeConnectionAck, "", nil, nil)
+		expectedMessage := []byte(`{"type":"connection_ack"}`)
+		assert.Equal(t, expectedMessage, testClient.readMessageToClient())
+	})
+	t.Run("should write ping", func(t *testing.T) {
+		testClient := NewTestClient(false)
+		writeEventHandler := NewTestGraphQLTransportWSWriteEventHandler(testClient)
+		writeEventHandler.HandleWriteEvent(GraphQLTransportWSMessageTypePing, "", nil, nil)
+		expectedMessage := []byte(`{"type":"ping"}`)
+		assert.Equal(t, expectedMessage, testClient.readMessageToClient())
+	})
+	t.Run("should write pong", func(t *testing.T) {
+		testClient := NewTestClient(false)
+		writeEventHandler := NewTestGraphQLTransportWSWriteEventHandler(testClient)
+		writeEventHandler.HandleWriteEvent(GraphQLTransportWSMessageTypePong, "", nil, nil)
+		expectedMessage := []byte(`{"type":"pong"}`)
+		assert.Equal(t, expectedMessage, testClient.readMessageToClient())
+	})
+	t.Run("should close connection on invalid type", func(t *testing.T) {
+		testClient := NewTestClient(false)
+		writeEventHandler := NewTestGraphQLTransportWSWriteEventHandler(testClient)
+		writeEventHandler.HandleWriteEvent(GraphQLTransportWSMessageType("invalid"), "", nil, nil)
+		assert.False(t, writeEventHandler.Writer.Client.IsConnected())
+	})
+}
+
+func NewTestGraphQLTransportWSWriteEventHandler(testClient subscription.TransportClient) GraphQLTransportWSWriteEventHandler {
+	return GraphQLTransportWSWriteEventHandler{
+		logger: abstractlogger.Noop{},
+		Writer: GraphQLTransportWSMessageWriter{
+			logger: abstractlogger.Noop{},
+			mu:     &sync.Mutex{},
+			Client: testClient,
+		},
+	}
 }

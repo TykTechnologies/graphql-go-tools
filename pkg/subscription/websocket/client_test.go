@@ -365,6 +365,7 @@ func (t *TestClient) Disconnect() error {
 }
 
 func (t *TestClient) DisconnectWithReason(reason interface{}) error {
+	t.isConnected = false
 	return nil
 }
 

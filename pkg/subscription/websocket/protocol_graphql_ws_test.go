@@ -37,7 +37,7 @@ func TestGraphQLWSMessageWriter_WriteData(t *testing.T) {
 		testClient := NewTestClient(true)
 		writer := GraphQLWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		err := writer.WriteData("1", nil)
@@ -47,7 +47,7 @@ func TestGraphQLWSMessageWriter_WriteData(t *testing.T) {
 		testClient := NewTestClient(false)
 		writer := GraphQLWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		expectedMessage := []byte(`{"id":"1","type":"data","payload":{"data":{"hello":"world"}}}`)
@@ -62,7 +62,7 @@ func TestGraphQLWSMessageWriter_WriteComplete(t *testing.T) {
 		testClient := NewTestClient(true)
 		writer := GraphQLWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		err := writer.WriteComplete("1")
@@ -72,7 +72,7 @@ func TestGraphQLWSMessageWriter_WriteComplete(t *testing.T) {
 		testClient := NewTestClient(false)
 		writer := GraphQLWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		expectedMessage := []byte(`{"id":"1","type":"complete"}`)
@@ -87,7 +87,7 @@ func TestGraphQLWSMessageWriter_WriteKeepAlive(t *testing.T) {
 		testClient := NewTestClient(true)
 		writer := GraphQLWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		err := writer.WriteKeepAlive()
@@ -97,7 +97,7 @@ func TestGraphQLWSMessageWriter_WriteKeepAlive(t *testing.T) {
 		testClient := NewTestClient(false)
 		writer := GraphQLWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		expectedMessage := []byte(`{"type":"ka"}`)
@@ -112,7 +112,7 @@ func TestGraphQLWSMessageWriter_WriteTerminate(t *testing.T) {
 		testClient := NewTestClient(true)
 		writer := GraphQLWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		err := writer.WriteTerminate(`failed to accept the websocket connection`)
@@ -122,7 +122,7 @@ func TestGraphQLWSMessageWriter_WriteTerminate(t *testing.T) {
 		testClient := NewTestClient(false)
 		writer := GraphQLWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		expectedMessage := []byte(`{"type":"connection_terminate","payload":"failed to accept the websocket connection"}`)
@@ -137,7 +137,7 @@ func TestGraphQLWSMessageWriter_WriteConnectionError(t *testing.T) {
 		testClient := NewTestClient(true)
 		writer := GraphQLWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		err := writer.WriteConnectionError(`could not read message from client`)
@@ -147,7 +147,7 @@ func TestGraphQLWSMessageWriter_WriteConnectionError(t *testing.T) {
 		testClient := NewTestClient(false)
 		writer := GraphQLWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		expectedMessage := []byte(`{"type":"connection_error","payload":"could not read message from client"}`)
@@ -162,7 +162,7 @@ func TestGraphQLWSMessageWriter_WriteError(t *testing.T) {
 		testClient := NewTestClient(true)
 		writer := GraphQLWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		requestErrors := graphql.RequestErrorsFromError(errors.New("request error"))
@@ -173,7 +173,7 @@ func TestGraphQLWSMessageWriter_WriteError(t *testing.T) {
 		testClient := NewTestClient(false)
 		writer := GraphQLWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		expectedMessage := []byte(`{"id":"1","type":"error","payload":[{"message":"request error"}]}`)
@@ -189,7 +189,7 @@ func TestGraphQLWSMessageWriter_WriteAck(t *testing.T) {
 		testClient := NewTestClient(true)
 		writer := GraphQLWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		err := writer.WriteAck()
@@ -199,7 +199,7 @@ func TestGraphQLWSMessageWriter_WriteAck(t *testing.T) {
 		testClient := NewTestClient(false)
 		writer := GraphQLWSMessageWriter{
 			logger: abstractlogger.Noop{},
-			client: testClient,
+			Client: testClient,
 			mu:     &sync.Mutex{},
 		}
 		expectedMessage := []byte(`{"type":"connection_ack"}`)
@@ -366,10 +366,10 @@ func TestProtocolGraphQLWSHandler_Handle(t *testing.T) {
 func NewTestGraphQLWSWriteEventHandler(testClient subscription.TransportClient) GraphQLWSWriteEventHandler {
 	return GraphQLWSWriteEventHandler{
 		logger: abstractlogger.Noop{},
-		writer: GraphQLWSMessageWriter{
+		Writer: GraphQLWSMessageWriter{
 			logger: abstractlogger.Noop{},
 			mu:     &sync.Mutex{},
-			client: testClient,
+			Client: testClient,
 		},
 	}
 }
