@@ -35,7 +35,7 @@ func (c *Client) ReadBytesFromClient() ([]byte, error) {
 	var opCode ws.OpCode
 
 	data, opCode, err := wsutil.ReadClientData(c.clientConn)
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) || errors.Is(err, io.ErrUnexpectedEOF) {
 		c.isClosedConnection = true
 		return nil, subscription.ErrTransportClientClosedConnection
 	} else if err != nil {
@@ -64,7 +64,10 @@ func (c *Client) WriteBytesToClient(message []byte) error {
 	}
 
 	err := wsutil.WriteServerMessage(c.clientConn, ws.OpText, message)
-	if err != nil {
+	if errors.Is(err, io.ErrClosedPipe) {
+		c.isClosedConnection = true
+		return subscription.ErrTransportClientClosedConnection
+	} else if err != nil {
 		c.logger.Error("websocket.Client.WriteBytesToClient: after writing to client",
 			abstractlogger.Error(err),
 			abstractlogger.ByteString("message", message),

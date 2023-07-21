@@ -2,6 +2,8 @@ package websocket
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"net"
 	"sync"
 	"testing"
@@ -17,11 +19,9 @@ import (
 )
 
 func TestClient_WriteToClient(t *testing.T) {
-	connToServer, connToClient := net.Pipe()
-
-	websocketClient := NewClient(abstractlogger.NoopLogger, connToClient)
-
 	t.Run("should write successfully to client", func(t *testing.T) {
+		connToServer, connToClient := net.Pipe()
+		websocketClient := NewClient(abstractlogger.NoopLogger, connToClient)
 		messageToClient := []byte(`{
 			"id": "1",
 			"type": "data",
@@ -42,13 +42,35 @@ func TestClient_WriteToClient(t *testing.T) {
 	})
 
 	t.Run("should not write to client when connection is closed", func(t *testing.T) {
-		err := connToServer.Close()
-		require.NoError(t, err)
+		t.Run("when not wrapped", func(t *testing.T) {
+			t.Run("io: read/write on closed pipe", func(t *testing.T) {
+				connToServer, connToClient := net.Pipe()
+				websocketClient := NewClient(abstractlogger.NoopLogger, connToClient)
+				err := connToServer.Close()
+				require.NoError(t, err)
 
-		websocketClient.isClosedConnection = true
+				err = websocketClient.WriteBytesToClient([]byte(""))
+				assert.Equal(t, subscription.ErrTransportClientClosedConnection, err)
+				assert.True(t, websocketClient.isClosedConnection)
+			})
+		})
 
-		err = websocketClient.WriteBytesToClient([]byte(""))
-		assert.Equal(t, subscription.ErrTransportClientClosedConnection, err)
+		t.Run("when wrapped", func(t *testing.T) {
+			t.Run("io: read/write on closed pipe", func(t *testing.T) {
+				connToClient := FakeConn{}
+				wrappedErr := fmt.Errorf("outside wrapper: %w",
+					fmt.Errorf("inner wrapper: %w",
+						io.ErrClosedPipe,
+					),
+				)
+				connToClient.setWriteReturns(0, wrappedErr)
+				websocketClient := NewClient(abstractlogger.NoopLogger, &connToClient)
+
+				err := websocketClient.WriteBytesToClient([]byte("message"))
+				assert.Equal(t, subscription.ErrTransportClientClosedConnection, err)
+				assert.True(t, websocketClient.isClosedConnection)
+			})
+		})
 	})
 }
 
@@ -75,16 +97,82 @@ func TestClient_ReadFromClient(t *testing.T) {
 		assert.Equal(t, messageToServer, messageFromClient)
 	})
 	t.Run("should detect a closed connection", func(t *testing.T) {
-		connToServer, connToClient := net.Pipe()
-		websocketClient := NewClient(abstractlogger.NoopLogger, connToClient)
-		err := connToServer.Close()
-		require.NoError(t, err)
+		t.Run("when not wrapped", func(t *testing.T) {
+			t.Run("io.EOF", func(t *testing.T) {
+				connToServer, connToClient := net.Pipe()
+				websocketClient := NewClient(abstractlogger.NoopLogger, connToClient)
+				err := connToServer.Close()
+				require.NoError(t, err)
 
-		time.Sleep(5 * time.Millisecond)
+				_, err = websocketClient.ReadBytesFromClient()
+				assert.Equal(t, subscription.ErrTransportClientClosedConnection, err)
+				assert.True(t, websocketClient.isClosedConnection)
+			})
+			t.Run("io: read/write on closed pipe", func(t *testing.T) {
+				connToClient := &FakeConn{}
+				connToClient.setReadReturns(0, io.ErrClosedPipe)
+				websocketClient := NewClient(abstractlogger.NoopLogger, connToClient)
 
-		_, err = websocketClient.ReadBytesFromClient()
-		assert.Equal(t, subscription.ErrTransportClientClosedConnection, err)
-		assert.True(t, websocketClient.isClosedConnection)
+				_, err := websocketClient.ReadBytesFromClient()
+				assert.Equal(t, subscription.ErrTransportClientClosedConnection, err)
+				assert.True(t, websocketClient.isClosedConnection)
+			})
+			t.Run("unexpected EOF", func(t *testing.T) {
+				connToClient := &FakeConn{}
+				connToClient.setReadReturns(0, io.ErrUnexpectedEOF)
+				websocketClient := NewClient(abstractlogger.NoopLogger, connToClient)
+
+				_, err := websocketClient.ReadBytesFromClient()
+				assert.Equal(t, subscription.ErrTransportClientClosedConnection, err)
+				assert.True(t, websocketClient.isClosedConnection)
+			})
+		})
+
+		t.Run("when wrapped", func(t *testing.T) {
+			t.Run("io.EOF", func(t *testing.T) {
+				connToClient := &FakeConn{}
+				wrappedErr := fmt.Errorf("outside wrapper: %w",
+					fmt.Errorf("inner wrapper: %w",
+						io.EOF,
+					),
+				)
+				connToClient.setReadReturns(0, wrappedErr)
+				websocketClient := NewClient(abstractlogger.NoopLogger, connToClient)
+
+				_, err := websocketClient.ReadBytesFromClient()
+				assert.Equal(t, subscription.ErrTransportClientClosedConnection, err)
+				assert.True(t, websocketClient.isClosedConnection)
+			})
+			t.Run("io: read/write on closed pipe", func(t *testing.T) {
+				connToClient := &FakeConn{}
+				wrappedErr := fmt.Errorf("outside wrapper: %w",
+					fmt.Errorf("inner wrapper: %w",
+						io.ErrClosedPipe,
+					),
+				)
+				connToClient.setReadReturns(0, wrappedErr)
+				websocketClient := NewClient(abstractlogger.NoopLogger, connToClient)
+
+				_, err := websocketClient.ReadBytesFromClient()
+				assert.Equal(t, subscription.ErrTransportClientClosedConnection, err)
+				assert.True(t, websocketClient.isClosedConnection)
+			})
+			t.Run("unexpected EOF", func(t *testing.T) {
+				connToClient := &FakeConn{}
+				wrappedErr := fmt.Errorf("outside wrapper: %w",
+					fmt.Errorf("inner wrapper: %w",
+						io.ErrUnexpectedEOF,
+					),
+				)
+				connToClient.setReadReturns(0, wrappedErr)
+				websocketClient := NewClient(abstractlogger.NoopLogger, connToClient)
+
+				_, err := websocketClient.ReadBytesFromClient()
+				assert.Equal(t, subscription.ErrTransportClientClosedConnection, err)
+				assert.True(t, websocketClient.isClosedConnection)
+			})
+		})
+
 	})
 }
 
@@ -199,4 +287,53 @@ func (t *TestClient) writeMessageFromClient(message []byte) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.messageFromClient <- message
+}
+
+type FakeConn struct {
+	readReturnN    int
+	readReturnErr  error
+	writeReturnN   int
+	writeReturnErr error
+}
+
+func (f *FakeConn) setReadReturns(n int, err error) {
+	f.readReturnN = n
+	f.readReturnErr = err
+}
+
+func (f *FakeConn) Read(b []byte) (n int, err error) {
+	return f.readReturnN, f.readReturnErr
+}
+
+func (f *FakeConn) setWriteReturns(n int, err error) {
+	f.writeReturnN = n
+	f.writeReturnErr = err
+}
+
+func (f *FakeConn) Write(b []byte) (n int, err error) {
+	return f.writeReturnN, f.writeReturnErr
+}
+
+func (f *FakeConn) Close() error {
+	panic("implement me")
+}
+
+func (f *FakeConn) LocalAddr() net.Addr {
+	panic("implement me")
+}
+
+func (f *FakeConn) RemoteAddr() net.Addr {
+	panic("implement me")
+}
+
+func (f *FakeConn) SetDeadline(t time.Time) error {
+	panic("implement me")
+}
+
+func (f *FakeConn) SetReadDeadline(t time.Time) error {
+	panic("implement me")
+}
+
+func (f *FakeConn) SetWriteDeadline(t time.Time) error {
+	panic("implement me")
 }
