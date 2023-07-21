@@ -43,15 +43,19 @@ type EventHandler interface {
 type UniversalProtocolHandlerOptions struct {
 	Logger                           abstractlogger.Logger
 	CustomSubscriptionUpdateInterval time.Duration
+	CustomReadErrorTimeOut           time.Duration
 	CustomEngine                     Engine
 }
 
 // UniversalProtocolHandler can handle any protocol by using the Protocol interface.
 type UniversalProtocolHandler struct {
-	logger   abstractlogger.Logger
-	client   TransportClient
-	protocol Protocol
-	engine   Engine
+	logger                    abstractlogger.Logger
+	client                    TransportClient
+	protocol                  Protocol
+	engine                    Engine
+	readErrorTimeOut          time.Duration
+	isReadTimeOutTimerRunning bool
+	readTimeOutCancel         context.CancelFunc
 }
 
 // NewUniversalProtocolHandler creates a new UniversalProtocolHandler.
@@ -73,6 +77,16 @@ func NewUniversalProtocolHandlerWithOptions(client TransportClient, protocol Pro
 
 	if options.Logger != nil {
 		handler.logger = options.Logger
+	}
+
+	if options.CustomReadErrorTimeOut != 0 {
+		handler.readErrorTimeOut = options.CustomReadErrorTimeOut
+	} else {
+		parsedReadErrorTimeOut, err := time.ParseDuration(DefaultReadErrorTimeOut)
+		if err != nil {
+			return nil, err
+		}
+		handler.readErrorTimeOut = parsedReadErrorTimeOut
 	}
 
 	if options.CustomEngine != nil {
@@ -137,13 +151,37 @@ func (u *UniversalProtocolHandler) Handle(ctx context.Context) {
 				abstractlogger.ByteString("message", message),
 			)
 
+			if !u.isReadTimeOutTimerRunning {
+				var timeOutCtx context.Context
+				timeOutCtx, u.readTimeOutCancel = context.WithCancel(context.Background())
+				params := timeOutParams{
+					name:           "subscription reader error time out",
+					logger:         u.logger,
+					timeOutContext: timeOutCtx,
+					timeOutAction: func() {
+						cancel() // stop the handler if timer runs out
+					},
+					timeOutDuration: u.readErrorTimeOut,
+				}
+				go timeOutChecker(params)
+				u.isReadTimeOutTimerRunning = true
+			}
+
 			u.protocol.EventHandler().Emit(EventTypeConnectionError, "", nil, ErrCouldNotReadMessageFromClient)
-		} else if len(message) > 0 {
-			err := u.protocol.Handle(ctxWithCancel, u.engine, message)
-			if err != nil {
-				u.logger.Error("subscription.UniversalProtocolHandler.Handle: on protocol handling message",
-					abstractlogger.Error(err),
-				)
+		} else {
+			if u.isReadTimeOutTimerRunning && u.readTimeOutCancel != nil {
+				u.readTimeOutCancel()
+				u.isReadTimeOutTimerRunning = false
+				u.readTimeOutCancel = nil
+			}
+
+			if len(message) > 0 {
+				err := u.protocol.Handle(ctxWithCancel, u.engine, message)
+				if err != nil {
+					u.logger.Error("subscription.UniversalProtocolHandler.Handle: on protocol handling message",
+						abstractlogger.Error(err),
+					)
+				}
 			}
 		}
 
@@ -152,6 +190,32 @@ func (u *UniversalProtocolHandler) Handle(ctx context.Context) {
 			return
 		default:
 			continue
+		}
+	}
+}
+
+type timeOutParams struct {
+	name            string
+	logger          abstractlogger.Logger
+	timeOutContext  context.Context
+	timeOutAction   func()
+	timeOutDuration time.Duration
+}
+
+func timeOutChecker(params timeOutParams) {
+	timer := time.NewTimer(params.timeOutDuration)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-params.timeOutContext.Done():
+			return
+		case <-timer.C:
+			params.logger.Error("time out happened",
+				abstractlogger.String("name", params.name),
+			)
+			params.timeOutAction()
+			return
 		}
 	}
 }

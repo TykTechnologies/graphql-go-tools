@@ -26,6 +26,7 @@ type HandleOptions struct {
 	CustomClient                     subscription.TransportClient
 	CustomKeepAliveInterval          time.Duration
 	CustomSubscriptionUpdateInterval time.Duration
+	CustomReadErrorTimeOut           time.Duration
 	CustomSubscriptionEngine         subscription.Engine
 }
 
@@ -65,6 +66,14 @@ func WithCustomKeepAliveInterval(keepAliveInterval time.Duration) HandleOptionFu
 func WithCustomSubscriptionUpdateInterval(subscriptionUpdateInterval time.Duration) HandleOptionFunc {
 	return func(opts *HandleOptions) {
 		opts.CustomSubscriptionUpdateInterval = subscriptionUpdateInterval
+	}
+}
+
+// WithCustomReadErrorTimeOut is a function that sets a custom read error time out for the
+// websocket handler.
+func WithCustomReadErrorTimeOut(readErrorTimeOut time.Duration) HandleOptionFunc {
+	return func(opts *HandleOptions) {
+		opts.CustomReadErrorTimeOut = readErrorTimeOut
 	}
 }
 
@@ -131,6 +140,7 @@ func HandleWithOptions(done chan bool, errChan chan error, conn net.Conn, execut
 	subscriptionHandler, err := subscription.NewUniversalProtocolHandlerWithOptions(client, protocolHandler, executorPool, subscription.UniversalProtocolHandlerOptions{
 		Logger:                           options.Logger,
 		CustomSubscriptionUpdateInterval: options.CustomSubscriptionUpdateInterval,
+		CustomReadErrorTimeOut:           options.CustomReadErrorTimeOut,
 		CustomEngine:                     options.CustomSubscriptionEngine,
 	})
 	if err != nil {

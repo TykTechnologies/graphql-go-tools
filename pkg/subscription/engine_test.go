@@ -257,6 +257,7 @@ func TestExecutorEngine_StartOperation(t *testing.T) {
 			assert.Eventually(t, func() bool {
 				err := engine.StartOperation(ctx, id, payload, eventHandlerMock)
 				<-ctx.Done()
+				<-time.After(5 * time.Millisecond)
 				return assert.NoError(t, err)
 			}, 50*time.Millisecond, 10*time.Millisecond)
 		})
