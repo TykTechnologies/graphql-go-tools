@@ -168,7 +168,7 @@ func (u *UniversalProtocolHandler) Handle(ctx context.Context) {
 				u.isReadTimeOutTimerRunning = true
 			}
 
-			u.protocol.EventHandler().Emit(EventTypeConnectionError, "", nil, ErrCouldNotReadMessageFromClient)
+			u.protocol.EventHandler().Emit(EventTypeOnConnectionError, "", nil, ErrCouldNotReadMessageFromClient)
 		} else {
 			if u.isReadTimeOutTimerRunning && u.readTimeOutCancel != nil {
 				u.readTimeOutCancel()
