@@ -47,6 +47,10 @@ func NewClient(logger abstractlogger.Logger, clientConn net.Conn) *Client {
 
 // ReadBytesFromClient will read a subscription message from the websocket client.
 func (c *Client) ReadBytesFromClient() ([]byte, error) {
+	if c.isClosedConnection {
+		return nil, subscription.ErrTransportClientClosedConnection
+	}
+
 	data, opCode, err := wsutil.ReadClientData(c.clientConn)
 	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) || errors.Is(err, io.ErrUnexpectedEOF) {
 		c.isClosedConnection = true

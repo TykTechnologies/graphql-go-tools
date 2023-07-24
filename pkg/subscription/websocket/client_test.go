@@ -105,6 +105,17 @@ func TestClient_ReadFromClient(t *testing.T) {
 		assert.Equal(t, messageToServer, messageFromClient)
 	})
 	t.Run("should detect a closed connection", func(t *testing.T) {
+		t.Run("before read", func(t *testing.T) {
+			_, connToClient := net.Pipe()
+			websocketClient := NewClient(abstractlogger.NoopLogger, connToClient)
+			defer connToClient.Close()
+			websocketClient.isClosedConnection = true
+
+			assert.Eventually(t, func() bool {
+				_, err := websocketClient.ReadBytesFromClient()
+				return assert.Equal(t, subscription.ErrTransportClientClosedConnection, err)
+			}, 15*time.Millisecond, 2*time.Millisecond)
+		})
 		t.Run("when not wrapped", func(t *testing.T) {
 			t.Run("io.EOF", func(t *testing.T) {
 				connToServer, connToClient := net.Pipe()
