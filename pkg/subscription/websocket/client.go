@@ -15,10 +15,17 @@ import (
 type CloseReason ws.Frame
 type CompiledCloseReason []byte
 
-var CompiledCloseReasonNormal CompiledCloseReason = ws.MustCompileFrame(
-	ws.NewCloseFrame(ws.NewCloseFrameBody(
-		ws.StatusNormalClosure, "Normal Closure",
-	)),
+var (
+	CompiledCloseReasonNormal CompiledCloseReason = ws.MustCompileFrame(
+		ws.NewCloseFrame(ws.NewCloseFrameBody(
+			ws.StatusNormalClosure, "Normal Closure",
+		)),
+	)
+	CompiledCloseReasonInternalServerError CompiledCloseReason = ws.MustCompileFrame(
+		ws.NewCloseFrame(ws.NewCloseFrameBody(
+			ws.StatusInternalServerError, "Internal Server Error",
+		)),
+	)
 )
 
 func NewCloseReason(code uint16, reason string) CloseReason {

@@ -1,9 +1,11 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/jensneuse/abstractlogger"
 
@@ -152,14 +154,15 @@ func (g *GraphQLTransportWSMessageWriter) write(message *GraphQLTransportWSMessa
 	return g.Client.WriteBytesToClient(jsonData)
 }
 
-// GraphQLTransportWSWriteEventHandler can be used to handle subscription events and forward them to a GraphQLTransportWSMessageWriter.
-type GraphQLTransportWSWriteEventHandler struct {
-	logger abstractlogger.Logger
-	Writer GraphQLTransportWSMessageWriter
+// GraphQLTransportWSEventHandler can be used to handle subscription events and forward them to a GraphQLTransportWSMessageWriter.
+type GraphQLTransportWSEventHandler struct {
+	logger             abstractlogger.Logger
+	Writer             GraphQLTransportWSMessageWriter
+	OnConnectionOpened func()
 }
 
 // Emit is an implementation of subscription.EventHandler. It forwards events to the HandleWriteEvent.
-func (g *GraphQLTransportWSWriteEventHandler) Emit(eventType subscription.EventType, id string, data []byte, err error) {
+func (g *GraphQLTransportWSEventHandler) Emit(eventType subscription.EventType, id string, data []byte, err error) {
 	messageType := GraphQLTransportWSMessageType("")
 	switch eventType {
 	case subscription.EventTypeOnSubscriptionCompleted:
@@ -172,8 +175,11 @@ func (g *GraphQLTransportWSWriteEventHandler) Emit(eventType subscription.EventT
 		return
 	case subscription.EventTypeOnError:
 		messageType = GraphQLTransportWSMessageTypeError
-	case subscription.EventTypeOnConnectionError:
-
+	case subscription.EventTypeOnConnectionOpened:
+		if g.OnConnectionOpened != nil {
+			g.OnConnectionOpened()
+		}
+		return
 	default:
 		return
 	}
@@ -182,7 +188,7 @@ func (g *GraphQLTransportWSWriteEventHandler) Emit(eventType subscription.EventT
 }
 
 // HandleWriteEvent forwards messages to the underlying writer.
-func (g *GraphQLTransportWSWriteEventHandler) HandleWriteEvent(messageType GraphQLTransportWSMessageType, id string, data []byte, providedErr error) {
+func (g *GraphQLTransportWSEventHandler) HandleWriteEvent(messageType GraphQLTransportWSMessageType, id string, data []byte, providedErr error) {
 	var err error
 	switch messageType {
 	case GraphQLTransportWSMessageTypeComplete:
@@ -198,7 +204,7 @@ func (g *GraphQLTransportWSWriteEventHandler) HandleWriteEvent(messageType Graph
 	case GraphQLTransportWSMessageTypePong:
 		err = g.Writer.WritePong(data)
 	default:
-		g.logger.Warn("websocket.GraphQLTransportWSWriteEventHandler.HandleWriteEvent: on write event handling with unexpected message type",
+		g.logger.Warn("websocket.GraphQLTransportWSEventHandler.HandleWriteEvent: on write event handling with unexpected message type",
 			abstractlogger.Error(err),
 			abstractlogger.String("id", id),
 			abstractlogger.String("type", string(messageType)),
@@ -214,7 +220,7 @@ func (g *GraphQLTransportWSWriteEventHandler) HandleWriteEvent(messageType Graph
 		return
 	}
 	if err != nil {
-		g.logger.Error("websocket.GraphQLTransportWSWriteEventHandler.HandleWriteEvent: on write event handling",
+		g.logger.Error("websocket.GraphQLTransportWSEventHandler.HandleWriteEvent: on write event handling",
 			abstractlogger.Error(err),
 			abstractlogger.String("id", id),
 			abstractlogger.String("type", string(messageType)),
@@ -223,3 +229,187 @@ func (g *GraphQLTransportWSWriteEventHandler) HandleWriteEvent(messageType Graph
 		)
 	}
 }
+
+// ProtocolGraphQLTransportWSHandlerOptions can be used to provide options to the graphql-transport-ws protocol handler.
+type ProtocolGraphQLTransportWSHandlerOptions struct {
+	Logger                    abstractlogger.Logger
+	WebSocketInitFunc         InitFunc
+	CustomKeepAliveInterval   time.Duration
+	CustomInitTimeOutDuration time.Duration
+}
+
+// ProtocolGraphQLTransportWSHandler is able to handle the graphql-transport-ws protocol.
+type ProtocolGraphQLTransportWSHandler struct {
+	logger                        abstractlogger.Logger
+	reader                        GraphQLTransportWSMessageReader
+	eventHandler                  GraphQLTransportWSEventHandler
+	keepAliveInterval             time.Duration
+	initFunc                      InitFunc
+	connectionAcknowledged        bool
+	connectionInitTimerStarted    bool
+	connectionInitTimeOutCancel   context.CancelFunc
+	connectionInitTimeOutDuration time.Duration
+}
+
+// NewProtocolGraphQLTransportWSHandler creates a new ProtocolGraphQLTransportWSHandler with default options.
+func NewProtocolGraphQLTransportWSHandler(client subscription.TransportClient) (*ProtocolGraphQLTransportWSHandler, error) {
+	return NewProtocolGraphQLTransportWSHandlerWithOptions(client, ProtocolGraphQLTransportWSHandlerOptions{})
+}
+
+// NewProtocolGraphQLTransportWSHandlerWithOptions creates a new ProtocolGraphQLTransportWSHandler. It requires an option struct.
+func NewProtocolGraphQLTransportWSHandlerWithOptions(client subscription.TransportClient, opts ProtocolGraphQLTransportWSHandlerOptions) (*ProtocolGraphQLTransportWSHandler, error) {
+	protocolHandler := &ProtocolGraphQLTransportWSHandler{
+		logger: abstractlogger.Noop{},
+		reader: GraphQLTransportWSMessageReader{
+			logger: abstractlogger.Noop{},
+		},
+		eventHandler: GraphQLTransportWSEventHandler{
+			logger: abstractlogger.Noop{},
+			Writer: GraphQLTransportWSMessageWriter{
+				logger: abstractlogger.Noop{},
+				Client: client,
+				mu:     &sync.Mutex{},
+			},
+		},
+		initFunc: opts.WebSocketInitFunc,
+	}
+
+	if opts.Logger != nil {
+		protocolHandler.logger = opts.Logger
+		protocolHandler.reader.logger = opts.Logger
+		protocolHandler.eventHandler.logger = opts.Logger
+		protocolHandler.eventHandler.Writer.logger = opts.Logger
+	}
+
+	if opts.CustomKeepAliveInterval != 0 {
+		protocolHandler.keepAliveInterval = opts.CustomKeepAliveInterval
+	} else {
+		parsedKeepAliveInterval, err := time.ParseDuration(subscription.DefaultKeepAliveInterval)
+		if err != nil {
+			return nil, err
+		}
+		protocolHandler.keepAliveInterval = parsedKeepAliveInterval
+	}
+
+	if opts.CustomInitTimeOutDuration != 0 {
+		protocolHandler.connectionInitTimeOutDuration = opts.CustomInitTimeOutDuration
+	} else {
+		timeOutDuration, err := time.ParseDuration(DefaultConnectionInitTimeOut)
+		if err != nil {
+			return nil, err
+		}
+		protocolHandler.connectionInitTimeOutDuration = timeOutDuration
+	}
+
+	// Pass event functions
+	protocolHandler.eventHandler.OnConnectionOpened = protocolHandler.startConnectionInitTimer
+
+	return protocolHandler, nil
+}
+
+// Handle will handle the actual graphql-transport-ws protocol messages. It's an implementation of subscription.Protocol.
+func (p *ProtocolGraphQLTransportWSHandler) Handle(ctx context.Context, engine subscription.Engine, data []byte) error {
+	if !p.connectionAcknowledged && !p.connectionInitTimerStarted {
+		p.startConnectionInitTimer()
+	}
+
+	message, err := p.reader.Read(data)
+	if err != nil {
+		p.logger.Error("websocket.ProtocolGraphQLTransportWSHandler.Handle: on message reading",
+			abstractlogger.Error(err),
+			abstractlogger.ByteString("payload", data),
+		)
+	}
+
+	switch message.Type {
+	case GraphQLTransportWSMessageTypeConnectionInit:
+		ctx, err = p.handleInit(ctx, message.Payload)
+		if err != nil {
+			p.logger.Error("websocket.ProtocolGraphQLTransportWSHandler.Handle: on handling init",
+				abstractlogger.Error(err),
+			)
+			p.closeConnectionWithReason(
+				CompiledCloseReasonInternalServerError,
+			)
+		}
+	default:
+		p.closeConnectionWithReason(
+			NewCloseReason(4400, fmt.Sprintf("Invalid type '%s'", string(message.Type))),
+		)
+	}
+
+	return nil
+}
+
+// EventHandler returns the underlying graphql-transport-ws event handler. It's an implementation of subscription.Protocol.
+func (p *ProtocolGraphQLTransportWSHandler) EventHandler() subscription.EventHandler {
+	return &p.eventHandler
+}
+
+func (p *ProtocolGraphQLTransportWSHandler) startConnectionInitTimer() {
+	if p.connectionInitTimerStarted {
+		return
+	}
+
+	timeOutContext, timeOutContextCancel := context.WithCancel(context.Background())
+	p.connectionInitTimeOutCancel = timeOutContextCancel
+	p.connectionInitTimerStarted = true
+	timeOutParams := subscription.TimeOutParams{
+		Name:           "connection init time out",
+		Logger:         p.logger,
+		TimeOutContext: timeOutContext,
+		TimeOutAction: func() {
+			p.closeConnectionWithReason(
+				NewCloseReason(4408, "Connection initialisation timeout"),
+			)
+		},
+		TimeOutDuration: p.connectionInitTimeOutDuration,
+	}
+	go subscription.TimeOutChecker(timeOutParams)
+}
+
+func (p *ProtocolGraphQLTransportWSHandler) stopConnectionInitTimer() bool {
+	if p.connectionInitTimeOutCancel == nil {
+		return false
+	}
+
+	p.connectionInitTimeOutCancel()
+	p.connectionInitTimeOutCancel = nil
+	return true
+}
+
+func (p *ProtocolGraphQLTransportWSHandler) handleInit(ctx context.Context, payload []byte) (context.Context, error) {
+	initCtx := ctx
+	if p.initFunc != nil && len(payload) > 0 {
+		var initPayload InitPayload
+		initPayload = payload
+
+		// check initial payload to see whether to accept the websocket connection
+		var err error
+		if initCtx, err = p.initFunc(ctx, initPayload); err != nil {
+			return initCtx, err
+		}
+	}
+
+	if p.stopConnectionInitTimer() {
+		p.eventHandler.HandleWriteEvent(GraphQLTransportWSMessageTypeConnectionAck, "", nil, nil)
+	} else {
+		p.closeConnectionWithReason(CompiledCloseReasonInternalServerError)
+	}
+	return initCtx, nil
+}
+
+func (p *ProtocolGraphQLTransportWSHandler) closeConnectionWithReason(reason interface{}) {
+	err := p.eventHandler.Writer.Client.DisconnectWithReason(
+		reason,
+	)
+	if err != nil {
+		p.logger.Error("websocket.ProtocolGraphQLTransportWSHandler.closeConnectionWithReason: after trying to disconnect with reason",
+			abstractlogger.Error(err),
+		)
+	}
+}
+
+// Interface guards
+var _ subscription.EventHandler = (*GraphQLTransportWSEventHandler)(nil)
+var _ subscription.Protocol = (*ProtocolGraphQLTransportWSHandler)(nil)

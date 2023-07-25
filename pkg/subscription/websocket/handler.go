@@ -10,6 +10,10 @@ import (
 	"github.com/TykTechnologies/graphql-go-tools/pkg/subscription"
 )
 
+const (
+	DefaultConnectionInitTimeOut = "15s"
+)
+
 // Protocol defines the protocol names as type.
 type Protocol string
 
