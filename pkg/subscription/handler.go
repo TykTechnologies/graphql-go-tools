@@ -27,6 +27,7 @@ const (
 	EventTypeOnConnectionTerminatedByClient
 	EventTypeOnConnectionTerminatedByServer
 	EventTypeOnConnectionError
+	EventTypeOnConnectionOpened
 )
 
 // Protocol defines an interface for a subscription protocol decoupled from the underlying transport.
@@ -133,6 +134,8 @@ func (u *UniversalProtocolHandler) Handle(ctx context.Context) {
 		cancel()
 	}()
 
+	u.protocol.EventHandler().Emit(EventTypeOnConnectionOpened, "", nil, nil)
+
 	for {
 		if !u.client.IsConnected() {
 			u.logger.Debug("subscription.UniversalProtocolHandler.Handle: on client is connected check",
@@ -155,16 +158,16 @@ func (u *UniversalProtocolHandler) Handle(ctx context.Context) {
 			if !u.isReadTimeOutTimerRunning {
 				var timeOutCtx context.Context
 				timeOutCtx, u.readTimeOutCancel = context.WithCancel(context.Background())
-				params := timeOutParams{
-					name:           "subscription reader error time out",
-					logger:         u.logger,
-					timeOutContext: timeOutCtx,
-					timeOutAction: func() {
+				params := TimeOutParams{
+					Name:           "subscription reader error time out",
+					Logger:         u.logger,
+					TimeOutContext: timeOutCtx,
+					TimeOutAction: func() {
 						cancel() // stop the handler if timer runs out
 					},
-					timeOutDuration: u.readErrorTimeOut,
+					TimeOutDuration: u.readErrorTimeOut,
 				}
-				go timeOutChecker(params)
+				go TimeOutChecker(params)
 				u.isReadTimeOutTimerRunning = true
 			}
 
@@ -195,27 +198,27 @@ func (u *UniversalProtocolHandler) Handle(ctx context.Context) {
 	}
 }
 
-type timeOutParams struct {
-	name            string
-	logger          abstractlogger.Logger
-	timeOutContext  context.Context
-	timeOutAction   func()
-	timeOutDuration time.Duration
+type TimeOutParams struct {
+	Name            string
+	Logger          abstractlogger.Logger
+	TimeOutContext  context.Context
+	TimeOutAction   func()
+	TimeOutDuration time.Duration
 }
 
-func timeOutChecker(params timeOutParams) {
-	timer := time.NewTimer(params.timeOutDuration)
+func TimeOutChecker(params TimeOutParams) {
+	timer := time.NewTimer(params.TimeOutDuration)
 	defer timer.Stop()
 
 	for {
 		select {
-		case <-params.timeOutContext.Done():
+		case <-params.TimeOutContext.Done():
 			return
 		case <-timer.C:
-			params.logger.Error("time out happened",
-				abstractlogger.String("name", params.name),
+			params.Logger.Error("time out happened",
+				abstractlogger.String("name", params.Name),
 			)
-			params.timeOutAction()
+			params.TimeOutAction()
 			return
 		}
 	}
