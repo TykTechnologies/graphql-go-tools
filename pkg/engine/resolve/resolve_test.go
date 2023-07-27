@@ -4166,7 +4166,8 @@ func TestResolver_ResolveGraphQLSubscription(t *testing.T) {
 	setup := func(ctx context.Context, stream SubscriptionDataSource) (*Resolver, *GraphQLSubscription, *TestFlushWriter) {
 		plan := &GraphQLSubscription{
 			Trigger: GraphQLSubscriptionTrigger{
-				Source: stream,
+				Source:                stream,
+				ProcessResponseConfig: ProcessResponseConfig{ExtractGraphqlResponse: true},
 			},
 			Response: &GraphQLResponse{
 				Data: &Object{
