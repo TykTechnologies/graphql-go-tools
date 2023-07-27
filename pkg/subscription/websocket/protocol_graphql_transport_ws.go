@@ -354,6 +354,10 @@ func (p *ProtocolGraphQLTransportWSHandler) Handle(ctx context.Context, engine s
 		p.startHeartbeat(ctx)
 	case GraphQLTransportWSMessageTypePing:
 		p.handlePing(message.Payload)
+	case GraphQLTransportWSMessageTypeSubscribe:
+		return p.handleSubscribe(ctx, engine, message)
+	case GraphQLTransportWSMessageTypeComplete:
+		return p.handleComplete(engine, message.Id)
 	default:
 		p.closeConnectionWithReason(
 			NewCloseReason(4400, fmt.Sprintf("Invalid type '%s'", string(message.Type))),
@@ -453,6 +457,37 @@ func (p *ProtocolGraphQLTransportWSHandler) handlePing(payload []byte) {
 	// Pong should return the same payload as ping.
 	// https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_servers#pings_and_pongs_the_heartbeat_of_websockets
 	p.eventHandler.HandleWriteEvent(GraphQLTransportWSMessageTypePong, "", payload, nil)
+}
+
+func (p *ProtocolGraphQLTransportWSHandler) handleSubscribe(ctx context.Context, engine subscription.Engine, message *GraphQLTransportWSMessage) error {
+	if !p.connectionInitialized {
+		p.closeConnectionWithReason(
+			NewCloseReason(4401, "Unauthorized"),
+		)
+		return nil
+	}
+
+	subscribePayload, err := p.reader.DeserializeSubscribePayload(message)
+	if err != nil {
+		return err
+	}
+
+	enginePayload := graphql.Request{
+		OperationName: subscribePayload.OperationName,
+		Query:         subscribePayload.Query,
+		Variables:     subscribePayload.Variables,
+	}
+
+	enginePayloadBytes, err := json.Marshal(enginePayload)
+	if err != nil {
+		return err
+	}
+
+	return engine.StartOperation(ctx, message.Id, enginePayloadBytes, &p.eventHandler)
+}
+
+func (p *ProtocolGraphQLTransportWSHandler) handleComplete(engine subscription.Engine, id string) error {
+	return engine.StopSubscription(id, &p.eventHandler)
 }
 
 func (p *ProtocolGraphQLTransportWSHandler) closeConnectionWithReason(reason interface{}) {
