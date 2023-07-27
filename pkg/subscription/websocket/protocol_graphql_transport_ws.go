@@ -332,6 +332,8 @@ func (p *ProtocolGraphQLTransportWSHandler) Handle(ctx context.Context, engine s
 				CompiledCloseReasonInternalServerError,
 			)
 		}
+	case GraphQLTransportWSMessageTypePing:
+		p.handlePing(message.Payload)
 	default:
 		p.closeConnectionWithReason(
 			NewCloseReason(4400, fmt.Sprintf("Invalid type '%s'", string(message.Type))),
@@ -397,6 +399,12 @@ func (p *ProtocolGraphQLTransportWSHandler) handleInit(ctx context.Context, payl
 		p.closeConnectionWithReason(CompiledCloseReasonInternalServerError)
 	}
 	return initCtx, nil
+}
+
+func (p *ProtocolGraphQLTransportWSHandler) handlePing(payload []byte) {
+	// Pong should return the same payload as ping.
+	// https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_servers#pings_and_pongs_the_heartbeat_of_websockets
+	p.eventHandler.HandleWriteEvent(GraphQLTransportWSMessageTypePong, "", payload, nil)
 }
 
 func (p *ProtocolGraphQLTransportWSHandler) closeConnectionWithReason(reason interface{}) {

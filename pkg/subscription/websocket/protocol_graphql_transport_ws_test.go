@@ -408,6 +408,26 @@ func TestProtocolGraphQLTransportWSHandler_Handle(t *testing.T) {
 
 		})
 	})
+
+	t.Run("should return pong on ping", func(t *testing.T) {
+		testClient := NewTestClient(false)
+		protocol := NewTestProtocolGraphQLTransportWSHandler(testClient)
+
+		ctrl := gomock.NewController(t)
+		mockEngine := NewMockEngine(ctrl)
+
+		ctx, cancelFunc := context.WithCancel(context.Background())
+		defer cancelFunc()
+
+		assert.Eventually(t, func() bool {
+			inputMessage := []byte(`{"type":"ping","payload":{"status":"ok"}}`)
+			expectedMessage := []byte(`{"type":"pong","payload":{"status":"ok"}}`)
+			err := protocol.Handle(ctx, mockEngine, inputMessage)
+			assert.NoError(t, err)
+			assert.Equal(t, expectedMessage, testClient.readMessageToClient())
+			return true
+		}, 20*time.Millisecond, 2*time.Millisecond)
+	})
 }
 
 func NewTestGraphQLTransportWSEventHandler(testClient subscription.TransportClient) GraphQLTransportWSEventHandler {
