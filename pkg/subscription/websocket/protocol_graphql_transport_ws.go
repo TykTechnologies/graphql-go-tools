@@ -26,6 +26,10 @@ const (
 	GraphQLTransportWSMessageTypeComplete       GraphQLTransportWSMessageType = "complete"
 )
 
+const (
+	GraphQLTransportWSHeartbeatPayload = `{"type":"heartbeat"}`
+)
+
 type GraphQLTransportWSMessage struct {
 	Id      string                        `json:"id,omitempty"`
 	Type    GraphQLTransportWSMessageType `json:"type"`
@@ -243,7 +247,9 @@ type ProtocolGraphQLTransportWSHandler struct {
 	logger                        abstractlogger.Logger
 	reader                        GraphQLTransportWSMessageReader
 	eventHandler                  GraphQLTransportWSEventHandler
-	keepAliveInterval             time.Duration
+	connectionInitialized         bool
+	heartbeatInterval             time.Duration
+	heartbeatStarted              bool
 	initFunc                      InitFunc
 	connectionAcknowledged        bool
 	connectionInitTimerStarted    bool
@@ -282,13 +288,13 @@ func NewProtocolGraphQLTransportWSHandlerWithOptions(client subscription.Transpo
 	}
 
 	if opts.CustomKeepAliveInterval != 0 {
-		protocolHandler.keepAliveInterval = opts.CustomKeepAliveInterval
+		protocolHandler.heartbeatInterval = opts.CustomKeepAliveInterval
 	} else {
 		parsedKeepAliveInterval, err := time.ParseDuration(subscription.DefaultKeepAliveInterval)
 		if err != nil {
 			return nil, err
 		}
-		protocolHandler.keepAliveInterval = parsedKeepAliveInterval
+		protocolHandler.heartbeatInterval = parsedKeepAliveInterval
 	}
 
 	if opts.CustomInitTimeOutDuration != 0 {
@@ -332,6 +338,7 @@ func (p *ProtocolGraphQLTransportWSHandler) Handle(ctx context.Context, engine s
 				CompiledCloseReasonInternalServerError,
 			)
 		}
+		p.startHeartbeat(ctx)
 	case GraphQLTransportWSMessageTypePing:
 		p.handlePing(message.Payload)
 	default:
@@ -380,7 +387,34 @@ func (p *ProtocolGraphQLTransportWSHandler) stopConnectionInitTimer() bool {
 	return true
 }
 
+func (p *ProtocolGraphQLTransportWSHandler) startHeartbeat(ctx context.Context) {
+	if p.heartbeatStarted {
+		return
+	}
+
+	p.heartbeatStarted = true
+	go p.heartbeat(ctx)
+}
+
+func (p *ProtocolGraphQLTransportWSHandler) heartbeat(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(p.heartbeatInterval):
+			p.eventHandler.HandleWriteEvent(GraphQLTransportWSMessageTypePong, "", []byte(GraphQLTransportWSHeartbeatPayload), nil)
+		}
+	}
+}
+
 func (p *ProtocolGraphQLTransportWSHandler) handleInit(ctx context.Context, payload []byte) (context.Context, error) {
+	if p.connectionInitialized {
+		p.closeConnectionWithReason(
+			NewCloseReason(4429, "Too many initialisation requests"),
+		)
+		return ctx, nil
+	}
+
 	initCtx := ctx
 	if p.initFunc != nil && len(payload) > 0 {
 		var initPayload InitPayload
@@ -398,6 +432,7 @@ func (p *ProtocolGraphQLTransportWSHandler) handleInit(ctx context.Context, payl
 	} else {
 		p.closeConnectionWithReason(CompiledCloseReasonInternalServerError)
 	}
+	p.connectionInitialized = true
 	return initCtx, nil
 }
 

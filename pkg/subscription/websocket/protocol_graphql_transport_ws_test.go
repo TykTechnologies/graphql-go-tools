@@ -380,9 +380,38 @@ func TestProtocolGraphQLTransportWSHandler_Handle(t *testing.T) {
 			assert.False(t, protocol.eventHandler.Writer.Client.IsConnected())
 		})
 
+		t.Run("should close connection after multiple connection_init messages", func(t *testing.T) {
+			testClient := NewTestClient(false)
+			protocol := NewTestProtocolGraphQLTransportWSHandler(testClient)
+			protocol.connectionInitTimeOutDuration = 50 * time.Millisecond
+			protocol.eventHandler.OnConnectionOpened = protocol.startConnectionInitTimer
+
+			ctrl := gomock.NewController(t)
+			mockEngine := NewMockEngine(ctrl)
+
+			ctx, cancelFunc := context.WithCancel(context.Background())
+			defer cancelFunc()
+
+			protocol.eventHandler.Emit(subscription.EventTypeOnConnectionOpened, "", nil, nil)
+			assert.Eventually(t, func() bool {
+				expectedAckMessage := []byte(`{"type":"connection_ack"}`)
+				<-time.After(5 * time.Millisecond)
+				err := protocol.Handle(ctx, mockEngine, []byte(`{"type":"connection_init"}`))
+				assert.NoError(t, err)
+				assert.Equal(t, expectedAckMessage, testClient.readMessageToClient())
+				<-time.After(1 * time.Millisecond)
+				err = protocol.Handle(ctx, mockEngine, []byte(`{"type":"connection_init"}`))
+				assert.NoError(t, err)
+				assert.False(t, protocol.eventHandler.Writer.Client.IsConnected())
+				return true
+			}, 50*time.Millisecond, 2*time.Millisecond)
+
+		})
+
 		t.Run("should not time out if connection_init message is sent before time out", func(t *testing.T) {
 			testClient := NewTestClient(false)
 			protocol := NewTestProtocolGraphQLTransportWSHandler(testClient)
+			protocol.heartbeatInterval = 4 * time.Millisecond
 			protocol.connectionInitTimeOutDuration = 15 * time.Millisecond
 			protocol.eventHandler.OnConnectionOpened = protocol.startConnectionInitTimer
 
@@ -394,17 +423,20 @@ func TestProtocolGraphQLTransportWSHandler_Handle(t *testing.T) {
 
 			protocol.eventHandler.Emit(subscription.EventTypeOnConnectionOpened, "", nil, nil)
 			assert.Eventually(t, func() bool {
-				expectedMessage := []byte(`{"type":"connection_ack"}`)
+				expectedAckMessage := []byte(`{"type":"connection_ack"}`)
+				expectedHeartbeatMessage := []byte(`{"type":"pong","payload":{"type":"heartbeat"}}`)
 				<-time.After(1 * time.Millisecond)
 				err := protocol.Handle(ctx, mockEngine, []byte(`{"type":"connection_init"}`))
 				assert.NoError(t, err)
-				assert.Equal(t, expectedMessage, testClient.readMessageToClient())
+				assert.Equal(t, expectedAckMessage, testClient.readMessageToClient())
+				<-time.After(6 * time.Millisecond)
+				assert.Equal(t, expectedHeartbeatMessage, testClient.readMessageToClient())
 				<-time.After(15 * time.Millisecond)
 				assert.True(t, protocol.eventHandler.Writer.Client.IsConnected())
 				assert.True(t, protocol.connectionInitTimerStarted)
 				assert.Nil(t, protocol.connectionInitTimeOutCancel)
 				return true
-			}, 20*time.Millisecond, 2*time.Millisecond)
+			}, 50*time.Millisecond, 2*time.Millisecond)
 
 		})
 	})
@@ -448,6 +480,6 @@ func NewTestProtocolGraphQLTransportWSHandler(testClient subscription.TransportC
 			logger: abstractlogger.Noop{},
 		},
 		eventHandler:      NewTestGraphQLTransportWSEventHandler(testClient),
-		keepAliveInterval: 30,
+		heartbeatInterval: 30,
 	}
 }
