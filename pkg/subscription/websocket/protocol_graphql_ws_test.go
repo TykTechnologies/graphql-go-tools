@@ -231,6 +231,13 @@ func TestGraphQLWSWriteEventHandler_Emit(t *testing.T) {
 		expectedMessage := []byte(`{"id":"1","type":"error","payload":[{"message":"error occurred"}]}`)
 		assert.Equal(t, expectedMessage, testClient.readMessageToClient())
 	})
+	t.Run("should write on duplicated subscriber id", func(t *testing.T) {
+		testClient := NewTestClient(false)
+		writeEventHandler := NewTestGraphQLWSWriteEventHandler(testClient)
+		writeEventHandler.Emit(subscription.EventTypeOnDuplicatedSubscriberID, "1", nil, subscription.ErrSubscriberIDAlreadyExists)
+		expectedMessage := []byte(`{"id":"1","type":"error","payload":[{"message":"subscriber id already exists"}]}`)
+		assert.Equal(t, expectedMessage, testClient.readMessageToClient())
+	})
 	t.Run("should write on connection_error", func(t *testing.T) {
 		testClient := NewTestClient(false)
 		writeEventHandler := NewTestGraphQLWSWriteEventHandler(testClient)

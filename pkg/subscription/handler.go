@@ -28,6 +28,7 @@ const (
 	EventTypeOnConnectionTerminatedByServer
 	EventTypeOnConnectionError
 	EventTypeOnConnectionOpened
+	EventTypeOnDuplicatedSubscriberID
 )
 
 // Protocol defines an interface for a subscription protocol decoupled from the underlying transport.

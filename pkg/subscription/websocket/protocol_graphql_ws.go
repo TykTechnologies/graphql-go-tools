@@ -179,6 +179,8 @@ func (g *GraphQLWSWriteEventHandler) Emit(eventType subscription.EventType, id s
 		return
 	case subscription.EventTypeOnError:
 		messageType = GraphQLWSMessageTypeError
+	case subscription.EventTypeOnDuplicatedSubscriberID:
+		messageType = GraphQLWSMessageTypeError
 	case subscription.EventTypeOnConnectionError:
 		messageType = GraphQLWSMessageTypeConnectionError
 	default:

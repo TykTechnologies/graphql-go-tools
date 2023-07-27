@@ -289,7 +289,7 @@ func TestExecutorEngine_StartOperation(t *testing.T) {
 			Times(1)
 
 		eventHandlerMock := NewMockEventHandler(ctrl)
-		eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeOnError), gomock.Eq(id), gomock.Nil(), gomock.Any()).
+		eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeOnDuplicatedSubscriberID), gomock.Eq(id), gomock.Nil(), gomock.Any()).
 			Times(1)
 		eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeOnSubscriptionData), gomock.Eq(id), gomock.AssignableToTypeOf([]byte{}), gomock.Nil()).
 			Times(1)

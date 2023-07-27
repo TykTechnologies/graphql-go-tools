@@ -311,14 +311,12 @@ func TestGraphQLTransportWSEventHandler_Emit(t *testing.T) {
 		eventHandler.Emit(subscription.EventTypeOnConnectionOpened, "", nil, nil)
 		assert.Equal(t, counter, 1)
 	})
-	/*t.Run("should write on connection_error", func(t *testing.T) {
+	t.Run("should disconnect on duplicated subscriber id", func(t *testing.T) {
 		testClient := NewTestClient(false)
-		eventHandler := NewTestGraphQLWSWriteEventHandler(testClient)
-		eventHandler.Emit(subscription.EventTypeOnConnectionError, "", nil, errors.New("connection error occurred"))
-		expectedMessage := []byte(`{"type":"connection_error","payload":"connection error occurred"}`)
-		assert.Equal(t, expectedMessage, testClient.readMessageToClient())
+		eventHandler := NewTestGraphQLTransportWSEventHandler(testClient)
+		eventHandler.Emit(subscription.EventTypeOnDuplicatedSubscriberID, "1", nil, errors.New("subscriber already exists"))
+		assert.False(t, testClient.IsConnected())
 	})
-	*/
 }
 
 func TestGraphQLTransportWSWriteEventHandler_HandleWriteEvent(t *testing.T) {

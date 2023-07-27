@@ -184,10 +184,23 @@ func (g *GraphQLTransportWSEventHandler) Emit(eventType subscription.EventType, 
 			g.OnConnectionOpened()
 		}
 		return
+	case subscription.EventTypeOnDuplicatedSubscriberID:
+		err = g.Writer.Client.DisconnectWithReason(
+			NewCloseReason(4409, fmt.Sprintf("Subscriber for %s already exists", id)),
+		)
+
+		if err != nil {
+			g.logger.Error("websocket.GraphQLTransportWSEventHandler.Emit: on duplicate subscriber id handling",
+				abstractlogger.Error(err),
+				abstractlogger.String("id", id),
+				abstractlogger.String("type", string(messageType)),
+				abstractlogger.ByteString("payload", data),
+			)
+		}
+		return
 	default:
 		return
 	}
-
 	g.HandleWriteEvent(messageType, id, data, err)
 }
 

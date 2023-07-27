@@ -5,6 +5,7 @@ package subscription
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -47,7 +48,10 @@ func (e *ExecutorEngine) StartOperation(ctx context.Context, id string, payload 
 
 	if executor.OperationType() == ast.OperationTypeSubscription {
 		ctx, subsErr := e.subCancellations.AddWithParent(id, ctx)
-		if subsErr != nil {
+		if errors.Is(subsErr, ErrSubscriberIDAlreadyExists) {
+			eventHandler.Emit(EventTypeOnDuplicatedSubscriberID, id, nil, subsErr)
+			return subsErr
+		} else if subsErr != nil {
 			eventHandler.Emit(EventTypeOnError, id, nil, subsErr)
 			return subsErr
 		}
