@@ -18,14 +18,16 @@ const (
 type Protocol string
 
 const (
-	ProtocolGraphQLWS Protocol = "graphql-ws"
+	ProtocolGraphQLWS          Protocol = "graphql-ws"
+	ProtocolGraphQLTransportWS Protocol = "graphql-transport-ws"
 )
 
-var DefaultProtocol = ProtocolGraphQLWS
+var DefaultProtocol = ProtocolGraphQLTransportWS
 
 // HandleOptions can be used to pass options to the websocket handler.
 type HandleOptions struct {
 	Logger                           abstractlogger.Logger
+	Protocol                         Protocol
 	WebSocketInitFunc                InitFunc
 	CustomClient                     subscription.TransportClient
 	CustomKeepAliveInterval          time.Duration
@@ -88,11 +90,18 @@ func WithCustomSubscriptionEngine(subscriptionEngine subscription.Engine) Handle
 	}
 }
 
-// Handle will handle the websocket subscription. It can take optional option functions to customize the handler
-// behavior.
+func WithProtocol(protocol Protocol) HandleOptionFunc {
+	return func(opts *HandleOptions) {
+		opts.Protocol = protocol
+	}
+}
+
+// Handle will handle the websocket subscription. It can take optional option functions to customize the handler.
+// behavior. By default, it uses the 'graphql-transport-ws' protocol.
 func Handle(done chan bool, errChan chan error, conn net.Conn, executorPool subscription.ExecutorPool, options ...HandleOptionFunc) {
 	definedOptions := HandleOptions{
-		Logger: abstractlogger.Noop{},
+		Logger:   abstractlogger.Noop{},
+		Protocol: DefaultProtocol,
 	}
 
 	for _, optionFunc := range options {
