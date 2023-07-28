@@ -18,6 +18,7 @@ const (
 type Protocol string
 
 const (
+	ProtocolUndefined          Protocol = ""
 	ProtocolGraphQLWS          Protocol = "graphql-ws"
 	ProtocolGraphQLTransportWS Protocol = "graphql-transport-ws"
 )
@@ -175,7 +176,12 @@ func HandleWithOptions(done chan bool, errChan chan error, conn net.Conn, execut
 }
 
 func createProtocolHandler(handleOptions HandleOptions, client subscription.TransportClient) (protocolHandler subscription.Protocol, err error) {
-	switch handleOptions.Protocol {
+	protocol := handleOptions.Protocol
+	if protocol == ProtocolUndefined {
+		protocol = DefaultProtocol
+	}
+
+	switch protocol {
 	case ProtocolGraphQLWS:
 		protocolHandler, err = NewProtocolGraphQLWSHandlerWithOptions(client, ProtocolGraphQLWSHandlerOptions{
 			Logger:                  handleOptions.Logger,
