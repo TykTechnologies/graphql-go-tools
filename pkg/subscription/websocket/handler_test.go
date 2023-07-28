@@ -173,6 +173,33 @@ func TestHandleWithOptions(t *testing.T) {
 	})
 }
 
+func TestWithProtocolFromRequestHeaders(t *testing.T) {
+	runTest := func(headerKey string, headerValue string, expectedProtocol Protocol) func(t *testing.T) {
+		return func(t *testing.T) {
+			request, err := http.NewRequest("", "", nil)
+			require.NoError(t, err)
+			request.Header.Set(headerKey, headerValue)
+
+			options := &HandleOptions{}
+			optionFunc := WithProtocolFromRequestHeaders(request)
+			optionFunc(options)
+
+			assert.Equal(t, expectedProtocol, options.Protocol)
+		}
+	}
+
+	t.Run("should detect graphql-ws", runTest(HeaderSecWebSocketProtocol, "graphql-ws", ProtocolGraphQLWS))
+	t.Run("should detect graphql-transport-ws", runTest(HeaderSecWebSocketProtocol, "graphql-transport-ws", ProtocolGraphQLTransportWS))
+	t.Run("should fallback to default protocol", runTest(HeaderSecWebSocketProtocol, "something-else", DefaultProtocol))
+	t.Run("should fallback to default protocol when header is missing", runTest("Different-Header-Key", "missing-header", DefaultProtocol))
+	t.Run("should fallback to default protocol when request is nil", func(t *testing.T) {
+		options := &HandleOptions{}
+		optionFunc := WithProtocolFromRequestHeaders(nil)
+		optionFunc(options)
+		assert.Equal(t, DefaultProtocol, options.Protocol)
+	})
+}
+
 func setupExecutorPoolV2(t *testing.T, ctx context.Context, chatServerURL string) *subscription.ExecutorV2Pool {
 	chatSchemaBytes, err := subscriptiontesting.LoadSchemaFromExamplesDirectoryWithinPkg()
 	require.NoError(t, err)

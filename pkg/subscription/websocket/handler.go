@@ -3,6 +3,7 @@ package websocket
 import (
 	"context"
 	"net"
+	"net/http"
 	"time"
 
 	"github.com/jensneuse/abstractlogger"
@@ -12,6 +13,8 @@ import (
 
 const (
 	DefaultConnectionInitTimeOut = "15s"
+
+	HeaderSecWebSocketProtocol = "Sec-WebSocket-Protocol"
 )
 
 // Protocol defines the protocol names as type.
@@ -101,6 +104,25 @@ func WithCustomSubscriptionEngine(subscriptionEngine subscription.Engine) Handle
 func WithProtocol(protocol Protocol) HandleOptionFunc {
 	return func(opts *HandleOptions) {
 		opts.Protocol = protocol
+	}
+}
+
+func WithProtocolFromRequestHeaders(req *http.Request) HandleOptionFunc {
+	return func(opts *HandleOptions) {
+		if req == nil {
+			opts.Protocol = DefaultProtocol
+			return
+		}
+
+		protocolHeaderValue := req.Header.Get(http.CanonicalHeaderKey(HeaderSecWebSocketProtocol))
+		switch Protocol(protocolHeaderValue) {
+		case ProtocolGraphQLWS:
+			opts.Protocol = ProtocolGraphQLWS
+		case ProtocolGraphQLTransportWS:
+			opts.Protocol = ProtocolGraphQLTransportWS
+		default:
+			opts.Protocol = DefaultProtocol
+		}
 	}
 }
 
