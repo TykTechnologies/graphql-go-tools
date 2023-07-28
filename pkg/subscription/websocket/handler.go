@@ -80,6 +80,7 @@ func WithCustomSubscriptionUpdateInterval(subscriptionUpdateInterval time.Durati
 	}
 }
 
+// WithCustomConnectionInitTimeOut is a function that sets a custom connection init time out.
 func WithCustomConnectionInitTimeOut(connectionInitTimeOut time.Duration) HandleOptionFunc {
 	return func(opts *HandleOptions) {
 		opts.CustomConnectionInitTimeOut = connectionInitTimeOut
@@ -101,12 +102,16 @@ func WithCustomSubscriptionEngine(subscriptionEngine subscription.Engine) Handle
 	}
 }
 
+// WithProtocol is a function that sets the protocol.
 func WithProtocol(protocol Protocol) HandleOptionFunc {
 	return func(opts *HandleOptions) {
 		opts.Protocol = protocol
 	}
 }
 
+// WithProtocolFromRequestHeaders is a function that sets the protocol based on the request headers.
+// It fallbacks to the DefaultProtocol if the header can't be found, the value is invalid or no request
+// was provided.
 func WithProtocolFromRequestHeaders(req *http.Request) HandleOptionFunc {
 	return func(opts *HandleOptions) {
 		if req == nil {

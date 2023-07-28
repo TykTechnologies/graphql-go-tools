@@ -75,7 +75,7 @@ func TestGraphQLTransportWSMessageReader_Read(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, expectedMessage, message)
 
-		expectedPayload := &GraphQLTransportWSMessagePayload{
+		expectedPayload := &GraphQLTransportWSMessageSubscribePayload{
 			OperationName: "MyQuery",
 			Query:         "query MyQuery($name: String) { hello(name: $name) }",
 			Variables:     []byte(`{ "name": "Udo" }`),

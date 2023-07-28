@@ -13,6 +13,7 @@ import (
 	"github.com/TykTechnologies/graphql-go-tools/pkg/subscription"
 )
 
+// GraphQLTransportWSMessageType is a type that defines graphql-transport-ws message type names.
 type GraphQLTransportWSMessageType string
 
 const (
@@ -30,19 +31,22 @@ const (
 	GraphQLTransportWSHeartbeatPayload = `{"type":"heartbeat"}`
 )
 
+// GraphQLTransportWSMessage is a struct that can be (de)serialized to graphql-transport-ws message format.
 type GraphQLTransportWSMessage struct {
 	Id      string                        `json:"id,omitempty"`
 	Type    GraphQLTransportWSMessageType `json:"type"`
 	Payload json.RawMessage               `json:"payload,omitempty"`
 }
 
-type GraphQLTransportWSMessagePayload struct {
+// GraphQLTransportWSMessageSubscribePayload is a struct that can be (de)serialized to graphql-transport-ws message payload format.
+type GraphQLTransportWSMessageSubscribePayload struct {
 	OperationName string          `json:"operationName,omitempty"`
 	Query         string          `json:"query"`
 	Variables     json.RawMessage `json:"variables,omitempty"`
 	Extensions    json.RawMessage `json:"extensions,omitempty"`
 }
 
+// GraphQLTransportWSMessageReader can be used to read graphql-transport-ws messages.
 type GraphQLTransportWSMessageReader struct {
 	logger abstractlogger.Logger
 }
@@ -62,8 +66,9 @@ func (g *GraphQLTransportWSMessageReader) Read(data []byte) (*GraphQLTransportWS
 	return &message, nil
 }
 
-func (g *GraphQLTransportWSMessageReader) DeserializeSubscribePayload(message *GraphQLTransportWSMessage) (*GraphQLTransportWSMessagePayload, error) {
-	var deserializedPayload GraphQLTransportWSMessagePayload
+// DeserializeSubscribePayload deserialized the subscribe payload from a graphql-transport-ws message.
+func (g *GraphQLTransportWSMessageReader) DeserializeSubscribePayload(message *GraphQLTransportWSMessage) (*GraphQLTransportWSMessageSubscribePayload, error) {
+	var deserializedPayload GraphQLTransportWSMessageSubscribePayload
 	err := json.Unmarshal(message.Payload, &deserializedPayload)
 	if err != nil {
 		g.logger.Error("websocket.GraphQLTransportWSMessageReader.DeserializeSubscribePayload: on subscribe payload deserialization",
@@ -165,7 +170,7 @@ type GraphQLTransportWSEventHandler struct {
 	OnConnectionOpened func()
 }
 
-// Emit is an implementation of subscription.EventHandler. It forwards events to the HandleWriteEvent.
+// Emit is an implementation of subscription.EventHandler. It forwards some events to the HandleWriteEvent.
 func (g *GraphQLTransportWSEventHandler) Emit(eventType subscription.EventType, id string, data []byte, err error) {
 	messageType := GraphQLTransportWSMessageType("")
 	switch eventType {

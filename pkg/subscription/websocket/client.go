@@ -12,7 +12,10 @@ import (
 	"github.com/TykTechnologies/graphql-go-tools/pkg/subscription"
 )
 
+// CloseReason is type that is used to provide a close reason to Client.DisconnectWithReason.
 type CloseReason ws.Frame
+
+// CompiledCloseReason is a pre-compiled close reason to be provided to Client.DisconnectWithReason.
 type CompiledCloseReason []byte
 
 var (
@@ -28,6 +31,7 @@ var (
 	)
 )
 
+// NewCloseReason is used to compose a close frame with code and reason message.
 func NewCloseReason(code uint16, reason string) CloseReason {
 	wsCloseFrame := ws.NewCloseFrame(ws.NewCloseFrameBody(
 		ws.StatusCode(code), reason,
@@ -117,6 +121,8 @@ func (c *Client) Disconnect() error {
 	return c.clientConn.Close()
 }
 
+// DisconnectWithReason will close the websocket and provide the close code and reason.
+// It can only consume CloseReason or CompiledCloseReason.
 func (c *Client) DisconnectWithReason(reason interface{}) error {
 	var err error
 	switch reason.(type) {

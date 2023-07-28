@@ -32,7 +32,7 @@ const (
 
 var ErrGraphQLWSUnexpectedMessageType = errors.New("unexpected message type")
 
-// GraphQLWSMessage is the struct that can be (de)serialized to the graphql-ws message format.
+// GraphQLWSMessage is a struct that can be (de)serialized to graphql-ws message format.
 type GraphQLWSMessage struct {
 	Id      string               `json:"id,omitempty"`
 	Type    GraphQLWSMessageType `json:"type"`
