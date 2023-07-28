@@ -32,6 +32,7 @@ type HandleOptions struct {
 	CustomClient                     subscription.TransportClient
 	CustomKeepAliveInterval          time.Duration
 	CustomSubscriptionUpdateInterval time.Duration
+	CustomConnectionInitTimeOut      time.Duration
 	CustomReadErrorTimeOut           time.Duration
 	CustomSubscriptionEngine         subscription.Engine
 }
@@ -72,6 +73,12 @@ func WithCustomKeepAliveInterval(keepAliveInterval time.Duration) HandleOptionFu
 func WithCustomSubscriptionUpdateInterval(subscriptionUpdateInterval time.Duration) HandleOptionFunc {
 	return func(opts *HandleOptions) {
 		opts.CustomSubscriptionUpdateInterval = subscriptionUpdateInterval
+	}
+}
+
+func WithCustomConnectionInitTimeOut(connectionInitTimeOut time.Duration) HandleOptionFunc {
+	return func(opts *HandleOptions) {
+		opts.CustomConnectionInitTimeOut = connectionInitTimeOut
 	}
 }
 
@@ -134,11 +141,7 @@ func HandleWithOptions(done chan bool, errChan chan error, conn net.Conn, execut
 		client = NewClient(options.Logger, conn)
 	}
 
-	protocolHandler, err := NewProtocolGraphQLWSHandlerWithOptions(client, ProtocolGraphQLWSHandlerOptions{
-		Logger:                  options.Logger,
-		WebSocketInitFunc:       options.WebSocketInitFunc,
-		CustomKeepAliveInterval: options.CustomKeepAliveInterval,
-	})
+	protocolHandler, err := createProtocolHandler(options, client)
 	if err != nil {
 		options.Logger.Error("websocket.HandleWithOptions: on protocol handler creation",
 			abstractlogger.String("message", "could not create protocol handler"),
@@ -169,4 +172,24 @@ func HandleWithOptions(done chan bool, errChan chan error, conn net.Conn, execut
 
 	close(done)
 	subscriptionHandler.Handle(context.Background()) // Blocking
+}
+
+func createProtocolHandler(handleOptions HandleOptions, client subscription.TransportClient) (protocolHandler subscription.Protocol, err error) {
+	switch handleOptions.Protocol {
+	case ProtocolGraphQLWS:
+		protocolHandler, err = NewProtocolGraphQLWSHandlerWithOptions(client, ProtocolGraphQLWSHandlerOptions{
+			Logger:                  handleOptions.Logger,
+			WebSocketInitFunc:       handleOptions.WebSocketInitFunc,
+			CustomKeepAliveInterval: handleOptions.CustomKeepAliveInterval,
+		})
+	default:
+		protocolHandler, err = NewProtocolGraphQLTransportWSHandlerWithOptions(client, ProtocolGraphQLTransportWSHandlerOptions{
+			Logger:                    handleOptions.Logger,
+			WebSocketInitFunc:         handleOptions.WebSocketInitFunc,
+			CustomKeepAliveInterval:   handleOptions.CustomKeepAliveInterval,
+			CustomInitTimeOutDuration: handleOptions.CustomConnectionInitTimeOut,
+		})
+	}
+
+	return protocolHandler, err
 }

@@ -96,6 +96,81 @@ func TestHandleWithOptions(t *testing.T) {
 			return true
 		}, 2*time.Second, 2*time.Millisecond, "never satisfied on stop subscription")
 	})
+
+	t.Run("should handle protocol graphql-transport-ws", func(t *testing.T) {
+		chatServer := httptest.NewServer(subscriptiontesting.ChatGraphQLEndpointHandler())
+		defer chatServer.Close()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		executorPoolV2 := setupExecutorPoolV2(t, ctx, chatServer.URL)
+		serverConn, _ := net.Pipe()
+		testClient := NewTestClient(false)
+
+		done := make(chan bool)
+		errChan := make(chan error)
+		go Handle(
+			done,
+			errChan,
+			serverConn,
+			executorPoolV2,
+			WithProtocol(ProtocolGraphQLTransportWS),
+			WithCustomClient(testClient),
+			WithCustomSubscriptionUpdateInterval(50*time.Millisecond),
+			WithCustomKeepAliveInterval(3600*time.Second), // keep_alive should not intervene with our tests, so make it high
+		)
+
+		require.Eventually(t, func() bool {
+			<-done
+			return true
+		}, 1*time.Second, 2*time.Millisecond)
+
+		testClient.writeMessageFromClient([]byte(`{"type":"connection_init"}`))
+		assert.Eventually(t, func() bool {
+			expectedMessage := []byte(`{"type":"connection_ack"}`)
+			actualMessage := testClient.readMessageToClient()
+			assert.Equal(t, expectedMessage, actualMessage)
+			return true
+		}, 1*time.Second, 2*time.Millisecond, "never satisfied on connection_init")
+
+		testClient.writeMessageFromClient([]byte(`{"id":"1","type":"subscribe","payload":{"query":"{ room(name:\"#my_room\") { name } }"}}`))
+		assert.Eventually(t, func() bool {
+			expectedMessage := []byte(`{"id":"1","type":"next","payload":{"data":{"room":{"name":"#my_room"}}}}`)
+			actualMessage := testClient.readMessageToClient()
+			assert.Equal(t, expectedMessage, actualMessage)
+			expectedMessage = []byte(`{"id":"1","type":"complete"}`)
+			actualMessage = testClient.readMessageToClient()
+			assert.Equal(t, expectedMessage, actualMessage)
+			return true
+		}, 2*time.Second, 2*time.Millisecond, "never satisfied on start non-subscription")
+
+		testClient.writeMessageFromClient([]byte(`{"id":"2","type":"subscribe","payload":{"query":"subscription { messageAdded(roomName:\"#my_room\") { text } }"}}`))
+		<-time.After(15 * time.Millisecond)
+		testClient.writeMessageFromClient([]byte(`{"id":"3","type":"subscribe","payload":{"query":"mutation { post(text: \"hello\", username: \"me\", roomName: \"#my_room\") { text } }"}}`))
+		assert.Eventually(t, func() bool {
+			expectedMessages := []string{
+				`{"id":"3","type":"next","payload":{"data":{"post":{"text":"hello"}}}}`,
+				`{"id":"3","type":"complete"}`,
+				`{"id":"2","type":"next","payload":{"data":{"messageAdded":{"text":"hello"}}}}`,
+			}
+			actualMessage := testClient.readMessageToClient()
+			assert.Contains(t, expectedMessages, string(actualMessage))
+			actualMessage = testClient.readMessageToClient()
+			assert.Contains(t, expectedMessages, string(actualMessage))
+			actualMessage = testClient.readMessageToClient()
+			assert.Contains(t, expectedMessages, string(actualMessage))
+			return true
+		}, 2*time.Second, 2*time.Millisecond, "never satisfied on start subscription")
+
+		testClient.writeMessageFromClient([]byte(`{"id":"2","type":"complete"}`))
+		assert.Eventually(t, func() bool {
+			expectedMessage := []byte(`{"id":"2","type":"complete"}`)
+			actualMessage := testClient.readMessageToClient()
+			assert.Equal(t, expectedMessage, actualMessage)
+			return true
+		}, 2*time.Second, 2*time.Millisecond, "never satisfied on stop subscription")
+	})
 }
 
 func setupExecutorPoolV2(t *testing.T, ctx context.Context, chatServerURL string) *subscription.ExecutorV2Pool {
