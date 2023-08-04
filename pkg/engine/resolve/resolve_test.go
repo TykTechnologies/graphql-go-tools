@@ -1257,7 +1257,7 @@ func TestResolver_ResolveNode(t *testing.T) {
 						},
 					},
 				},
-			}, Context{Context: context.Background()},
+			}, *NewContext(context.Background()),
 			`{"todaysTopMovie":{"name":"Indiana Jones and the Last Crusade","year":1989}}`
 	}))
 	t.Run("non null object with field condition can be null", testFn(false, false, func(t *testing.T, ctrl *gomock.Controller) (node Node, ctx Context, expectedOutput string) {
