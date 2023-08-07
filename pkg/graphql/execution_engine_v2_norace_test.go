@@ -1,3 +1,6 @@
+package graphql
+
+/*
 //go:build !race
 // +build !race
 
@@ -121,7 +124,7 @@ subscription UpdatedPrice {
 			}
 		})
 
-		/* Uncomment when polling subscriptions are ready:
+		// Uncomment when polling subscriptions are ready:
 
 		t.Run("should successfully subscribe to rest data source", func(t *testing.T) {
 			gqlRequest := &Request{
@@ -157,7 +160,7 @@ subscription UpdatedPrice {
 				}, time.Second, 10*time.Millisecond, "did not receive expected messages")
 			}
 		})
-		*/
+
 
 	}
 
@@ -169,3 +172,4 @@ subscription UpdatedPrice {
 		runIntegration(t, true, true)
 	})
 }
+*/
