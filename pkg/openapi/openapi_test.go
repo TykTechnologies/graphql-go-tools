@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/TykTechnologies/graphql-go-tools/pkg/astprinter"
