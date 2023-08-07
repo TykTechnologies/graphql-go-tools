@@ -81,6 +81,10 @@ func (r *fromTypeRefResolver) fromTypeRef(operation, definition *ast.Document, t
 		nonNull = true
 	}
 
+	if nonNull {
+		r.overrides["required"] = NewString(true)
+	}
+
 	switch t.TypeKind {
 	case ast.TypeKindList:
 		var defs map[string]JsonSchema
