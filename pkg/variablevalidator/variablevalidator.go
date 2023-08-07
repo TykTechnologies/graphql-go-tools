@@ -66,12 +66,10 @@ func (v *validatorVisitor) EnterVariableDefinition(ref int) {
    		// If the variable is not provided and the type is non-null, stop with an external error
    		v.StopWithExternalErr(operationreport.ErrVariableNotProvided(variableName, v.operation.VariableDefinitions[ref].VariableValue.Position))
    		return
-   	} else if err != nil {
-   		v.StopWithInternalErr(errors.New("error parsing variables"))
-   		return
-   	} else {
-   		// Add an else block to set a default message when there is no validation error
-   	}
+    	} else if err != nil {
+    		v.StopWithInternalErr(errors.New("error parsing variables"))
+    		return
+    	}
 
 	if t == jsonparser.String {
 		variable = []byte(fmt.Sprintf(`"%s"`, string(variable)))
