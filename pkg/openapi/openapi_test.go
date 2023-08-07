@@ -66,4 +66,5 @@ func testFixtureFile(t *testing.T, version, name string) {
  type User {
      "The legal name of a user"
      name: String
+ }
  }`
