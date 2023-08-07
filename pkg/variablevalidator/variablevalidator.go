@@ -93,14 +93,7 @@ func (v *validatorVisitor) EnterVariableDefinition(ref int) {
  			message = validationErr.Causes[0].Message
  		}
  
-   		if strings.Contains(message, "required") {
-   			re := regexp.MustCompile(`Variable '(\w+)' is required`)
-   			match := re.FindStringSubmatch(message)
-   			if len(match) > 1 {
-   				variableName := match[1]
-   				message = fmt.Sprintf("Variable '%s' is required but not provided", variableName)
-   			}
-   		}
+     		message = errorhandler.HandleRequiredError(message)
  
  		v.StopWithExternalErr(operationreport.ErrVariableValidationFailed(variableName, message, v.operation.VariableDefinitions[ref].VariableValue.Position))
  		return
