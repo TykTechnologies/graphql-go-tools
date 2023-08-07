@@ -12,9 +12,8 @@ import (
 	"github.com/TykTechnologies/graphql-go-tools/pkg/ast"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/astvisitor"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/graphqljsonschema"
-	"github.com/TykTechnologies/graphql-go-tools/pkg/operationreport"
-	"github.com/TykTechnologies/graphql-go-tools/pkg/errorhandler" // Add this line if the errorhandler package exists
-)
+ 	"github.com/TykTechnologies/graphql-go-tools/pkg/operationreport"
+ )
 
 type VariableValidator struct {
 	walker  *astvisitor.Walker
@@ -94,7 +93,8 @@ func (v *validatorVisitor) EnterVariableDefinition(ref int) {
  			message = validationErr.Causes[0].Message
  		}
  
-       		// message = errorhandler.HandleRequiredError(message) // Comment or remove this line if the errorhandler package does not exist
+         		// message = errorhandler.HandleRequiredError(message) // Comment or remove this line if the errorhandler package does not exist
+         		// Commented out because the errorhandler package does not exist
  
  		v.StopWithExternalErr(operationreport.ErrVariableValidationFailed(variableName, message, v.operation.VariableDefinitions[ref].VariableValue.Position))
  		return
