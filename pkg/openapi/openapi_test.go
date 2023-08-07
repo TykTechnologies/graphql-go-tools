@@ -54,6 +54,7 @@ func testFixtureFile(t *testing.T, version, name string) {
      "The device owner Name"
      userName: String!
  }
+ "A device is an object connected to the network"
  
  input DeviceInput {
      name: String!
