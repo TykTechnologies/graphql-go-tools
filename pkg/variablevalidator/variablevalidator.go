@@ -86,16 +86,20 @@ func (v *validatorVisitor) EnterVariableDefinition(ref int) {
 		v.StopWithInternalErr(err)
 		return
 	}
-	if err := schemaValidator.Validate(context.Background(), variable); err != nil {
-		message := err.Error()
-		var validationErr *jsonschema.ValidationError
-		if errors.As(err, &validationErr) && len(validationErr.Causes) > 0 {
-			message = validationErr.Causes[0].Message
-		}
-
-		v.StopWithExternalErr(operationreport.ErrVariableValidationFailed(variableName, message, v.operation.VariableDefinitions[ref].VariableValue.Position))
-		return
-	}
+ 	if err := schemaValidator.Validate(context.Background(), variable); err != nil {
+ 		message := err.Error()
+ 		var validationErr *jsonschema.ValidationError
+ 		if errors.As(err, &validationErr) && len(validationErr.Causes) > 0 {
+ 			message = validationErr.Causes[0].Message
+ 		}
+ 
+ 		if strings.Contains(message, "required") {
+ 			message = fmt.Sprintf("Variable '%s' is required but not provided", variableName)
+ 		}
+ 
+ 		v.StopWithExternalErr(operationreport.ErrVariableValidationFailed(variableName, message, v.operation.VariableDefinitions[ref].VariableValue.Position))
+ 		return
+ 	}
 }
 
 func (v *validatorVisitor) EnterOperationDefinition(ref int) {
