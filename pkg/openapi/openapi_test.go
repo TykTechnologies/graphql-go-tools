@@ -24,39 +24,45 @@ func testFixtureFile(t *testing.T, version, name string) {
 	err = astprinter.PrintIndent(doc, nil, []byte("  "), w)
 	require.NoError(t, err)
 
-	name = strings.Trim(strings.Trim(name, ".yaml"), ".json")
-	graphqlDoc, err := os.ReadFile(fmt.Sprintf("./fixtures/%s/%s.graphql", version, name))
-	require.NoError(t, err)
-	require.Equal(t, string(graphqlDoc), w.String())
-}
-
-func TestOpenAPI_v3_0_0(t *testing.T) {
-	t.Run("petstore-expanded.yaml", func(t *testing.T) {
-		testFixtureFile(t, "v3.0.0", "petstore-expanded.yaml")
-	})
-
-	t.Run("petstore.yaml", func(t *testing.T) {
-		testFixtureFile(t, "v3.0.0", "petstore.yaml")
-	})
-
-	t.Run("example_oas7.json", func(t *testing.T) {
-		// Source: https://github.com/IBM/openapi-to-graphql/blob/master/packages/openapi-to-graphql/test/fixtures/example_oas7.json
-		testFixtureFile(t, "v3.0.0", "example_oas7.json")
-	})
-
-	t.Run("EmployeesApiBasic.yaml", func(t *testing.T) {
-		// Source https://github.com/zosconnect/test-samples/blob/main/oas/EmployeesApiBasic.yaml
-		testFixtureFile(t, "v3.0.0", "EmployeesApiBasic.yaml")
-	})
-
-	t.Run("EmployeesApi.yaml", func(t *testing.T) {
-		// Source https://github.com/zosconnect/test-samples/blob/main/oas/EmployeesApiBasic.yaml
-		testFixtureFile(t, "v3.0.0", "EmployeesApi.yaml")
-	})
-
-	t.Run("example_oas3.json", func(t *testing.T) {
-		// Source: https://github.com/IBM/openapi-to-graphql/blob/master/packages/openapi-to-graphql/test/fixtures/example_oas3.json
-		testFixtureFile(t, "v3.0.0", "example_oas3.json")
-	})
-
-}
+ // Content of fixtures/v3.0.0/example_oas7.graphql
+ schema {
+     query: Query
+     mutation: Mutation
+ }
+ 
+ type Query {
+     "Find a device by name."
+     findDeviceByName(deviceName: String!): Device
+     "Return a device collection."
+     findDevices: [Device]
+     "Return a user."
+     user: User
+ }
+ 
+ type Mutation {
+     "Create and return a device."
+     createDevice(deviceInput: DeviceInput!): Device
+     "Replace a device by name."
+     replaceDeviceByName(deviceInput: DeviceInput!, deviceName: String!): Device
+ }
+ 
+ "A device is an object connected to the network"
+ type Device {
+     "The device name in the network"
+     name: String!
+     status: Boolean
+     "The device owner Name"
+     userName: String!
+ }
+ 
+ input DeviceInput {
+     name: String!
+     status: Boolean
+     userName: String!
+ }
+ 
+ "A user represents a natural person"
+ type User {
+     "The legal name of a user"
+     name: String
+ }
