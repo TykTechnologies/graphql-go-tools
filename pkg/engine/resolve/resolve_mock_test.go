@@ -9,8 +9,8 @@ import (
 	io "io"
 	reflect "reflect"
 
+	fastbuffer "github.com/TykTechnologies/graphql-go-tools/pkg/fastbuffer"
 	gomock "github.com/golang/mock/gomock"
-	fastbuffer "github.com/wundergraph/graphql-go-tools/pkg/fastbuffer"
 )
 
 // MockDataSource is a mock of DataSource interface.
