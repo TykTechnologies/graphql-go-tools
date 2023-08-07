@@ -55,25 +55,31 @@ func RequestErrorsFromOperationReport(report operationreport.Report) (errors Req
 		return nil
 	}
 
-	for _, externalError := range report.ExternalErrors {
-		locations := make([]graphqlerrors.Location, 0)
-		for _, reportLocation := range externalError.Locations {
-			loc := graphqlerrors.Location{
-				Line:   reportLocation.Line,
-				Column: reportLocation.Column,
-			}
-
-			locations = append(locations, loc)
-		}
-
-		validationError := RequestError{
-			Message:   externalError.Message,
-			Path:      ErrorPath{astPath: externalError.Path},
-			Locations: locations,
-		}
-
-		errors = append(errors, validationError)
-	}
+ 	for _, externalError := range report.ExternalErrors {
+ 		locations := make([]graphqlerrors.Location, 0)
+ 		for _, reportLocation := range externalError.Locations {
+ 			loc := graphqlerrors.Location{
+ 				Line:   reportLocation.Line,
+ 				Column: reportLocation.Column,
+ 			}
+ 
+ 			locations = append(locations, loc)
+ 		}
+ 
+ 		message := externalError.Message
+ 		if strings.Contains(message, "required") {
+ 			variableName := strings.Split(message, " ")[1]
+ 			message = fmt.Sprintf("Variable '%s' is required but not provided", variableName)
+ 		}
+ 
+ 		validationError := RequestError{
+ 			Message:   message,
+ 			Path:      ErrorPath{astPath: externalError.Path},
+ 			Locations: locations,
+ 		}
+ 
+ 		errors = append(errors, validationError)
+ 	}
 
 	return errors
 }
