@@ -24,11 +24,11 @@ func testFixtureFile(t *testing.T, version, name string) {
 	err = astprinter.PrintIndent(doc, nil, []byte("  "), w)
 	require.NoError(t, err)
 
- `// Content of fixtures/v3.0.0/example_oas7.graphql
+ schema := `// Content of fixtures/v3.0.0/example_oas7.graphql
  schema {
      query: Query
      mutation: Mutation
- }`
+ }
  
  type Query {
      "Find a device by name."
@@ -66,4 +66,4 @@ func testFixtureFile(t *testing.T, version, name string) {
  type User {
      "The legal name of a user"
      name: String
- }
+ }`
