@@ -83,7 +83,7 @@ func (v *validatorVisitor) EnterVariableDefinition(ref int) {
 		return
 	}
 	if err := schemaValidator.Validate(context.Background(), variable); err != nil {
-		message := err.Error()
+		var message string
 		var validationErr *jsonschema.ValidationError
 		if errors.As(err, &validationErr) && len(validationErr.Causes) > 0 {
 			message = validationErr.Causes[0].Message
