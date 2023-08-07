@@ -19,7 +19,8 @@ func testFixtureFile(t *testing.T, version, name string) {
 	if report.HasErrors() {
 		t.Fatal(report.Error())
 	}
-	require.NoError(t, err)
-	w := &bytes.Buffer{}
-	err = astprinter.PrintIndent(doc, nil, []byte("  "), w)
-	require.NoError(t, err)
+ 	require.NoError(t, err)
+ 	w := &bytes.Buffer{}
+ 	err = astprinter.PrintIndent(doc, nil, []byte("  "), w)
+ 	require.NoError(t, err)
+ }
