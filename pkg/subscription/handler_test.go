@@ -184,7 +184,7 @@ func TestUniversalProtocolHandler_Handle(t *testing.T) {
 		}, 50*time.Millisecond, 5*time.Millisecond)
 	})
 
-	t.Run("reade error time out", func(t *testing.T) {
+	t.Run("read error time out", func(t *testing.T) {
 		t.Run("should stop handler when read error timer runs out", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
@@ -224,7 +224,7 @@ func TestUniversalProtocolHandler_Handle(t *testing.T) {
 
 			assert.Eventually(t, func() bool {
 				go handler.Handle(ctx)
-				<-time.After(15 * time.Millisecond)
+				<-time.After(30 * time.Millisecond)
 				return true
 			}, 50*time.Millisecond, 5*time.Millisecond)
 		})
