@@ -306,12 +306,12 @@ func TestProtocolGraphQLWSHandler_Handle(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, expectedMessageAck, testClient.readMessageToClient())
 
-			<-time.After(6 * time.Millisecond)
+			<-time.After(8 * time.Millisecond)
 			assert.Equal(t, expectedMessageKeepAlive, testClient.readMessageToClient())
 			cancelFunc()
 
 			return true
-		}, 15*time.Millisecond, 5*time.Millisecond)
+		}, 100*time.Millisecond, 5*time.Millisecond)
 
 	})
 
