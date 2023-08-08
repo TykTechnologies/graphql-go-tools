@@ -452,6 +452,6 @@ func TestExecutorEngine_TerminateAllConnections(t *testing.T) {
 }
 
 func assignableToContextWithCancel(ctx context.Context) gomock.Matcher {
-	ctxWithCancel, _ := context.WithCancel(ctx)
+	ctxWithCancel, _ := context.WithCancel(ctx) //nolint:govet
 	return gomock.AssignableToTypeOf(ctxWithCancel)
 }

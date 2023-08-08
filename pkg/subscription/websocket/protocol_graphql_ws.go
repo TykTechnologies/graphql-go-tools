@@ -320,12 +320,9 @@ func (p *ProtocolGraphQLWSHandler) EventHandler() subscription.EventHandler {
 func (p *ProtocolGraphQLWSHandler) handleInit(ctx context.Context, payload []byte) (context.Context, error) {
 	initCtx := ctx
 	if p.initFunc != nil && len(payload) > 0 {
-		var initPayload InitPayload
-		initPayload = payload
-
 		// check initial payload to see whether to accept the websocket connection
 		var err error
-		if initCtx, err = p.initFunc(ctx, initPayload); err != nil {
+		if initCtx, err = p.initFunc(ctx, payload); err != nil {
 			return initCtx, err
 		}
 	}
