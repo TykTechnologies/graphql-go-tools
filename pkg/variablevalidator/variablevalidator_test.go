@@ -120,6 +120,12 @@ func TestVariableValidator(t *testing.T) {
   			variables: `"\n            {\"code\":{\"code\":{\"in\":[\"PL\",\"UA\"],\"extra\":\"koza\"}}}\n        "`,
   			expectedError: "",
   		},
+		{
+			name:          "new test case: invalid variable json non null input",
+			operation:     testQueryNonNullInput,
+			variables:     `"\n            {\"code\":{\"code\":{\"in\":[\"PL\",\"UA\"],\"extra\":\"koza\"}}}\n        "`,
+			expectedError: "",
+		},
 	}
 	for _, c := range testCases {
 		t.Run(c.name, func(t *testing.T) {
