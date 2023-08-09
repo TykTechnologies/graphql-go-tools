@@ -330,7 +330,7 @@ func TestProtocolGraphQLWSHandler_Handle(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, expectedMessageAck, testClient.readMessageToClient())
 
-			<-time.After(8 * time.Millisecond)
+			time.Sleep(8 * time.Millisecond)
 			assert.Equal(t, expectedMessageKeepAlive, testClient.readMessageToClient())
 			cancelFunc()
 

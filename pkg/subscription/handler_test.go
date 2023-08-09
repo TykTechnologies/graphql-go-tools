@@ -46,10 +46,10 @@ func TestUniversalProtocolHandler_Handle(t *testing.T) {
 
 		assert.Eventually(t, func() bool {
 			go handler.Handle(ctx)
-			<-time.After(5 * time.Millisecond)
+			time.Sleep(5 * time.Millisecond)
 			cancelFunc()
-			<-ctx.Done()                       // Check if channel is closed
-			<-time.After(5 * time.Millisecond) // Give some time to close connections
+			<-ctx.Done()                     // Check if channel is closed
+			time.Sleep(5 * time.Millisecond) // Give some time to close connections
 			return true
 		}, 1*time.Second, 5*time.Millisecond)
 	})
@@ -90,10 +90,10 @@ func TestUniversalProtocolHandler_Handle(t *testing.T) {
 
 		assert.Eventually(t, func() bool {
 			go handler.Handle(ctx)
-			<-time.After(5 * time.Millisecond)
+			time.Sleep(5 * time.Millisecond)
 			cancelFunc()
-			<-ctx.Done()                       // Check if channel is closed
-			<-time.After(5 * time.Millisecond) // Give some time to close connections
+			<-ctx.Done()                     // Check if channel is closed
+			time.Sleep(5 * time.Millisecond) // Give some time to close connections
 			return true
 		}, 1*time.Second, 5*time.Millisecond)
 	})
@@ -136,10 +136,10 @@ func TestUniversalProtocolHandler_Handle(t *testing.T) {
 
 		assert.Eventually(t, func() bool {
 			go handler.Handle(ctx)
-			<-time.After(5 * time.Millisecond)
+			time.Sleep(5 * time.Millisecond)
 			cancelFunc()
-			<-ctx.Done()                       // Check if channel is closed
-			<-time.After(5 * time.Millisecond) // Give some time to close connections
+			<-ctx.Done()                     // Check if channel is closed
+			time.Sleep(5 * time.Millisecond) // Give some time to close connections
 			return true
 		}, 1*time.Second, 5*time.Millisecond)
 	})
@@ -183,10 +183,10 @@ func TestUniversalProtocolHandler_Handle(t *testing.T) {
 
 		assert.Eventually(t, func() bool {
 			go handler.Handle(ctx)
-			<-time.After(5 * time.Millisecond)
+			time.Sleep(5 * time.Millisecond)
 			cancelFunc()
-			<-ctx.Done()                       // Check if channel is closed
-			<-time.After(5 * time.Millisecond) // Give some time to close connections
+			<-ctx.Done()                     // Check if channel is closed
+			time.Sleep(5 * time.Millisecond) // Give some time to close connections
 			return true
 		}, 1*time.Second, 5*time.Millisecond)
 	})
@@ -232,7 +232,7 @@ func TestUniversalProtocolHandler_Handle(t *testing.T) {
 
 			assert.Eventually(t, func() bool {
 				go handler.Handle(ctx)
-				<-time.After(30 * time.Millisecond)
+				time.Sleep(30 * time.Millisecond)
 				return true
 			}, 1*time.Second, 5*time.Millisecond)
 		})
@@ -289,10 +289,10 @@ func TestUniversalProtocolHandler_Handle(t *testing.T) {
 
 			assert.Eventually(t, func() bool {
 				go handler.Handle(ctx)
-				<-time.After(10 * time.Millisecond)
+				time.Sleep(10 * time.Millisecond)
 				cancelFunc()
-				<-ctx.Done()                       // Check if channel is closed
-				<-time.After(5 * time.Millisecond) // Give some time to close connections
+				<-ctx.Done()                     // Check if channel is closed
+				time.Sleep(5 * time.Millisecond) // Give some time to close connections
 				return true
 			}, 1*time.Second, 5*time.Millisecond)
 		})
@@ -315,9 +315,9 @@ func TestTimeOutChecker(t *testing.T) {
 			TimeOutDuration: 5 * time.Millisecond,
 		}
 		go TimeOutChecker(params)
-		<-time.After(2 * time.Millisecond)
+		time.Sleep(2 * time.Millisecond)
 		timeOutCancel()
-		<-time.After(5 * time.Millisecond)
+		time.Sleep(5 * time.Millisecond)
 		assert.False(t, timeOutActionExecuted)
 	})
 
@@ -335,10 +335,10 @@ func TestTimeOutChecker(t *testing.T) {
 			Logger:          abstractlogger.Noop{},
 			TimeOutContext:  timeOutCtx,
 			TimeOutAction:   timeOutAction,
-			TimeOutDuration: 5 * time.Millisecond,
+			TimeOutDuration: 10 * time.Millisecond,
 		}
 		go TimeOutChecker(params)
-		<-time.After(6 * time.Millisecond)
+		time.Sleep(15 * time.Millisecond)
 		assert.True(t, timeOutActionExecuted)
 	})
 }

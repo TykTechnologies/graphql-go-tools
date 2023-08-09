@@ -71,7 +71,7 @@ func TestHandleWithOptions(t *testing.T) {
 		}, 2*time.Second, 2*time.Millisecond, "never satisfied on start non-subscription")
 
 		testClient.writeMessageFromClient([]byte(`{"id":"2","type":"start","payload":{"query":"subscription { messageAdded(roomName:\"#my_room\") { text } }"}}`))
-		<-time.After(15 * time.Millisecond)
+		time.Sleep(15 * time.Millisecond)
 		testClient.writeMessageFromClient([]byte(`{"id":"3","type":"start","payload":{"query":"mutation { post(text: \"hello\", username: \"me\", roomName: \"#my_room\") { text } }"}}`))
 		assert.Eventually(t, func() bool {
 			expectedMessages := []string{
@@ -146,7 +146,7 @@ func TestHandleWithOptions(t *testing.T) {
 		}, 2*time.Second, 2*time.Millisecond, "never satisfied on start non-subscription")
 
 		testClient.writeMessageFromClient([]byte(`{"id":"2","type":"subscribe","payload":{"query":"subscription { messageAdded(roomName:\"#my_room\") { text } }"}}`))
-		<-time.After(15 * time.Millisecond)
+		time.Sleep(15 * time.Millisecond)
 		testClient.writeMessageFromClient([]byte(`{"id":"3","type":"subscribe","payload":{"query":"mutation { post(text: \"hello\", username: \"me\", roomName: \"#my_room\") { text } }"}}`))
 		assert.Eventually(t, func() bool {
 			expectedMessages := []string{

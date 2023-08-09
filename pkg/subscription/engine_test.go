@@ -253,7 +253,7 @@ func TestExecutorEngine_StartOperation(t *testing.T) {
 			assert.Eventually(t, func() bool {
 				err := engine.StartOperation(ctx, id, payload, eventHandlerMock)
 				<-ctx.Done()
-				<-time.After(5 * time.Millisecond)
+				time.Sleep(5 * time.Millisecond)
 				return assert.NoError(t, err)
 			}, 1*time.Second, 10*time.Millisecond)
 		})
@@ -371,12 +371,12 @@ func TestExecutorEngine_StopSubscription(t *testing.T) {
 		err := engine.StartOperation(ctx, id, payload, eventHandlerMock)
 		assert.NoError(t, err)
 		assert.Equal(t, 1, engine.subCancellations.Len())
-		<-time.After(5 * time.Millisecond)
+		time.Sleep(5 * time.Millisecond)
 
 		err = engine.StopSubscription(id, eventHandlerMock)
 		assert.NoError(t, err)
 		assert.Equal(t, 0, engine.subCancellations.Len())
-		<-time.After(5 * time.Millisecond)
+		time.Sleep(5 * time.Millisecond)
 
 		return true
 	}, 1*time.Second, 5*time.Millisecond)
@@ -436,12 +436,12 @@ func TestExecutorEngine_TerminateAllConnections(t *testing.T) {
 		err = engine.StartOperation(ctx, "3", payload, eventHandlerMock)
 		assert.NoError(t, err)
 		assert.Equal(t, 3, engine.subCancellations.Len())
-		<-time.After(5 * time.Millisecond)
+		time.Sleep(5 * time.Millisecond)
 
 		err = engine.TerminateAllSubscriptions(eventHandlerMock)
 		assert.NoError(t, err)
 		assert.Equal(t, 0, engine.subCancellations.Len())
-		<-time.After(5 * time.Millisecond)
+		time.Sleep(5 * time.Millisecond)
 
 		return true
 	}, 1*time.Second, 5*time.Millisecond)
