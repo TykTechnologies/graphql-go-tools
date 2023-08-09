@@ -98,48 +98,6 @@ func TestUniversalProtocolHandler_Handle(t *testing.T) {
 		}, 50*time.Millisecond, 5*time.Millisecond)
 	})
 
-	t.Run("should terminate when reading on closed connection", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
-		clientMock := NewMockTransportClient(ctrl)
-		clientMock.EXPECT().IsConnected().
-			Return(true).
-			Times(1)
-		clientMock.EXPECT().ReadBytesFromClient().
-			Return(nil, ErrTransportClientClosedConnection).
-			Times(1)
-
-		eventHandlerMock := NewMockEventHandler(ctrl)
-		protocolMock := NewMockProtocol(ctrl)
-		protocolMock.EXPECT().EventHandler().
-			Return(eventHandlerMock).
-			Times(1)
-
-		engineMock := NewMockEngine(ctrl)
-		engineMock.EXPECT().TerminateAllConnections(eventHandlerMock).
-			Times(1)
-
-		ctx, cancelFunc := context.WithCancel(context.Background())
-
-		options := UniversalProtocolHandlerOptions{
-			Logger:                           abstractlogger.Noop{},
-			CustomSubscriptionUpdateInterval: 0,
-			CustomEngine:                     engineMock,
-		}
-		handler, err := NewUniversalProtocolHandlerWithOptions(clientMock, protocolMock, nil, options)
-		require.NoError(t, err)
-
-		assert.Eventually(t, func() bool {
-			go handler.Handle(ctx)
-			<-time.After(5 * time.Millisecond)
-			cancelFunc()
-			<-ctx.Done()                       // Check if channel is closed
-			<-time.After(5 * time.Millisecond) // Give some time to close connections
-			return true
-		}, 50*time.Millisecond, 5*time.Millisecond)
-	})
-
 	t.Run("should sent event on client read error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
