@@ -119,7 +119,7 @@ func WithProtocolFromRequestHeaders(req *http.Request) HandleOptionFunc {
 			return
 		}
 
-		protocolHeaderValue := req.Header.Get(http.CanonicalHeaderKey(HeaderSecWebSocketProtocol))
+		protocolHeaderValue := req.Header.Get(HeaderSecWebSocketProtocol)
 		switch Protocol(protocolHeaderValue) {
 		case ProtocolGraphQLWS:
 			opts.Protocol = ProtocolGraphQLWS

@@ -125,13 +125,11 @@ func (c *Client) Disconnect() error {
 // It can only consume CloseReason or CompiledCloseReason.
 func (c *Client) DisconnectWithReason(reason interface{}) error {
 	var err error
-	switch reason.(type) {
+	switch reason := reason.(type) {
 	case CloseReason:
-		frame := reason.(CloseReason)
-		err = c.writeFrame(ws.Frame(frame))
+		err = c.writeFrame(ws.Frame(reason))
 	case CompiledCloseReason:
-		compiledReason := reason.(CompiledCloseReason)
-		err = c.writeCompiledFrame(compiledReason)
+		err = c.writeCompiledFrame(reason)
 	default:
 		c.logger.Error("websocket.Client.DisconnectWithReason: on reason/frame parsing",
 			abstractlogger.String("message", "unknown reason provided"),

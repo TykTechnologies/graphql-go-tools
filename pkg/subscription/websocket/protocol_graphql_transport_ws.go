@@ -239,6 +239,14 @@ func (g *GraphQLTransportWSEventHandler) HandleWriteEvent(messageType GraphQLTra
 				fmt.Sprintf("invalid type '%s'", string(messageType)),
 			),
 		)
+		if err != nil {
+			g.logger.Error("websocket.GraphQLTransportWSEventHandler.HandleWriteEvent: after disconnecting on write event handling with unexpected message type",
+				abstractlogger.Error(err),
+				abstractlogger.String("id", id),
+				abstractlogger.String("type", string(messageType)),
+				abstractlogger.ByteString("payload", data),
+			)
+		}
 		return
 	}
 	if err != nil {
@@ -439,12 +447,9 @@ func (p *ProtocolGraphQLTransportWSHandler) handleInit(ctx context.Context, payl
 
 	initCtx := ctx
 	if p.initFunc != nil && len(payload) > 0 {
-		var initPayload InitPayload
-		initPayload = payload
-
 		// check initial payload to see whether to accept the websocket connection
 		var err error
-		if initCtx, err = p.initFunc(ctx, initPayload); err != nil {
+		if initCtx, err = p.initFunc(ctx, payload); err != nil {
 			return initCtx, err
 		}
 	}
