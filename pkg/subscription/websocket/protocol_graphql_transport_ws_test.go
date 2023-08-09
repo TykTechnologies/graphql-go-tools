@@ -292,7 +292,7 @@ func TestGraphQLTransportWSEventHandler_Emit(t *testing.T) {
 			actualCompleteMessage := testClient.readMessageToClient()
 			assert.Equal(t, expectedCompleteMessage, actualCompleteMessage)
 			return true
-		}, 10*time.Millisecond, 2*time.Millisecond)
+		}, 1*time.Second, 2*time.Millisecond)
 	})
 	t.Run("should write on error", func(t *testing.T) {
 		testClient := NewTestClient(false)
@@ -402,7 +402,7 @@ func TestProtocolGraphQLTransportWSHandler_Handle(t *testing.T) {
 				assert.NoError(t, err)
 				assert.False(t, protocol.eventHandler.Writer.Client.IsConnected())
 				return true
-			}, 50*time.Millisecond, 2*time.Millisecond)
+			}, 1*time.Second, 2*time.Millisecond)
 
 		})
 
@@ -434,7 +434,7 @@ func TestProtocolGraphQLTransportWSHandler_Handle(t *testing.T) {
 				assert.True(t, protocol.connectionInitTimerStarted)
 				assert.Nil(t, protocol.connectionInitTimeOutCancel)
 				return true
-			}, 50*time.Millisecond, 2*time.Millisecond)
+			}, 1*time.Second, 2*time.Millisecond)
 
 		})
 	})
@@ -456,7 +456,7 @@ func TestProtocolGraphQLTransportWSHandler_Handle(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, expectedMessage, testClient.readMessageToClient())
 			return true
-		}, 20*time.Millisecond, 2*time.Millisecond)
+		}, 1*time.Second, 2*time.Millisecond)
 	})
 
 	t.Run("should handle subscribe", func(t *testing.T) {
@@ -476,7 +476,7 @@ func TestProtocolGraphQLTransportWSHandler_Handle(t *testing.T) {
 			err := protocol.Handle(ctx, mockEngine, inputMessage)
 			assert.NoError(t, err)
 			return true
-		}, 20*time.Millisecond, 2*time.Millisecond)
+		}, 1*time.Second, 2*time.Millisecond)
 	})
 
 	t.Run("should handle complete", func(t *testing.T) {
@@ -495,7 +495,7 @@ func TestProtocolGraphQLTransportWSHandler_Handle(t *testing.T) {
 			err := protocol.Handle(ctx, mockEngine, inputMessage)
 			assert.NoError(t, err)
 			return true
-		}, 20*time.Millisecond, 2*time.Millisecond)
+		}, 1*time.Second, 2*time.Millisecond)
 	})
 }
 

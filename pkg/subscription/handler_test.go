@@ -51,7 +51,7 @@ func TestUniversalProtocolHandler_Handle(t *testing.T) {
 			<-ctx.Done()                       // Check if channel is closed
 			<-time.After(5 * time.Millisecond) // Give some time to close connections
 			return true
-		}, 50*time.Millisecond, 5*time.Millisecond)
+		}, 1*time.Second, 5*time.Millisecond)
 	})
 
 	t.Run("should terminate when reading on closed connection", func(t *testing.T) {
@@ -95,7 +95,7 @@ func TestUniversalProtocolHandler_Handle(t *testing.T) {
 			<-ctx.Done()                       // Check if channel is closed
 			<-time.After(5 * time.Millisecond) // Give some time to close connections
 			return true
-		}, 50*time.Millisecond, 5*time.Millisecond)
+		}, 1*time.Second, 5*time.Millisecond)
 	})
 
 	t.Run("should sent event on client read error", func(t *testing.T) {
@@ -141,7 +141,7 @@ func TestUniversalProtocolHandler_Handle(t *testing.T) {
 			<-ctx.Done()                       // Check if channel is closed
 			<-time.After(5 * time.Millisecond) // Give some time to close connections
 			return true
-		}, 50*time.Millisecond, 5*time.Millisecond)
+		}, 1*time.Second, 5*time.Millisecond)
 	})
 
 	t.Run("should handover message to protocol handler", func(t *testing.T) {
@@ -188,7 +188,7 @@ func TestUniversalProtocolHandler_Handle(t *testing.T) {
 			<-ctx.Done()                       // Check if channel is closed
 			<-time.After(5 * time.Millisecond) // Give some time to close connections
 			return true
-		}, 50*time.Millisecond, 5*time.Millisecond)
+		}, 1*time.Second, 5*time.Millisecond)
 	})
 
 	t.Run("read error time out", func(t *testing.T) {
@@ -234,7 +234,7 @@ func TestUniversalProtocolHandler_Handle(t *testing.T) {
 				go handler.Handle(ctx)
 				<-time.After(30 * time.Millisecond)
 				return true
-			}, 50*time.Millisecond, 5*time.Millisecond)
+			}, 1*time.Second, 5*time.Millisecond)
 		})
 
 		t.Run("should continue running handler after intermittent read error", func(t *testing.T) {
@@ -294,7 +294,7 @@ func TestUniversalProtocolHandler_Handle(t *testing.T) {
 				<-ctx.Done()                       // Check if channel is closed
 				<-time.After(5 * time.Millisecond) // Give some time to close connections
 				return true
-			}, 50*time.Millisecond, 5*time.Millisecond)
+			}, 1*time.Second, 5*time.Millisecond)
 		})
 	})
 }

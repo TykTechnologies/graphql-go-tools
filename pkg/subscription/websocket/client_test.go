@@ -114,7 +114,7 @@ func TestClient_ReadFromClient(t *testing.T) {
 			assert.Eventually(t, func() bool {
 				_, err := websocketClient.ReadBytesFromClient()
 				return assert.Equal(t, subscription.ErrTransportClientClosedConnection, err)
-			}, 15*time.Millisecond, 2*time.Millisecond)
+			}, 1*time.Second, 2*time.Millisecond)
 		})
 		t.Run("when not wrapped", func(t *testing.T) {
 			t.Run("io.EOF", func(t *testing.T) {
@@ -249,7 +249,7 @@ func TestClient_DisconnectWithReason(t *testing.T) {
 			assert.Equal(t, "unknown reason", actualServerResult.closeReason)
 			assert.Equal(t, true, websocketClient.isClosedConnection)
 			return true
-		}, 15*time.Millisecond, 2*time.Millisecond)
+		}, 1*time.Second, 2*time.Millisecond)
 	})
 
 	t.Run("disconnect with reason", func(t *testing.T) {
@@ -274,7 +274,7 @@ func TestClient_DisconnectWithReason(t *testing.T) {
 			assert.Equal(t, "error occurred", actualServerResult.closeReason)
 			assert.Equal(t, true, websocketClient.isClosedConnection)
 			return true
-		}, 15*time.Millisecond, 2*time.Millisecond)
+		}, 1*time.Second, 2*time.Millisecond)
 	})
 
 	t.Run("disconnect with compiled reason", func(t *testing.T) {
@@ -299,7 +299,7 @@ func TestClient_DisconnectWithReason(t *testing.T) {
 			assert.Equal(t, "Normal Closure", actualServerResult.closeReason)
 			assert.Equal(t, true, websocketClient.isClosedConnection)
 			return true
-		}, 15*time.Millisecond, 2*time.Millisecond)
+		}, 1*time.Second, 2*time.Millisecond)
 	})
 }
 

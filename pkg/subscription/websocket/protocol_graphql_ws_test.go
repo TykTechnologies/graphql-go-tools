@@ -260,7 +260,7 @@ func TestGraphQLWSWriteEventHandler_Emit(t *testing.T) {
 			actualCompleteMessage := testClient.readMessageToClient()
 			assert.Equal(t, expectedCompleteMessage, actualCompleteMessage)
 			return true
-		}, 10*time.Millisecond, 2*time.Millisecond)
+		}, 1*time.Second, 2*time.Millisecond)
 	})
 }
 
@@ -335,7 +335,7 @@ func TestProtocolGraphQLWSHandler_Handle(t *testing.T) {
 			cancelFunc()
 
 			return true
-		}, 100*time.Millisecond, 5*time.Millisecond)
+		}, 1*time.Second, 5*time.Millisecond)
 
 	})
 

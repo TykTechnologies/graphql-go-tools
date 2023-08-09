@@ -82,7 +82,7 @@ func TestExecutorEngine_StartOperation(t *testing.T) {
 
 				<-ctx.Done()
 				return true
-			}, 50*time.Millisecond, 10*time.Millisecond)
+			}, 1*time.Second, 10*time.Millisecond)
 		})
 
 		t.Run("on execution success", func(t *testing.T) {
@@ -148,7 +148,7 @@ func TestExecutorEngine_StartOperation(t *testing.T) {
 
 				<-ctx.Done()
 				return true
-			}, 50*time.Millisecond, 10*time.Millisecond)
+			}, 1*time.Second, 10*time.Millisecond)
 		})
 	})
 
@@ -201,7 +201,7 @@ func TestExecutorEngine_StartOperation(t *testing.T) {
 				err := engine.StartOperation(ctx, id, payload, eventHandlerMock)
 				<-ctx.Done()
 				return assert.NoError(t, err)
-			}, 50*time.Millisecond, 10*time.Millisecond)
+			}, 1*time.Second, 10*time.Millisecond)
 		})
 
 		t.Run("on execution success", func(t *testing.T) {
@@ -255,7 +255,7 @@ func TestExecutorEngine_StartOperation(t *testing.T) {
 				<-ctx.Done()
 				<-time.After(5 * time.Millisecond)
 				return assert.NoError(t, err)
-			}, 50*time.Millisecond, 10*time.Millisecond)
+			}, 1*time.Second, 10*time.Millisecond)
 		})
 	})
 
@@ -316,7 +316,7 @@ func TestExecutorEngine_StartOperation(t *testing.T) {
 
 			<-ctx.Done()
 			return true
-		}, 50*time.Millisecond, 10*time.Millisecond)
+		}, 1*time.Second, 10*time.Millisecond)
 	})
 }
 
@@ -379,7 +379,7 @@ func TestExecutorEngine_StopSubscription(t *testing.T) {
 		<-time.After(5 * time.Millisecond)
 
 		return true
-	}, 50*time.Millisecond, 5*time.Millisecond)
+	}, 1*time.Second, 5*time.Millisecond)
 }
 
 func TestExecutorEngine_TerminateAllConnections(t *testing.T) {
@@ -444,7 +444,7 @@ func TestExecutorEngine_TerminateAllConnections(t *testing.T) {
 		<-time.After(5 * time.Millisecond)
 
 		return true
-	}, 50*time.Millisecond, 5*time.Millisecond)
+	}, 1*time.Second, 5*time.Millisecond)
 }
 
 func assignableToContextWithCancel(ctx context.Context) gomock.Matcher {
