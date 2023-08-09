@@ -326,10 +326,10 @@ func TestTimeOutChecker(t *testing.T) {
          logger:          abstractlogger.Noop{},
          timeOutContext:  timeOutCtx,
          timeOutAction:   timeOutAction,
-         timeOutDuration: 5 * time.Millisecond,
+         timeOutDuration: 10 * time.Millisecond,
      }
      go timeOutChecker(params)
-     time.Sleep(6 * time.Millisecond)
+     time.Sleep(15 * time.Millisecond)
      assert.True(t, timeOutActionExecuted)
  })
 }
