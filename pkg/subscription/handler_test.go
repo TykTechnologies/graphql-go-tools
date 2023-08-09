@@ -312,24 +312,24 @@ func TestTimeOutChecker(t *testing.T) {
 		assert.False(t, timeOutActionExecuted)
 	})
 
-	t.Run("should stop process if timer runs out", func(t *testing.T) {
-		timeOutActionExecuted := false
-		timeOutAction := func() {
-			timeOutActionExecuted = true
-		}
-
-		timeOutCtx, timeOutCancel := context.WithCancel(context.Background())
-		defer timeOutCancel()
-
-		params := timeOutParams{
-			name:            "",
-			logger:          abstractlogger.Noop{},
-			timeOutContext:  timeOutCtx,
-			timeOutAction:   timeOutAction,
-			timeOutDuration: 5 * time.Millisecond,
-		}
-		go timeOutChecker(params)
-		<-time.After(6 * time.Millisecond)
-		assert.True(t, timeOutActionExecuted)
-	})
+ t.Run("should stop process if timer runs out", func(t *testing.T) {
+     timeOutActionExecuted := false
+     timeOutAction := func() {
+         timeOutActionExecuted = true
+     }
+ 
+     timeOutCtx, timeOutCancel := context.WithCancel(context.Background())
+     defer timeOutCancel()
+ 
+     params := timeOutParams{
+         name:            "",
+         logger:          abstractlogger.Noop{},
+         timeOutContext:  timeOutCtx,
+         timeOutAction:   timeOutAction,
+         timeOutDuration: 5 * time.Millisecond,
+     }
+     go timeOutChecker(params)
+     time.Sleep(6 * time.Millisecond)
+     assert.True(t, timeOutActionExecuted)
+ })
 }
