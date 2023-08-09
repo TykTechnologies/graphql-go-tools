@@ -164,6 +164,7 @@ func (c *converter) processSchemaProperties(fullType *introspection.FullType, sc
 		}
 
 		fullType.Fields = append(fullType.Fields, field)
+		fullType.Description = schema.Description
 		sort.Slice(fullType.Fields, func(i, j int) bool {
 			return fullType.Fields[i].Name < fullType.Fields[j].Name
 		})
