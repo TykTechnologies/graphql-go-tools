@@ -59,22 +59,17 @@ func (v *validatorVisitor) EnterVariableDefinition(ref int) {
 	variableName := v.operation.VariableDefinitionNameBytes(ref)
 	variable, t, _, err := jsonparser.Get(v.variables, string(variableName))
 	typeIsNonNull := v.operation.TypeIsNonNull(typeRef)
-	if err != nil && typeIsNonNull {
-		v.StopWithExternalErr(operationreport.ErrVariableNotProvided(variableName, v.operation.VariableDefinitions[ref].VariableValue.Position))
-		return
-	}
-	// if the type is nullable and an error is encountered parsing the JSON, keep processing the request and skip this variable validation
-	if err != nil && !typeIsNonNull {
-		return
-	}
-	if err == jsonparser.KeyPathNotFoundError || err == jsonparser.MalformedJsonError {
-		v.StopWithExternalErr(operationreport.ErrVariableNotProvided(variableName, v.operation.VariableDefinitions[ref].VariableValue.Position))
-		return
-	}
-	if err != nil {
-		v.StopWithInternalErr(errors.New("error parsing variables"))
-		return
-	}
+   	if err != nil && !typeIsNonNull {
+   		// If the variable is not provided and the type is nullable, simply return from the function
+   		return
+   	} else if (err == jsonparser.KeyPathNotFoundError || errors.Is(err, jsonparser.MalformedJsonError)) && typeIsNonNull {
+   		// If the variable is not provided and the type is non-null, stop with an external error
+   		v.StopWithExternalErr(operationreport.ErrVariableNotProvided(variableName, v.operation.VariableDefinitions[ref].VariableValue.Position))
+   		return
+    	} else if err != nil {
+    		v.StopWithInternalErr(errors.New("error parsing variables"))
+    		return
+    	}
 
 	if t == jsonparser.String {
 		variable = []byte(fmt.Sprintf(`"%s"`, string(variable)))
@@ -87,10 +82,12 @@ func (v *validatorVisitor) EnterVariableDefinition(ref int) {
 		return
 	}
 	if err := schemaValidator.Validate(context.Background(), variable); err != nil {
-		message := err.Error()
+		var message string
 		var validationErr *jsonschema.ValidationError
 		if errors.As(err, &validationErr) && len(validationErr.Causes) > 0 {
 			message = validationErr.Causes[0].Message
+		} else {
+			message = fmt.Sprintf("Validation for variable %q failed", variableName)
 		}
 
 		v.StopWithExternalErr(operationreport.ErrVariableValidationFailed(variableName, message, v.operation.VariableDefinitions[ref].VariableValue.Position))
