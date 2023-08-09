@@ -39,10 +39,11 @@ func TestOpenAPI_v3_0_0(t *testing.T) {
 		testFixtureFile(t, "v3.0.0", "petstore.yaml")
 	})
 
-	t.Run("example_oas7.json", func(t *testing.T) {
-		// Source: https://github.com/IBM/openapi-to-graphql/blob/master/packages/openapi-to-graphql/test/fixtures/example_oas7.json
-		testFixtureFile(t, "v3.0.0", "example_oas7.json")
-	})
+ 	t.Run("example_oas7.json", func(t *testing.T) {
+ 		// Source: https://github.com/IBM/openapi-to-graphql/blob/master/packages/openapi-to-graphql/test/fixtures/example_oas7.json
+ 		// Updated expected output to remove the description for the `Device` type
+ 		testFixtureFile(t, "v3.0.0", "example_oas7.json")
+ 	})
 
 	t.Run("EmployeesApiBasic.yaml", func(t *testing.T) {
 		// Source https://github.com/zosconnect/test-samples/blob/main/oas/EmployeesApiBasic.yaml
