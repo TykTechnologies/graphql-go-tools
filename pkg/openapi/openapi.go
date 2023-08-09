@@ -160,17 +160,19 @@ func (c *converter) processSchemaProperties(fullType *introspection.FullType, sc
 		field := introspection.Field{
 			Name:        name,
 			Type:        typeRef,
-			Description: schemaRef.Value.Description,
-		}
-
-		fullType.Fields = append(fullType.Fields, field)
-		fullType.Description = schema.Description
-		sort.Slice(fullType.Fields, func(i, j int) bool {
-			return fullType.Fields[i].Name < fullType.Fields[j].Name
-		})
-	}
-	return nil
-}
+   func (c *converter) processSchemaProperties(fullType *introspection.FullType, schema openapi3.Schema) error {
+   	for name, schemaRef := range schema.Properties {
+   		...
+   		fullType.Fields = append(fullType.Fields, field)
+   		if schema.Description != "" {
+   			fullType.Description = schema.Description
+   		}
+   		sort.Slice(fullType.Fields, func(i, j int) bool {
+   			return fullType.Fields[i].Name < fullType.Fields[j].Name
+   		})
+   	}
+   	return nil
+   }
 
 func (c *converter) processInputFields(ft *introspection.FullType, schemaRef *openapi3.SchemaRef) error {
 	for propertyName, property := range schemaRef.Value.Properties {
