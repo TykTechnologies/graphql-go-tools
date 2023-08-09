@@ -16,15 +16,15 @@ import (
 	"github.com/TykTechnologies/graphql-go-tools/pkg/graphql"
 )
 
-type ErrOnBeforeStartHookFailure struct {
+type errOnBeforeStartHookFailure struct {
 	wrappedErr error
 }
 
-func (e *ErrOnBeforeStartHookFailure) Unwrap() error {
+func (e *errOnBeforeStartHookFailure) Unwrap() error {
 	return e.wrappedErr
 }
 
-func (e *ErrOnBeforeStartHookFailure) Error() string {
+func (e *errOnBeforeStartHookFailure) Error() string {
 	return fmt.Sprintf("on before start hook failed: %s", e.wrappedErr.Error())
 }
 
@@ -57,7 +57,7 @@ func (e *ExecutorEngine) StartOperation(ctx context.Context, id string, payload 
 
 	if err = e.handleOnBeforeStart(executor); err != nil {
 		eventHandler.Emit(EventTypeOnError, id, nil, err)
-		return &ErrOnBeforeStartHookFailure{wrappedErr: err}
+		return &errOnBeforeStartHookFailure{wrappedErr: err}
 	}
 
 	if executor.OperationType() == ast.OperationTypeSubscription {
