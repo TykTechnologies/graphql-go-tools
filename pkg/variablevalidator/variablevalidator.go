@@ -99,6 +99,8 @@ func (v *validatorVisitor) EnterVariableDefinition(ref int) {
 	}
 }
 
+// extractErrorMessageFromValidationError recursively extracts the first validation error in validationError
+// it also extracts the location of the error if an InstanceLocation exists
 func extractErrorMessageFromValidationError(validationError *jsonschema.ValidationError) error {
 	if len(validationError.Causes) > 0 {
 		return extractErrorMessageFromValidationError(validationError.Causes[0])
