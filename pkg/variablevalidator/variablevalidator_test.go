@@ -15,6 +15,7 @@ const testDefinition = `
 input StringQueryInput{
     eq: String
     contains: String
+    nested: StringQueryInput
 }
 
 input CustomInput {
@@ -154,6 +155,12 @@ func TestVariableValidator(t *testing.T) {
 			operation:     testCustomInputMutation,
 			variables:     `{"in":{"requiredField":"test","arrayField":{"value":1}}}`,
 			expectedError: `Validation for variable "in" failed: field arrayField, expected array or null, but got object`,
+		},
+		{
+			name:          "deeply nested field",
+			operation:     testStringQuery,
+			variables:     `{"in":{"name":{"nested":{"eq":1}}}}`,
+			expectedError: `Validation for variable "in" failed: field name.nested.eq, expected string or null, but got number`,
 		},
 	}
 	for _, c := range testCases {
