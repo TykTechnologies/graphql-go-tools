@@ -12,14 +12,26 @@ import (
 )
 
 const testDefinition = `
+input StringQueryInput{
+    eq: String
+    contains: String
+}
+
 input CustomInput {
     requiredField: String!
     optionalField: String
+	query: StringQueryInput
+}
+
+input QueryInput{
+    name: StringQueryInput
+    tag: StringQueryInput
 }
 
 type Query{
     simpleQuery(code: ID): String
     inputOfInt(code: Int!): String
+    queryUsingStringQuery(in: QueryInput!): String
 }
 
 type Mutation {
@@ -27,6 +39,11 @@ type Mutation {
 }`
 
 const (
+	testStringQuery = `
+query main($in: QueryInput!){
+    queryUsingStringQuery(in: $in)
+}`
+
 	testQuery = `
 query testQuery($code: ID!){
   simpleQuery(code: $code)
@@ -98,6 +115,12 @@ func TestVariableValidator(t *testing.T) {
 			expectedError: `Validation for variable "in" failed: missing properties: 'requiredField'`,
 		},
 		{
+			name:          "invalid variable type",
+			operation:     customInputMutation,
+			variables:     `{"in":{"query":{"eq":2}, "requiredField": "test"}}`,
+			expectedError: `Validation for variable "in" failed: field query.eq, expected string or null, but got number`,
+		},
+		{
 			name:      "multiple operation should validate first operation",
 			operation: customMultipleOperation,
 			variables: `{"code":"NG"}`,
@@ -118,6 +141,12 @@ func TestVariableValidator(t *testing.T) {
 			name:      "invalid variable json non null input",
 			operation: testQueryNonNullInput,
 			variables: `"\n            {\"code\":{\"code\":{\"in\":[\"PL\",\"UA\"],\"extra\":\"koza\"}}}\n        "`,
+		},
+		{
+			name:          "should use $refs",
+			operation:     testStringQuery,
+			variables:     `{"in":{"name":{"eq":1}}}`,
+			expectedError: `Validation for variable "in" failed: field name.eq, expected string or null, but got number`,
 		},
 	}
 	for _, c := range testCases {
