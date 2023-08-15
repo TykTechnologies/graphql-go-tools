@@ -2685,23 +2685,3 @@ func BenchmarkExecutionEngineV2_Execute(b *testing.B) {
 		execCtxCancel()
 	}
 }
-
-func TestSomething(t *testing.T) {
-	/*header := make(http.Header)
-	header.Add("KeyOne", "value-one")
-	header.Add("KeyOne", "value-two")
-	buf := bytes.NewBuffer(nil)
-	header.Write(buf)
-	fmt.Println(buf.String())*/
-
-	testServer := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		fmt.Println(request.Header)
-	}))
-	defer testServer.Close()
-
-	req, _ := http.NewRequest(http.MethodGet, testServer.URL, nil)
-	req.Header.Add("KeyOne", "value-one")
-	req.Header.Add("KeyOne", "value-two")
-	client := http.Client{}
-	client.Do(req)
-}
