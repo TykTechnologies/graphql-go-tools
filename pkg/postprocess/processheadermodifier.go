@@ -75,7 +75,7 @@ func (p *ProcessHeaderModifier) traverseTrigger(trigger *resolve.GraphQLSubscrip
 	modifiedHeader := p.modifyHeader(request.Header)
 	buf := new(bytes.Buffer)
 	modifiedHeader.Write(buf)
-	trigger.Input = buf.String()
+	trigger.Input = buf.Bytes()
 }
 
 // traverseSingleFetch applies the modifier function to the FetchInput of a resolve.SingleFetch.
@@ -84,7 +84,7 @@ func (p *ProcessHeaderModifier) traverseSingleFetch(fetch *resolve.SingleFetch) 
 	modifiedHeader := p.modifyHeader(request.Header)
 	buf := new(bytes.Buffer)
 	modifiedHeader.Write(buf)
- 	fetch.Input = []byte(buf.String())
+ 	fetch.Input = buf.Bytes()
 }
 
 // modifyHeader applies the modifier function to an http.Header and returns the modified header.
