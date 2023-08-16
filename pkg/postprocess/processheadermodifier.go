@@ -1,7 +1,6 @@
 package postprocess
 
 import (
-	"bufio"
 	"bytes"
 	"net/http"
 
@@ -85,7 +84,7 @@ func (p *ProcessHeaderModifier) traverseSingleFetch(fetch *resolve.SingleFetch) 
 	modifiedHeader := p.modifyHeader(request.Header)
 	buf := new(bytes.Buffer)
 	modifiedHeader.Write(buf)
-	fetch.Input = buf.String()
+ 	fetch.Input = []byte(buf.String())
 }
 
 // modifyHeader applies the modifier function to an http.Header and returns the modified header.
