@@ -15,17 +15,21 @@ func TestProcessHeaderModifier_Process(t *testing.T) {
 	}
 	processor := NewProcessHeaderModifier(modifier)
 
-	pre := &plan.SynchronousResponsePlan{
-		Response: &resolve.GraphQLResponse{
-			Data: &resolve.Object{
-				Fetch: &resolve.SingleFetch{
-					BufferId:   0,
-					Input:      http.Header{},
-					DataSource: nil,
-				},
-			},
-		},
-	}
+ header := http.Header{}
+ header.Add("X-Test-Header", "test value")
+ buf := new(bytes.Buffer)
+ buf.ReadFrom(header)
+ pre := &plan.SynchronousResponsePlan{
+ 	Response: &resolve.GraphQLResponse{
+ 		Data: &resolve.Object{
+ 			Fetch: &resolve.SingleFetch{
+ 				BufferId:   0,
+ 				Input:      buf.Bytes(),
+ 				DataSource: nil,
+ 			},
+ 		},
+ 	},
+ }
 
 	post := processor.Process(pre)
 	postResponse, ok := post.(*plan.SynchronousResponsePlan)
