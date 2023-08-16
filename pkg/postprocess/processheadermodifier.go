@@ -79,8 +79,8 @@ func (p *ProcessHeaderModifier) traverseSingleFetch(fetch *resolve.SingleFetch) 
 }
 
 // modifyHeader applies the modifier function to an http.Header and returns the modified header.
-func (p *ProcessHeaderModifier) modifyHeader(header http.Header) http.Header {
-	p.modifier(header)
-	return header
+func (p *ProcessHeaderModifier) modifyHeader(input []byte) string {
+	p.modifier(input)
+	return string(input)
 }
 
