@@ -11,12 +11,7 @@ import (
 	"github.com/TykTechnologies/graphql-go-tools/pkg/operationreport"
 )
 
-const testInputType = `
-input TestInput {
-  field1: String
-  field2: Int
-}
-`
+
 
 const testDefinition = `
 input CustomInput {
@@ -33,10 +28,6 @@ type Mutation {
     customInputNonNull(in: CustomInput!): String
 }
 
-input TestInput {
-  field1: String
-  field2: Int
-}`
 
 const (
 	testQuery = `
