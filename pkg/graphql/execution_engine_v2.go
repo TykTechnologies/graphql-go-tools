@@ -199,6 +199,12 @@ func WithAdditionalHttpHeaders(headers http.Header, excludeByKeys ...string) Exe
 	}
 }
 
+func WithHeaderModifier(modifier postprocess.HeaderModifier) ExecutionOptionsV2 {
+	return func(postProcessor *postprocess.Processor, resolveContext *resolve.Context) {
+		postProcessor.AddPostProcessor(postprocess.NewProcessHeaderModifier(modifier))
+	}
+}
+
 func NewExecutionEngineV2(ctx context.Context, logger abstractlogger.Logger, engineConfig EngineV2Configuration) (*ExecutionEngineV2, error) {
 	executionPlanCache, err := lru.New(1024)
 	if err != nil {
