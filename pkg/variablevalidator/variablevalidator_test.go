@@ -31,6 +31,11 @@ type Query{
 
 type Mutation {
     customInputNonNull(in: CustomInput!): String
+}
+
+input TestInput {
+  field1: String
+  field2: Int
 }`
 
 const (
