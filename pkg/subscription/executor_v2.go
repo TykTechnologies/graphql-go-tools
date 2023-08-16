@@ -15,9 +15,10 @@ type ExecutorV2Pool struct {
 	engine               *graphql.ExecutionEngineV2
 	executorPool         *sync.Pool
 	connectionInitReqCtx context.Context // connectionInitReqCtx - holds original request context used to establish websocket connection
+	headerModifier       *postprocess.ProcessHeaderModifier
 }
 
-func NewExecutorV2Pool(engine *graphql.ExecutionEngineV2, connectionInitReqCtx context.Context) *ExecutorV2Pool {
+func NewExecutorV2Pool(engine *graphql.ExecutionEngineV2, connectionInitReqCtx context.Context, headerModifier *postprocess.ProcessHeaderModifier) *ExecutorV2Pool {
 	return &ExecutorV2Pool{
 		engine: engine,
 		executorPool: &sync.Pool{
@@ -26,6 +27,7 @@ func NewExecutorV2Pool(engine *graphql.ExecutionEngineV2, connectionInitReqCtx c
 			},
 		},
 		connectionInitReqCtx: connectionInitReqCtx,
+		headerModifier: headerModifier,
 	}
 }
 
@@ -37,10 +39,11 @@ func (e *ExecutorV2Pool) Get(payload []byte) (Executor, error) {
 	}
 
 	return &ExecutorV2{
-		engine:    e.engine,
-		operation: &operation,
-		context:   context.Background(),
-		reqCtx:    e.connectionInitReqCtx,
+		engine:         e.engine,
+		operation:      &operation,
+		context:        context.Background(),
+		reqCtx:         e.connectionInitReqCtx,
+		headerModifier: e.headerModifier,
 	}, nil
 }
 
@@ -62,6 +65,9 @@ func (e *ExecutorV2) Execute(writer resolve.FlushWriter) error {
 	switch ctx := e.reqCtx.(type) {
 	case *InitialHttpRequestContext:
 		options = append(options, graphql.WithAdditionalHttpHeaders(ctx.Request.Header))
+	}
+	if e.headerModifier != nil {
+		options = append(options, graphql.WithHeaderModifier(*e.headerModifier))
 	}
 
 	return e.engine.Execute(e.context, e.operation, writer, options...)
