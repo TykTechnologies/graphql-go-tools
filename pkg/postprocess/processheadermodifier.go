@@ -1,6 +1,7 @@
 package postprocess
 
 import (
+	"bufio"
 	"bytes"
 	"net/http"
 
@@ -71,8 +72,8 @@ func (p *ProcessHeaderModifier) traverseFetch(fetch resolve.Fetch) {
 
 // traverseTrigger applies the modifier function to the FetchInput of a resolve.GraphQLSubscriptionTrigger.
 func (p *ProcessHeaderModifier) traverseTrigger(trigger *resolve.GraphQLSubscriptionTrigger) {
-	header, _ := http.ReadRequest(bufio.NewReader(bytes.NewReader(trigger.Input)))
-	modifiedHeader := p.modifyHeader(header)
+	request, _ := http.ReadRequest(bufio.NewReader(bytes.NewReader(trigger.Input)))
+	modifiedHeader := p.modifyHeader(request.Header)
 	buf := new(bytes.Buffer)
 	buf.Write(modifiedHeader)
 	trigger.Input = buf.Bytes()
@@ -80,16 +81,16 @@ func (p *ProcessHeaderModifier) traverseTrigger(trigger *resolve.GraphQLSubscrip
 
 // traverseSingleFetch applies the modifier function to the FetchInput of a resolve.SingleFetch.
 func (p *ProcessHeaderModifier) traverseSingleFetch(fetch *resolve.SingleFetch) {
-	header, _ := http.ReadRequest(bufio.NewReader(bytes.NewReader(fetch.Input)))
-	modifiedHeader := p.modifyHeader(header)
+	request, _ := http.ReadRequest(bufio.NewReader(bytes.NewReader(fetch.Input)))
+	modifiedHeader := p.modifyHeader(request.Header)
 	buf := new(bytes.Buffer)
 	buf.Write(modifiedHeader)
 	fetch.Input = buf.Bytes()
 }
 
 // modifyHeader applies the modifier function to an http.Header and returns the modified header.
-func (p *ProcessHeaderModifier) modifyHeader(input http.Header) http.Header {
-	p.modifier(input)
-	return input
+func (p *ProcessHeaderModifier) modifyHeader(input *http.Request) http.Header {
+	p.modifier(input.Header)
+	return input.Header
 }
 
