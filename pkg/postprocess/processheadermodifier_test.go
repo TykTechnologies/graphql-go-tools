@@ -26,7 +26,7 @@ func TestProcessHeaderModifier_Process(t *testing.T) {
  		Data: &resolve.Object{
  			Fetch: &resolve.SingleFetch{
  				BufferId:   0,
- 				Input:      buf.Bytes(),
+     Input:      []byte(buf.String()),
  				DataSource: nil,
  			},
  		},
