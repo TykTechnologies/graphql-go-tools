@@ -1,6 +1,7 @@
 package postprocess
 
 import (
+	"bufio"
 	"bytes"
 	"net/http"
 	"testing"
@@ -16,10 +17,10 @@ func TestProcessHeaderModifier_Process(t *testing.T) {
 	}
 	processor := NewProcessHeaderModifier(modifier)
 
- header, _ := http.ReadRequest(bufio.NewReader(bytes.NewReader(fetch.Input)))
- header.Add("X-Test-Header", "test value")
+ header, _ := http.NewRequest("GET", "/", nil)
+ header.Header.Add("X-Test-Header", "test value")
  buf := new(bytes.Buffer)
- buf.Write(header)
+ header.Header.Write(buf)
  pre := &plan.SynchronousResponsePlan{
  	Response: &resolve.GraphQLResponse{
  		Data: &resolve.Object{
