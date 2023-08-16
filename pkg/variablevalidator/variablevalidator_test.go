@@ -19,9 +19,15 @@ input CustomInput {
     optionalField: String
 }
 
+input TestInput {
+    field1: String
+    field2: Int
+}
+
 type Query{
     simpleQuery(code: ID): String
     inputOfInt(code: Int!): String
+    testQuery(input: TestInput): String
 }
 
 type Mutation {
@@ -135,12 +141,18 @@ func TestVariableValidator(t *testing.T) {
  			variables:     `"\n            {\"code\":{\"code\":{\"in\":[\"PL\",\"UA\"],\"extra\":\"koza\"}}}\n        "`,
  			expectedError: "",
  		},
- 		{
- 			name:          "new input type",
- 			operation:     testInputType,
- 			variables:     `{"field1": "test", "field2": 123}`,
- 			expectedError: "",
- 		},
+ 	{
+ 		name:          "new input type",
+ 		operation:     testInputType,
+ 		variables:     `{"field1": "test", "field2": 123}`,
+ 		expectedError: "",
+ 	},
+ 	{
+ 		name:          "query with TestInput variable",
+ 		operation:     `query testQuery($input: TestInput){ testQuery(input: $input) }`,
+ 		variables:     `{"input": {"field1": "test", "field2": 123}}`,
+ 		expectedError: "",
+ 	},
  	}
 	for _, c := range testCases {
 		t.Run(c.name, func(t *testing.T) {
