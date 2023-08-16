@@ -11,6 +11,13 @@ import (
 	"github.com/TykTechnologies/graphql-go-tools/pkg/operationreport"
 )
 
+const testInputType = `
+input TestInput {
+  field1: String
+  field2: Int
+}
+`
+
 const testDefinition = `
 input CustomInput {
     requiredField: String!
@@ -126,13 +133,19 @@ func TestVariableValidator(t *testing.T) {
  		variables:     `"\n            {\"code\":{\"code\":{\"in\":[\"PL\",\"UA\"],\"extra\":\"koza\"}}}\n        "`,
  		expectedError: "",
  	},
-		{
-			name:          "new test case: invalid variable json non null input",
-			operation:     testQueryNonNullInput,
-			variables:     `"\n            {\"code\":{\"code\":{\"in\":[\"PL\",\"UA\"],\"extra\":\"koza\"}}}\n        "`,
-			expectedError: "",
-		},
-	}
+ 		{
+ 			name:          "new test case: invalid variable json non null input",
+ 			operation:     testQueryNonNullInput,
+ 			variables:     `"\n            {\"code\":{\"code\":{\"in\":[\"PL\",\"UA\"],\"extra\":\"koza\"}}}\n        "`,
+ 			expectedError: "",
+ 		},
+ 		{
+ 			name:          "new input type",
+ 			operation:     testInputType,
+ 			variables:     `{"field1": "test", "field2": 123}`,
+ 			expectedError: "",
+ 		},
+ 	}
 	for _, c := range testCases {
 		t.Run(c.name, func(t *testing.T) {
 			definitionDocument := unsafeparser.ParseGraphqlDocumentString(testDefinition)
