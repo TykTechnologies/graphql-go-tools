@@ -2,9 +2,7 @@ package postprocess
 
 import (
 	"github.com/TykTechnologies/graphql-go-tools/pkg/engine/plan"
-	"github.com/TykTechnologies/graphql-go-tools/pkg/postprocess/processheadermodifier"
 )
-
 type PostProcessor interface {
 	Process(pre plan.Plan) plan.Plan
 }
