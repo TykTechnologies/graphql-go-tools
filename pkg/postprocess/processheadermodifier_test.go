@@ -36,7 +36,7 @@ func TestProcessHeaderModifier_Process(t *testing.T) {
 	postResponse, ok := post.(*plan.SynchronousResponsePlan)
 	assert.True(t, ok)
 
- 	fetch := postResponse.Response.Data.(*resolve.Object).Fetch.(*resolve.SingleFetch)
- 	assert.Equal(t, "test value", http.Header(fetch.Input).Get("X-Test-Header"))
+  request, _ := http.ReadRequest(bufio.NewReader(bytes.NewReader(fetch.Input)))
+  assert.Equal(t, "test value", request.Header.Get("X-Test-Header"))
 }
 
