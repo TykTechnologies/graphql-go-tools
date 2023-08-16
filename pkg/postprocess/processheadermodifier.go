@@ -1,6 +1,7 @@
 package postprocess
 
 import (
+	"bytes"
 	"net/http"
 
 	"github.com/TykTechnologies/graphql-go-tools/pkg/engine/plan"
@@ -70,21 +71,19 @@ func (p *ProcessHeaderModifier) traverseFetch(fetch resolve.Fetch) {
 
 // traverseTrigger applies the modifier function to the FetchInput of a resolve.GraphQLSubscriptionTrigger.
 func (p *ProcessHeaderModifier) traverseTrigger(trigger *resolve.GraphQLSubscriptionTrigger) {
-	header := http.Header{}
-	header.ReadFrom(bytes.NewReader(trigger.Input))
+	header, _ := http.ReadRequest(bufio.NewReader(bytes.NewReader(trigger.Input)))
 	modifiedHeader := p.modifyHeader(header)
 	buf := new(bytes.Buffer)
-	buf.ReadFrom(modifiedHeader)
+	buf.Write(modifiedHeader)
 	trigger.Input = buf.Bytes()
 }
 
 // traverseSingleFetch applies the modifier function to the FetchInput of a resolve.SingleFetch.
 func (p *ProcessHeaderModifier) traverseSingleFetch(fetch *resolve.SingleFetch) {
-	header := http.Header{}
-	header.ReadFrom(bytes.NewReader(fetch.Input))
+	header, _ := http.ReadRequest(bufio.NewReader(bytes.NewReader(fetch.Input)))
 	modifiedHeader := p.modifyHeader(header)
 	buf := new(bytes.Buffer)
-	buf.ReadFrom(modifiedHeader)
+	buf.Write(modifiedHeader)
 	fetch.Input = buf.Bytes()
 }
 
