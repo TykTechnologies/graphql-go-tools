@@ -12,8 +12,21 @@ var (
 	null = []byte("null")
 )
 
+// Type and RestrictionList struct have been copied from the graphql package to fix
+// the import cycle problem.
+
+type Type struct {
+	Name   string   `json:"name"`
+	Fields []string `json:"fields"`
+}
+
+type RestrictionList struct {
+	Types []Type
+}
+
 type Source struct {
 	introspectionData *introspection.Data
+	restrictionList   *RestrictionList
 }
 
 func (s *Source) Load(ctx context.Context, input []byte, w io.Writer) (err error) {
@@ -31,7 +44,59 @@ func (s *Source) Load(ctx context.Context, input []byte, w io.Writer) (err error
 		return s.fieldsForType(w, req.OnTypeName, req.IncludeDeprecated)
 	}
 
+	/*
+			// The following query hits here.
+			{
+			  __schema {
+			    types {
+			      name
+			    }
+			  }
+			}
+
+			"Country" type is restricted with its all fields but "Continent" will be
+		     shown in the introspection result. Because we just restricted the "name"
+		    field of "Continent".
+	*/
+	var fullTypes []introspection.FullType
+	for _, fullType := range s.introspectionData.Schema.Types {
+		if !s.isTypeRestricted(fullType.Name) {
+			fullTypes = append(fullTypes, fullType)
+		}
+	}
+	s.introspectionData.Schema.Types = fullTypes
 	return json.NewEncoder(w).Encode(s.introspectionData.Schema)
+}
+
+func (s *Source) isTypeRestricted(name string) bool {
+	if s.restrictionList == nil {
+		return false
+	}
+	for _, t := range s.restrictionList.Types {
+		if len(t.Fields) != 0 {
+			continue
+		}
+		if t.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Source) isFieldRestricted(typeName, fieldName string) bool {
+	if s.restrictionList == nil {
+		return false
+	}
+	for _, t := range s.restrictionList.Types {
+		if t.Name == typeName {
+			for _, field := range t.Fields {
+				if field == fieldName {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 func (s *Source) typeInfo(typeName *string) *introspection.FullType {
@@ -40,6 +105,9 @@ func (s *Source) typeInfo(typeName *string) *introspection.FullType {
 	}
 
 	for _, fullType := range s.introspectionData.Schema.Types {
+		if s.isTypeRestricted(fullType.Name) {
+			continue
+		}
 		if fullType.Name == *typeName {
 			return &fullType
 		}
@@ -73,6 +141,9 @@ func (s *Source) fieldsForType(w io.Writer, typeName *string, includeDeprecated 
 
 	fields := make([]introspection.Field, 0, len(typeInfo.Fields))
 	for _, field := range typeInfo.Fields {
+		if s.isFieldRestricted(*typeName, field.Name) {
+			continue
+		}
 		if !field.IsDeprecated {
 			fields = append(fields, field)
 		}

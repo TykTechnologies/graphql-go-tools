@@ -69,6 +69,12 @@ func (f *IntrospectionConfigFactory) BuildDataSourceConfiguration() plan.DataSou
 	}
 }
 
+func (f *IntrospectionConfigFactory) BuildDataSourceConfigurationWithCustomConfig(custom json.RawMessage) plan.DataSourceConfiguration {
+	c := f.BuildDataSourceConfiguration()
+	c.Custom = custom
+	return c
+}
+
 func (f *IntrospectionConfigFactory) dataSourceConfigQueryTypeName() string {
 	if f.introspectionData.Schema.QueryType == nil || len(f.introspectionData.Schema.QueryType.Name) == 0 {
 		return "Query"

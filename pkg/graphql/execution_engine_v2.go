@@ -5,6 +5,7 @@ import (
 	"compress/flate"
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"net/http"
@@ -211,7 +212,30 @@ func NewExecutionEngineV2(ctx context.Context, logger abstractlogger.Logger, eng
 		return nil, err
 	}
 
-	engineConfig.AddDataSource(introspectionCfg.BuildDataSourceConfiguration())
+	// TT-8226 PoC starts here
+	//
+	// This will restrict "name" field of the "Continent" type.
+	// This will also restrict the "Country" type with its all fields.
+	restrictionList := introspection_datasource.RestrictionList{
+		Types: []introspection_datasource.Type{
+			{
+				Name:   "Continent",
+				Fields: []string{"name"},
+			},
+			{
+				Name: "Country",
+			},
+		},
+	}
+	data, err := json.Marshal(restrictionList)
+	if err != nil {
+		return nil, err
+	}
+	engineConfig.AddDataSource(introspectionCfg.BuildDataSourceConfigurationWithCustomConfig(data))
+	//
+	//
+	// TT-8226 PoC ends here
+
 	for _, fieldCfg := range introspectionCfg.BuildFieldConfigurations() {
 		engineConfig.AddFieldConfiguration(fieldCfg)
 	}
