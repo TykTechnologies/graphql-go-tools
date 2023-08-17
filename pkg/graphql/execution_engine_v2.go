@@ -200,11 +200,11 @@ func WithAdditionalHttpHeaders(headers http.Header, excludeByKeys ...string) Exe
 }
 
 func WithHeaderModifier(modifier postprocess.HeaderModifier) ExecutionOptionsV2 {
-	return func(postProcessor *postprocess.Processor, resolveContext *resolve.Context) {
+	return func(ctx *internalExecutionContext) {
 		if modifier == nil {
 			return
 		}
-		postProcessor.AddPostProcessor(postprocess.NewProcessModifyHeader(modifier))
+		ctx.postProcessor.AddPostProcessor(postprocess.NewProcessModifyHeader(modifier))
 	}
 }
 

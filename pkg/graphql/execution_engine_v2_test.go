@@ -154,7 +154,8 @@ func TestWithHeaderModifier(t *testing.T) {
 		require.Equal(t, 0, processor.Count())
 
 		optionFunc := WithHeaderModifier(headerModifier)
-		optionFunc(processor, nil)
+		ctx := &internalExecutionContext{postProcessor: processor}
+		optionFunc(ctx)
 		assert.Equal(t, 1, processor.Count())
 	})
 
@@ -163,7 +164,8 @@ func TestWithHeaderModifier(t *testing.T) {
 		require.Equal(t, 0, processor.Count())
 
 		optionFunc := WithHeaderModifier(nil)
-		optionFunc(processor, nil)
+		ctx := &internalExecutionContext{postProcessor: processor}
+		optionFunc(ctx)
 		assert.Equal(t, 0, processor.Count())
 	})
 }
