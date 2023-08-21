@@ -7,7 +7,8 @@ import (
 	"net/http"
 
 	log "github.com/jensneuse/abstractlogger"
-	"github.com/wundergraph/graphql-go-tools/pkg/pool"
+
+	"github.com/TykTechnologies/graphql-go-tools/pkg/pool"
 )
 
 const (
