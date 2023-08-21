@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/tidwall/sjson"
-
 	"github.com/TykTechnologies/graphql-go-tools/internal/pkg/quotes"
 	"github.com/TykTechnologies/graphql-go-tools/internal/pkg/unsafebytes"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/lexer/literal"
