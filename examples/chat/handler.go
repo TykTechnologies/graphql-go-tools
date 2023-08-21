@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -18,6 +19,7 @@ func GraphQLEndpointHandler() http.Handler {
 		KeepAlivePingInterval: 10 * time.Second,
 		Upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
+				fmt.Printf("-> new incoming request with headers: %v\n", r.Header)
 				return true
 			},
 		},
