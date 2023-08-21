@@ -25,6 +25,7 @@ import (
 	"github.com/TykTechnologies/graphql-go-tools/pkg/engine/datasource/staticdatasource"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/engine/plan"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/engine/resolve"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/execution"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/operationreport"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/postprocess"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/starwars"
