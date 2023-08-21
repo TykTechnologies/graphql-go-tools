@@ -917,7 +917,7 @@ func (ec *executionContext) _Query_identifiable(ctx context.Context, field graph
 	}
 	res := resTmp.(model.Identifiable)
 	fc.Result = res
-	return ec.marshalOIdentifiable2githubᚗcomᚋwundergraphᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋaccountsᚋgraphᚋmodelᚐIdentifiable(ctx, field.Selections, res)
+	return ec.marshalOIdentifiable2githubᚗcomᚋTykTechnologiesᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋaccountsᚋgraphᚋmodelᚐIdentifiable(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_identifiable(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -958,7 +958,7 @@ func (ec *executionContext) _Query_histories(ctx context.Context, field graphql.
 	}
 	res := resTmp.([]model.History)
 	fc.Result = res
-	return ec.marshalOHistory2ᚕgithubᚗcomᚋwundergraphᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋaccountsᚋgraphᚋmodelᚐHistory(ctx, field.Selections, res)
+	return ec.marshalOHistory2ᚕgithubᚗcomᚋTykTechnologiesᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋaccountsᚋgraphᚋmodelᚐHistory(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_histories(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -999,7 +999,7 @@ func (ec *executionContext) _Query_cat(ctx context.Context, field graphql.Collec
 	}
 	res := resTmp.(*model.Cat)
 	fc.Result = res
-	return ec.marshalOCat2ᚖgithubᚗcomᚋwundergraphᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋaccountsᚋgraphᚋmodelᚐCat(ctx, field.Selections, res)
+	return ec.marshalOCat2ᚖgithubᚗcomᚋTykTechnologiesᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋaccountsᚋgraphᚋmodelᚐCat(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_cat(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -5142,21 +5142,21 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	return res
 }
 
-func (ec *executionContext) marshalOCat2ᚖgithubᚗcomᚋwundergraphᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋaccountsᚋgraphᚋmodelᚐCat(ctx context.Context, sel ast.SelectionSet, v *model.Cat) graphql.Marshaler {
+func (ec *executionContext) marshalOCat2ᚖgithubᚗcomᚋTykTechnologiesᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋaccountsᚋgraphᚋmodelᚐCat(ctx context.Context, sel ast.SelectionSet, v *model.Cat) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._Cat(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOHistory2githubᚗcomᚋwundergraphᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋaccountsᚋgraphᚋmodelᚐHistory(ctx context.Context, sel ast.SelectionSet, v model.History) graphql.Marshaler {
+func (ec *executionContext) marshalOHistory2githubᚗcomᚋTykTechnologiesᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋaccountsᚋgraphᚋmodelᚐHistory(ctx context.Context, sel ast.SelectionSet, v model.History) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._History(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOHistory2ᚕgithubᚗcomᚋwundergraphᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋaccountsᚋgraphᚋmodelᚐHistory(ctx context.Context, sel ast.SelectionSet, v []model.History) graphql.Marshaler {
+func (ec *executionContext) marshalOHistory2ᚕgithubᚗcomᚋTykTechnologiesᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋaccountsᚋgraphᚋmodelᚐHistory(ctx context.Context, sel ast.SelectionSet, v []model.History) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -5183,7 +5183,7 @@ func (ec *executionContext) marshalOHistory2ᚕgithubᚗcomᚋwundergraphᚋgrap
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalOHistory2githubᚗcomᚋwundergraphᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋaccountsᚋgraphᚋmodelᚐHistory(ctx, sel, v[i])
+			ret[i] = ec.marshalOHistory2githubᚗcomᚋTykTechnologiesᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋaccountsᚋgraphᚋmodelᚐHistory(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -5197,7 +5197,7 @@ func (ec *executionContext) marshalOHistory2ᚕgithubᚗcomᚋwundergraphᚋgrap
 	return ret
 }
 
-func (ec *executionContext) marshalOIdentifiable2githubᚗcomᚋwundergraphᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋaccountsᚋgraphᚋmodelᚐIdentifiable(ctx context.Context, sel ast.SelectionSet, v model.Identifiable) graphql.Marshaler {
+func (ec *executionContext) marshalOIdentifiable2githubᚗcomᚋTykTechnologiesᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋaccountsᚋgraphᚋmodelᚐIdentifiable(ctx context.Context, sel ast.SelectionSet, v model.Identifiable) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}

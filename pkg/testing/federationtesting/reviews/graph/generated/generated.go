@@ -995,7 +995,7 @@ func (ec *executionContext) _Query_me(ctx context.Context, field graphql.Collect
 	}
 	res := resTmp.(*model.User)
 	fc.Result = res
-	return ec.marshalOUser2ᚖgithubᚗcomᚋwundergraphᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋreviewsᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+	return ec.marshalOUser2ᚖgithubᚗcomᚋTykTechnologiesᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋreviewsᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_me(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1046,7 +1046,7 @@ func (ec *executionContext) _Query_cat(ctx context.Context, field graphql.Collec
 	}
 	res := resTmp.(*model.Cat)
 	fc.Result = res
-	return ec.marshalOCat2ᚖgithubᚗcomᚋwundergraphᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋreviewsᚋgraphᚋmodelᚐCat(ctx, field.Selections, res)
+	return ec.marshalOCat2ᚖgithubᚗcomᚋTykTechnologiesᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋreviewsᚋgraphᚋmodelᚐCat(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_cat(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1691,7 +1691,7 @@ func (ec *executionContext) _Review_attachments(ctx context.Context, field graph
 	}
 	res := resTmp.([]model.Attachment)
 	fc.Result = res
-	return ec.marshalOAttachment2ᚕgithubᚗcomᚋwundergraphᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋreviewsᚋgraphᚋmodelᚐAttachment(ctx, field.Selections, res)
+	return ec.marshalOAttachment2ᚕgithubᚗcomᚋTykTechnologiesᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋreviewsᚋgraphᚋmodelᚐAttachment(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Review_attachments(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -4851,7 +4851,7 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 	return res
 }
 
-func (ec *executionContext) marshalNProduct2githubᚗcomᚋwundergraphᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋreviewsᚋgraphᚋmodelᚐProduct(ctx context.Context, sel ast.SelectionSet, v model.Product) graphql.Marshaler {
+func (ec *executionContext) marshalNProduct2githubᚗcomᚋTykTechnologiesᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋreviewsᚋgraphᚋmodelᚐProduct(ctx context.Context, sel ast.SelectionSet, v model.Product) graphql.Marshaler {
 	return ec._Product(ctx, sel, &v)
 }
 
@@ -5271,14 +5271,14 @@ func (ec *executionContext) marshalN__TypeKind2string(ctx context.Context, sel a
 	return res
 }
 
-func (ec *executionContext) marshalOAttachment2githubᚗcomᚋwundergraphᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋreviewsᚋgraphᚋmodelᚐAttachment(ctx context.Context, sel ast.SelectionSet, v model.Attachment) graphql.Marshaler {
+func (ec *executionContext) marshalOAttachment2githubᚗcomᚋTykTechnologiesᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋreviewsᚋgraphᚋmodelᚐAttachment(ctx context.Context, sel ast.SelectionSet, v model.Attachment) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._Attachment(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOAttachment2ᚕgithubᚗcomᚋwundergraphᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋreviewsᚋgraphᚋmodelᚐAttachment(ctx context.Context, sel ast.SelectionSet, v []model.Attachment) graphql.Marshaler {
+func (ec *executionContext) marshalOAttachment2ᚕgithubᚗcomᚋTykTechnologiesᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋreviewsᚋgraphᚋmodelᚐAttachment(ctx context.Context, sel ast.SelectionSet, v []model.Attachment) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -5305,7 +5305,7 @@ func (ec *executionContext) marshalOAttachment2ᚕgithubᚗcomᚋwundergraphᚋg
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalOAttachment2githubᚗcomᚋwundergraphᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋreviewsᚋgraphᚋmodelᚐAttachment(ctx, sel, v[i])
+			ret[i] = ec.marshalOAttachment2githubᚗcomᚋTykTechnologiesᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋreviewsᚋgraphᚋmodelᚐAttachment(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -5343,6 +5343,13 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	}
 	res := graphql.MarshalBoolean(*v)
 	return res
+}
+
+func (ec *executionContext) marshalOCat2ᚖgithubᚗcomᚋTykTechnologiesᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋreviewsᚋgraphᚋmodelᚐCat(ctx context.Context, sel ast.SelectionSet, v *model.Cat) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Cat(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOReview2ᚕᚖgithubᚗcomᚋTykTechnologiesᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋreviewsᚋgraphᚋmodelᚐReview(ctx context.Context, sel ast.SelectionSet, v []*model.Review) graphql.Marshaler {
@@ -5419,7 +5426,7 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	return res
 }
 
-func (ec *executionContext) marshalOUser2ᚖgithubᚗcomᚋwundergraphᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋreviewsᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v *model.User) graphql.Marshaler {
+func (ec *executionContext) marshalOUser2ᚖgithubᚗcomᚋTykTechnologiesᚋgraphqlᚑgoᚑtoolsᚋpkgᚋtestingᚋfederationtestingᚋreviewsᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v *model.User) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
