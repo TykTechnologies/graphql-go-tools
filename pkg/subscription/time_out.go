@@ -20,7 +20,7 @@ type TimeOutParams struct {
 // after a specific duration or prevent the time-out action by canceling the time-out context before.
 // Use TimeOutParams for configuration.
 func TimeOutChecker(params TimeOutParams) {
-	timer := time.NewTimer(params.TimeOutDuration)
+ 	timer := time.NewTimer(params.TimeOutDuration + 5*time.Millisecond)
 	defer timer.Stop()
 
 	for {

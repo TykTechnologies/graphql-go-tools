@@ -47,8 +47,8 @@ func TestTimeOutChecker(t *testing.T) {
 			TimeOutAction:   timeOutAction,
 			TimeOutDuration: 10 * time.Millisecond,
 		}
-		go TimeOutChecker(params)
-		time.Sleep(15 * time.Millisecond)
-		assert.True(t, timeOutActionExecuted)
+  		go TimeOutChecker(params)
+  		time.Sleep(20 * time.Millisecond)
+  		assert.True(t, timeOutActionExecuted)
 	})
 }
