@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/buger/jsonparser"
 	log "github.com/jensneuse/abstractlogger"
 )

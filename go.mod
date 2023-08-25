@@ -5,7 +5,7 @@ go 1.16
 require (
 	github.com/99designs/gqlgen v0.17.22
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
-	github.com/IBM/sarama v1.41.0 // indirect
+	github.com/IBM/sarama v1.41.0
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/asyncapi/parser-go v0.4.2
 	github.com/buger/jsonparser v1.1.1

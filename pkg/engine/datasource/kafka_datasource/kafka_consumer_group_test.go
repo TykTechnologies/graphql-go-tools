@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Shopify/sarama"
-	"github.com/Shopify/sarama/mocks"
+	"github.com/IBM/sarama"
+	"github.com/IBM/sarama/mocks"
+
 	log "github.com/jensneuse/abstractlogger"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -31,8 +32,7 @@ func newMockKafkaBroker(t *testing.T, topic, group string, fr *sarama.FetchRespo
 
 	mockOffsetResponse := sarama.NewMockOffsetResponse(t).
 		SetOffset(topic, defaultPartition, sarama.OffsetOldest, 0).
-		SetOffset(topic, defaultPartition, sarama.OffsetNewest, 1).
-		SetVersion(1)
+		SetOffset(topic, defaultPartition, sarama.OffsetNewest, 1)
 
 	mockCoordinatorResponse := sarama.NewMockFindCoordinatorResponse(t).
 		SetCoordinator(sarama.CoordinatorType(0), group, mockBroker)
