@@ -107,7 +107,7 @@ func (d *testConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession
 
 func newTestConsumerGroup(groupID string, brokers []string) (sarama.ConsumerGroup, error) {
 	kConfig := mocks.NewTestConfig()
-	kConfig.Version = sarama.MaxVersion
+	kConfig.Version = sarama.DefaultVersion
 	kConfig.Consumer.Return.Errors = true
 	kConfig.ClientID = "graphql-go-tools-test"
 	kConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
