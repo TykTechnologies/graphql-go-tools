@@ -37,7 +37,64 @@ func newMockKafkaBroker(t *testing.T, topic, group string, fr *sarama.FetchRespo
 	mockCoordinatorResponse := sarama.NewMockFindCoordinatorResponse(t).
 		SetCoordinator(sarama.CoordinatorType(0), group, mockBroker)
 
-	mockJoinGroupResponse := sarama.NewMockJoinGroupResponse(t)
+	// TODO fix rebalance strategy here
+	mockJoinGroupResponse := sarama.NewMockJoinGroupResponse(t).SetGroupProtocol(sarama.RangeBalanceStrategyName)
+
+	mockSyncGroupResponse := sarama.NewMockSyncGroupResponse(t).
+		SetMemberAssignment(&sarama.ConsumerGroupMemberAssignment{
+			Version:  0,
+			Topics:   map[string][]int32{topic: {0}},
+			UserData: nil,
+		})
+
+	mockHeartbeatResponse := sarama.NewMockHeartbeatResponse(t)
+
+	mockOffsetFetchResponse := sarama.NewMockOffsetFetchResponse(t).
+		SetOffset(group, topic, defaultPartition, 0, "", sarama.KError(0))
+
+	// Need to mock ApiVersionsRequest when we upgrade Sarama
+
+	//mockApiVersionsResponse := sarama.NewMockApiVersionsResponse(t)
+	mockOffsetCommitResponse := sarama.NewMockOffsetCommitResponse(t)
+	mockBroker.SetHandlerByMap(map[string]sarama.MockResponse{
+		"MetadataRequest":        mockMetadataResponse,
+		"ProduceRequest":         mockProducerResponse,
+		"OffsetRequest":          mockOffsetResponse,
+		"OffsetFetchRequest":     mockOffsetFetchResponse,
+		"FetchRequest":           sarama.NewMockSequence(sarama.NewMockFetchResponse(t, 1).SetMessage(topic, defaultPartition, 0, sarama.StringEncoder("test"))),
+		"FindCoordinatorRequest": mockCoordinatorResponse,
+		"JoinGroupRequest":       mockJoinGroupResponse,
+		"SyncGroupRequest":       mockSyncGroupResponse,
+		"HeartbeatRequest":       mockHeartbeatResponse,
+		//"ApiVersionsRequest":     mockApiVersionsResponse,
+		"OffsetCommitRequest": mockOffsetCommitResponse,
+	})
+
+	return mockBroker
+}
+
+// newMockKafkaBroker creates a MockBroker to test ConsumerGroups.
+func mNewMockKafkaBroker(t *testing.T, topic, group string, fr *sarama.MockFetchResponse) *sarama.MockBroker {
+	mockBroker := sarama.NewMockBroker(t, 0)
+
+	mockMetadataResponse := sarama.NewMockMetadataResponse(t).
+		SetBroker(mockBroker.Addr(), mockBroker.BrokerID()).
+		SetLeader(topic, defaultPartition, mockBroker.BrokerID()).
+		SetController(mockBroker.BrokerID())
+
+	mockProducerResponse := sarama.NewMockProduceResponse(t).
+		SetError(topic, 0, sarama.ErrNoError).
+		SetVersion(2)
+
+	mockOffsetResponse := sarama.NewMockOffsetResponse(t).
+		SetOffset(topic, defaultPartition, sarama.OffsetOldest, 0).
+		SetOffset(topic, defaultPartition, sarama.OffsetNewest, 1)
+
+	mockCoordinatorResponse := sarama.NewMockFindCoordinatorResponse(t).
+		SetCoordinator(sarama.CoordinatorType(0), group, mockBroker)
+
+	// TODO fix rebalance strategy here
+	mockJoinGroupResponse := sarama.NewMockJoinGroupResponse(t).SetGroupProtocol(sarama.RangeBalanceStrategyName)
 
 	mockSyncGroupResponse := sarama.NewMockSyncGroupResponse(t).
 		SetMemberAssignment(&sarama.ConsumerGroupMemberAssignment{
@@ -112,14 +169,7 @@ func newTestConsumerGroup(groupID string, brokers []string) (sarama.ConsumerGrou
 	kConfig.ClientID = "graphql-go-tools-test"
 	kConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
 
-	// Start with a client
-	client, err := sarama.NewClient(brokers, kConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create a new consumer group
-	return sarama.NewConsumerGroupFromClient(groupID, client)
+	return sarama.NewConsumerGroup(brokers, groupID, kConfig)
 }
 
 func TestKafkaMockBroker(t *testing.T) {
@@ -130,8 +180,8 @@ func TestKafkaMockBroker(t *testing.T) {
 		consumerGroup    = "consumer.group"
 	)
 
-	fr := &sarama.FetchResponse{Version: 11}
-	mockBroker := newMockKafkaBroker(t, topic, consumerGroup, fr)
+	fr := sarama.NewMockFetchResponse(t, 1)
+	mockBroker := mNewMockKafkaBroker(t, topic, consumerGroup, fr)
 	defer mockBroker.Close()
 
 	brokerAddr := []string{mockBroker.Addr()}
@@ -147,9 +197,8 @@ func TestKafkaMockBroker(t *testing.T) {
 
 	// Stop after 15 seconds and return an error.
 	resolveCtx := resolve.NewContext(context.Background())
-	defer resolveCtx.Context().Done()
 
-	ctx, cancel := context.WithTimeout(resolveCtx.Context(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(resolveCtx.Context(), time.Hour)
 	processMessage := func(msg *sarama.ConsumerMessage) {
 		defer cancel()
 
@@ -163,7 +212,6 @@ func TestKafkaMockBroker(t *testing.T) {
 	}
 
 	handler := newDefaultConsumerGroupHandler(processMessage)
-	handler.resolveCtx.Context().Done()
 
 	errCh := make(chan error, 1)
 
@@ -175,20 +223,22 @@ func TestKafkaMockBroker(t *testing.T) {
 		// Start consuming. Consume is a blocker call and it runs handler.ConsumeClaim at background.
 		errCh <- cg.Consume(ctx, []string{topic}, handler)
 	}()
-
 	// Ready for consuming
 	<-handler.ctx.Done()
 
 	// Add a message to the topic. KafkaConsumerGroupBridge group will fetch that message and trigger ConsumeClaim method.
-	fr.AddMessage(topic, defaultPartition, testMessageKey, testMessageValue, 0)
+	fr.SetMessageWithKey(topic, defaultPartition, 0, testMessageKey, testMessageValue)
 
-	// When this context is canceled, the processMessage function has been called and run without any problem.
-	<-ctx.Done()
+	select {
+	case <-ctx.Done():
+		// When this context is canceled, the processMessage function has been called and run without any problem.
+	case err := <-errCh:
+		require.NoError(t, err)
+	}
 
 	wg.Wait()
 
 	// KafkaConsumerGroupBridge is stopped here.
-	require.NoError(t, <-errCh)
 	require.Equal(t, 1, called)
 	require.ErrorIs(t, ctx.Err(), context.Canceled)
 }
