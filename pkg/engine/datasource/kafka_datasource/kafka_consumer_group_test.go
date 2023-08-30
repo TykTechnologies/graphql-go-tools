@@ -37,7 +37,6 @@ func newMockKafkaBroker(t *testing.T, topic, group string, fr *sarama.MockFetchR
 	mockCoordinatorResponse := sarama.NewMockFindCoordinatorResponse(t).
 		SetCoordinator(sarama.CoordinatorType(0), group, mockBroker)
 
-	// TODO fix rebalance strategy here
 	mockJoinGroupResponse := sarama.NewMockJoinGroupResponse(t).SetGroupProtocol(sarama.RangeBalanceStrategyName)
 
 	mockSyncGroupResponse := sarama.NewMockSyncGroupResponse(t).
