@@ -141,7 +141,7 @@ func TestKafkaMockBroker(t *testing.T) {
 	// Stop after 15 seconds and return an error.
 	resolveCtx := resolve.NewContext(context.Background())
 
-	ctx, cancel := context.WithTimeout(resolveCtx.Context(), time.Hour)
+	ctx, cancel := context.WithTimeout(resolveCtx.Context(), time.Second*15)
 	processMessage := func(msg *sarama.ConsumerMessage) {
 		defer cancel()
 
