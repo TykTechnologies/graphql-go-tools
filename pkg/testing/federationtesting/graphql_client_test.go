@@ -64,7 +64,7 @@ func (g *GraphqlClient) Query(ctx context.Context, addr, queryFilePath string, v
 	req = req.WithContext(ctx)
 	resp, err := g.httpClient.Do(req)
 	require.NoError(t, err)
-	responseBodyBytes, err := ioutil.ReadAll(resp.Body)
+	responseBodyBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Contains(t, resp.Header.Get("Content-Type"), "application/json")

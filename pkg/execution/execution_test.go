@@ -255,7 +255,7 @@ func TestExecution(t *testing.T) {
 														Value: []byte(graphQL2.URL + "/graphql"),
 													},
 													&datasource.StaticVariableArgument{
-														Name: literal.QUERY,
+														Name:  literal.QUERY,
 														Value: []byte(`query q1($id: String!){userPets(id: $id){	__typename name nickname... on Dog {woof} ... on Cat {meow}}}`),
 													},
 													&datasource.ObjectVariableArgument{
@@ -784,7 +784,7 @@ func genField() Field {
 												Value: []byte("localhost:8002/graphql"),
 											},
 											&datasource.StaticVariableArgument{
-												Name: literal.QUERY,
+												Name:  literal.QUERY,
 												Value: []byte(`query q1($id: String!){userPets(id: $id){	__typename name nickname... on Dog {woof} ... on Cat {meow}}}`),
 											},
 											&datasource.ObjectVariableArgument{
@@ -1251,7 +1251,7 @@ func TestExecutor_ObjectVariables(t *testing.T) {
 			return
 		}
 
-		got, err := ioutil.ReadAll(r.Body)
+		got, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1999,7 +1999,7 @@ func TestExecutor_HTTPJSONDataSourceWithBody(t *testing.T) {
 				return
 			}
 
-			data, err := ioutil.ReadAll(r.Body)
+			data, err := io.ReadAll(r.Body)
 			if err != nil {
 				t.Fatal(err)
 				return
@@ -2491,7 +2491,7 @@ func TestExecutor_HTTPJSONDataSourceWithBodyComplexPlayload(t *testing.T) {
 			return
 		}
 
-		data, err := ioutil.ReadAll(r.Body)
+		data, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Fatal(err)
 			return

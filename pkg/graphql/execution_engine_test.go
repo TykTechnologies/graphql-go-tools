@@ -41,7 +41,7 @@ func createTestRoundTripper(t *testing.T, testCase roundTripperTestCase) testRou
 			var receivedBodyBytes []byte
 			if req.Body != nil {
 				var err error
-				receivedBodyBytes, err = ioutil.ReadAll(req.Body)
+				receivedBodyBytes, err = io.ReadAll(req.Body)
 				require.NoError(t, err)
 			}
 			require.Equal(t, testCase.expectedBody, string(receivedBodyBytes), "roundTripperTestCase body do not match")
