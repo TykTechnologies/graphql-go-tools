@@ -4,11 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io"
-	"io/ioutil"
-
 	log "github.com/jensneuse/abstractlogger"
 	"github.com/jensneuse/pipeline/pkg/pipe"
+	"io"
 
 	"github.com/TykTechnologies/graphql-go-tools/pkg/ast"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/lexer/literal"
@@ -112,7 +110,7 @@ func (h *PipelineDataSourcePlanner) LeaveField(ref int) {
 	}
 	if h.dataSourceConfig.ConfigFilePath != nil {
 		var err error
-		h.rawPipelineConfig, err = ioutil.ReadFile(*h.dataSourceConfig.ConfigFilePath)
+		h.rawPipelineConfig, err = os.ReadFile(*h.dataSourceConfig.ConfigFilePath)
 		if err != nil {
 			h.Log.Error("PipelineDataSourcePlanner.readConfigFile", log.Error(err))
 		}

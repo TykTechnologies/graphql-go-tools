@@ -8,7 +8,7 @@ import (
 )
 
 func TestIntrospectionSerialization(t *testing.T) {
-	inputData, err := ioutil.ReadFile("./testdata/swapi_introspection_response.json")
+	inputData, err := os.ReadFile("./testdata/swapi_introspection_response.json")
 	if err != nil {
 		panic(err)
 	}

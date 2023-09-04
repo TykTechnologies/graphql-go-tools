@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
@@ -582,7 +581,7 @@ func TestExecution(t *testing.T) {
 	goldie.Assert(t, "execution", pretty)
 	if t.Failed() {
 
-		fixture, err := ioutil.ReadFile("./fixtures/execution.golden")
+		fixture, err := os.ReadFile("./fixtures/execution.golden")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -3009,7 +3008,7 @@ func TestExecutor_Introspection(t *testing.T) {
 
 	goldie.Assert(t, "introspection_execution", response)
 	if t.Failed() {
-		fixture, err := ioutil.ReadFile("./fixtures/introspection_execution.golden")
+		fixture, err := os.ReadFile("./fixtures/introspection_execution.golden")
 		if err != nil {
 			t.Fatal(err)
 		}

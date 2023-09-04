@@ -3,7 +3,6 @@ package lexer
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"testing"
 
 	"github.com/jensneuse/diffview"
@@ -646,7 +645,7 @@ func TestLexerRegressions(t *testing.T) {
 	goldie.Assert(t, "introspection_lexed", data)
 	if t.Failed() {
 
-		fixture, err := ioutil.ReadFile("./fixtures/introspection_lexed.golden")
+		fixture, err := os.ReadFile("./fixtures/introspection_lexed.golden")
 		if err != nil {
 			t.Fatal(err)
 		}

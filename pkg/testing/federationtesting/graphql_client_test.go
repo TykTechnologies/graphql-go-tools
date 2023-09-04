@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"testing"
@@ -41,7 +40,7 @@ func requestBody(t *testing.T, query string, variables queryVariables) []byte {
 }
 
 func loadQuery(t *testing.T, filePath string, variables queryVariables) []byte {
-	query, err := ioutil.ReadFile(filePath)
+	query, err := os.ReadFile(filePath)
 	require.NoError(t, err)
 
 	return requestBody(t, string(query), variables)

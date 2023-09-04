@@ -29,7 +29,7 @@ func main() {
 	}
 
 	replacementsPath := workingDir + "/../replacements.yml"
-	replacementContent, _ := ioutil.ReadFile(replacementsPath)
+	replacementContent, _ := os.ReadFile(replacementsPath)
 
 	var replacements []Replacement
 	if err := yaml.Unmarshal(replacementContent, &replacements); err != nil {
@@ -112,7 +112,7 @@ func skipRule(name string) bool {
 // processFile - convert and save reference test file
 func processFile(workingDir string, filename string, replacements Replacements) {
 	fPath := filepath.Join(workingDir, filename)
-	fileContent, _ := ioutil.ReadFile(fPath)
+	fileContent, _ := os.ReadFile(fPath)
 
 	testName := strings.TrimSuffix(strings.Split(filepath.Base(filename), ".")[0], "-test")
 
