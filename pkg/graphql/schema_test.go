@@ -2,6 +2,7 @@ package graphql
 
 import (
 	"bytes"
+	"io"
 	"testing"
 
 	"github.com/sebdah/goldie"

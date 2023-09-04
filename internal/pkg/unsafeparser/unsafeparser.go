@@ -4,6 +4,7 @@ package unsafeparser
 import (
 	"github.com/TykTechnologies/graphql-go-tools/pkg/ast"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/astparser"
+	"os"
 )
 
 func ParseGraphqlDocumentString(input string) ast.Document {

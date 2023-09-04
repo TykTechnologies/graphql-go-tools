@@ -2,6 +2,7 @@ package asttransform
 
 import (
 	"bytes"
+	"os"
 	"testing"
 
 	"github.com/jensneuse/diffview"

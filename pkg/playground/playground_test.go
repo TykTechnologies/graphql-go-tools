@@ -2,6 +2,7 @@ package playground
 
 import (
 	"bytes"
+	"os"
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"

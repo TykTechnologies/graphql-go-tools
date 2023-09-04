@@ -7,6 +7,7 @@ import (
 	log "github.com/jensneuse/abstractlogger"
 	"github.com/jensneuse/pipeline/pkg/pipe"
 	"io"
+	"os"
 
 	"github.com/TykTechnologies/graphql-go-tools/pkg/ast"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/lexer/literal"

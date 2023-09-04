@@ -2,6 +2,7 @@ package imports
 
 import (
 	"bytes"
+	"os"
 	"testing"
 
 	"github.com/jensneuse/diffview"

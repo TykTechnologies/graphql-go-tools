@@ -2,6 +2,7 @@ package introspection
 
 import (
 	"encoding/json"
+	"os"
 	"testing"
 
 	"github.com/TykTechnologies/graphql-go-tools/pkg/astparser"

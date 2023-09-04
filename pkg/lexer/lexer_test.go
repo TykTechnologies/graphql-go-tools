@@ -3,6 +3,7 @@ package lexer
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/jensneuse/diffview"

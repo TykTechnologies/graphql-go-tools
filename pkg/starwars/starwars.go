@@ -2,6 +2,7 @@ package starwars
 
 import (
 	"encoding/json"
+	"os"
 	"path"
 	"testing"
 

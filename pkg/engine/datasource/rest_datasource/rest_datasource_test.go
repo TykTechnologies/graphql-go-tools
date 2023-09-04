@@ -3,6 +3,7 @@ package rest_datasource
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"

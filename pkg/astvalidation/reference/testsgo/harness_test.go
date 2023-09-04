@@ -1,6 +1,7 @@
 package testsgo
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -235,6 +236,7 @@ func ExpectValidationErrorMessage(t *testing.T, schema string, queryStr string) 
 }
 
 // ExtendSchema - helper to extend schema with provided sdl
+//
 //nolint:unused
 func ExtendSchema(schema string, sdlStr string) string {
 	if sdlStr != "" {

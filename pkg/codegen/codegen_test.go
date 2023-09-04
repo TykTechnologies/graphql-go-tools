@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"bytes"
+	"os"
 	"testing"
 
 	"github.com/sebdah/goldie"

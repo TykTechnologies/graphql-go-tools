@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net"
 	"net/http"
+	"os"
 	"testing"
 
 	"github.com/gobwas/ws"

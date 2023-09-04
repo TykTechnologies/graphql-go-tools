@@ -3,6 +3,7 @@ package introspection
 import (
 	"bytes"
 	"encoding/json"
+	"os"
 	"testing"
 
 	"github.com/jensneuse/diffview"
