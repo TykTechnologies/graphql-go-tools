@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -23,7 +22,7 @@ func main() {
 		workingDir = filepath.Join(currDir, "pkg/astvalidation/reference/__tests__")
 	}
 
-	dir, err := ioutil.ReadDir(workingDir)
+	dir, err := os.ReadDir(workingDir)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -129,7 +128,7 @@ func processFile(workingDir string, filename string, replacements Replacements) 
 	result := converter.iterateLines(testName, content)
 
 	outFileName := testName + "_test.go"
-	err := ioutil.WriteFile(filepath.Join(outDir, outFileName), []byte(result), os.ModePerm)
+	err := os.WriteFile(filepath.Join(outDir, outFileName), []byte(result), os.ModePerm)
 	if err != nil {
 		log.Fatal(err)
 	}

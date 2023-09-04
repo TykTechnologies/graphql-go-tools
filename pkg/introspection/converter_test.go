@@ -45,7 +45,7 @@ func TestJSONConverter_GraphQLDocument(t *testing.T) {
 
 	schemaOutputPretty := outWriter.Bytes()
 	// fmt.Println(string(schemaOutputPretty))
-	// ioutil.WriteFile("./fixtures/starwars_generated.graphql", schemaOutputPretty, os.ModePerm)
+	// os.WriteFile("./fixtures/starwars_generated.graphql", schemaOutputPretty, os.ModePerm)
 
 	// Ensure that recreated sdl is valid
 	definition, report = astparser.ParseGraphqlDocumentBytes(schemaOutputPretty)

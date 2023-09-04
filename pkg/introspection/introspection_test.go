@@ -2,7 +2,6 @@ package introspection
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"testing"
 )
@@ -25,7 +24,7 @@ func TestIntrospectionSerialization(t *testing.T) {
 		panic(err)
 	}
 
-	err = ioutil.WriteFile("./testdata/out_swapi_introspection_response.json", outputData, os.ModePerm)
+	err = os.WriteFile("./testdata/out_swapi_introspection_response.json", outputData, os.ModePerm)
 	if err != nil {
 		panic(err)
 	}

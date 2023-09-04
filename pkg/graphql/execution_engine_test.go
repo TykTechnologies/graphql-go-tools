@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -49,7 +48,7 @@ func createTestRoundTripper(t *testing.T, testCase roundTripperTestCase) testRou
 		}
 
 		body := bytes.NewBuffer([]byte(testCase.sendResponseBody))
-		return &http.Response{StatusCode: testCase.sendStatusCode, Body: ioutil.NopCloser(body)}
+		return &http.Response{StatusCode: testCase.sendStatusCode, Body: io.NopCloser(body)}
 	}
 }
 
@@ -506,7 +505,7 @@ func BenchmarkExecutionEngine(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			engine := pool.Get().(*ExecutionEngine)
-			_ = engine.ExecuteWithWriter(ctx, req, ioutil.Discard, ExecutionOptions{})
+			_ = engine.ExecuteWithWriter(ctx, req, io.Discard, ExecutionOptions{})
 			pool.Put(engine)
 		}
 	})
