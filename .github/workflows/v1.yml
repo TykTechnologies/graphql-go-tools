@@ -1,17 +1,17 @@
-name: v2-ci
+name: v1-ci
 on:
   pull_request:
     branches:
       - master
     paths:
-      - 'v2/**'
-      - '.github/workflows/v2.yml'
+      - '!v2/**'
+      - '!.github/workflows/v2.yml'
   push:
     branches:
       - master
     paths:
-      - 'v2/**'
-      - '.github/workflows/v2.yml'
+      - '!v2/**'
+      - '!.github/workflows/v2.yml'
 jobs:
   test:
     name: Build and test (go ${{ matrix.go }} / ${{ matrix.os }})
@@ -33,12 +33,10 @@ jobs:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v3
       - name: CI
-        working-directory: v2
-        run: make -f ../Makefile ci
+        run: make ci
       - name: Run tests under race detector
-        working-directory: v2
         if: runner.os != 'Windows' # These are very slow on Windows, skip them
-        run: make -f ../Makefile test-race
+        run: make test-race
 
   lint:
     name: Linters
@@ -54,7 +52,6 @@ jobs:
       - name: Run linters
         uses: golangci/golangci-lint-action@v3
         with:
-          working-directory: v2
           version: v1.51.1
           args: --timeout=3m
   ci:
