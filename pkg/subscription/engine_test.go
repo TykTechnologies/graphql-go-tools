@@ -38,7 +38,7 @@ func TestExecutorEngine_StartExecutionBackoff(t *testing.T) {
 		if executeTimes == 0 {
 			return
 		}
-		duration := time.Now().Sub(lastTime)
+		duration := time.Since(lastTime)
 		if duration < nextBackOff {
 			t.Fatalf("expected next retry after %s got %s", nextBackOff.String(), duration.String())
 		}
