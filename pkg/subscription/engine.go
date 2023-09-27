@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -158,7 +159,7 @@ func (e *ExecutorEngine) executeSubscription(buf *graphql.EngineResultWriter, id
 	})
 	defer buf.SetFlushCallback(nil)
 
-	err := executor.Execute(buf)
+	err := e.executeWithBackOff(id, executor, buf, eventHandler)
 	if err != nil {
 		e.logger.Error("subscription.Handle.executeSubscription()",
 			abstractlogger.Error(err),
@@ -175,6 +176,26 @@ func (e *ExecutorEngine) executeSubscription(buf *graphql.EngineResultWriter, id
 		)
 		eventHandler.Emit(EventTypeOnSubscriptionData, id, data, nil)
 	}
+}
+
+// executeWithBackOff runs the executor wrapped in an exponential backOff algorithm of t=b^c
+func (e *ExecutorEngine) executeWithBackOff(id string, executor Executor, buf *graphql.EngineResultWriter, eventHandler EventHandler) error {
+	nextRetry := time.Second
+	var err error
+	for {
+		err = executor.Execute(buf)
+		if err == nil || !strings.Contains(err.Error(), "failed to WebSocket dial") {
+			break
+		}
+		nextRetry *= 2
+		e.logger.Error("subscription.Handle.executeSubscription()",
+			abstractlogger.Error(fmt.Errorf("%w. retrying in %s", err, nextRetry.String())),
+		)
+
+		eventHandler.Emit(EventTypeOnError, id, nil, err)
+		time.Sleep(nextRetry)
+	}
+	return err
 }
 
 func (e *ExecutorEngine) handleNonSubscriptionOperation(ctx context.Context, id string, executor Executor, eventHandler EventHandler) {
