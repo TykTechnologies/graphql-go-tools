@@ -150,9 +150,10 @@ func (e *ExecutorEngine) startSubscription(ctx context.Context, id string, execu
 	defer e.bufferPool.Put(buf)
 
 	if err := e.executeSubscription(buf, id, executor, eventHandler); err != nil {
-		e.logger.Error("subscription.Handle.startSubscription()",
+		e.logger.Error("subscription.Handle.startSubscription(): error executing subscription, terminating",
 			abstractlogger.Error(err),
 		)
+		return
 	}
 
 	for {
@@ -162,7 +163,7 @@ func (e *ExecutorEngine) startSubscription(ctx context.Context, id string, execu
 			return
 		case <-time.After(e.subscriptionUpdateInterval):
 			if err := e.executeSubscription(buf, id, executor, eventHandler); err != nil {
-				e.logger.Error("subscription.Handle.startSubscription()",
+				e.logger.Error("subscription.Handle.startSubscription(): error executing subscription, terminating",
 					abstractlogger.Error(err),
 				)
 				break
