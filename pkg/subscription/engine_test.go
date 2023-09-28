@@ -80,19 +80,19 @@ func TestExecutorEngine_StartExecutionBackoff(t *testing.T) {
 		defer cancelFunc()
 
 		maxRetries := 3
-
-		executorPoolMock := NewMockExecutorPool(ctrl)
+		sampleErr := errors.New("failed to WebSocket dial")
 
 		executorMock := NewMockExecutor(ctrl)
 		executorMock.EXPECT().SetContext(gomock.AssignableToTypeOf(ctx)).Times(1)
 
+		executorPoolMock := NewMockExecutorPool(ctrl)
+		executorPoolMock.EXPECT().Put(gomock.Eq(executorMock))
 		var gottenError bool
 		eventHandlerMock := NewMockEventHandler(ctrl)
-		eventHandlerMock.EXPECT().Emit(EventTypeOnError, "testID", gomock.AssignableToTypeOf([]byte{}), gomock.AssignableToTypeOf(&errTimeoutExecutingSubscription{})).Times(1).Do(func(arg0, arg1, arg2, arg3 interface{}) {
+		eventHandlerMock.EXPECT().Emit(EventTypeOnError, "testID", gomock.AssignableToTypeOf([]byte{}), gomock.AssignableToTypeOf(sampleErr)).Times(1).Do(func(arg0, arg1, arg2, arg3 interface{}) {
 			gottenError = true
 		})
 
-		sampleErr := errors.New("failed to WebSocket dial")
 		executorMock.EXPECT().Execute(gomock.AssignableToTypeOf(&graphql.EngineResultWriter{})).Return(sampleErr).Times(maxRetries)
 
 		engine := ExecutorEngine{

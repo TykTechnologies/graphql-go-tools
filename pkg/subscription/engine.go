@@ -28,18 +28,6 @@ func (e *errOnBeforeStartHookFailure) Error() string {
 	return fmt.Sprintf("on before start hook failed: %s", e.wrappedErr.Error())
 }
 
-type errTimeoutExecutingSubscription struct {
-	err error
-}
-
-func (e *errTimeoutExecutingSubscription) Unwrap() error {
-	return e.err
-}
-
-func (e *errTimeoutExecutingSubscription) Error() string {
-	return fmt.Sprintf("timeout trying to execute subsctiption: %s", e.err.Error())
-}
-
 // Engine defines the function for a subscription engine.
 type Engine interface {
 	StartOperation(ctx context.Context, id string, payload []byte, eventHandler EventHandler) error
