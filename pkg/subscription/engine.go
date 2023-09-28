@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -29,15 +28,15 @@ func (e *errOnBeforeStartHookFailure) Error() string {
 	return fmt.Sprintf("on before start hook failed: %s", e.wrappedErr.Error())
 }
 
-type errOnExecuteFailureTimeout struct {
+type errTimeoutExecutingSubscription struct {
 	err error
 }
 
-func (e *errOnExecuteFailureTimeout) Unwrap() error {
+func (e *errTimeoutExecutingSubscription) Unwrap() error {
 	return e.err
 }
 
-func (e *errOnExecuteFailureTimeout) Error() string {
+func (e *errTimeoutExecutingSubscription) Error() string {
 	return fmt.Sprintf("timeout trying to execute subsctiption: %s", e.err.Error())
 }
 
@@ -150,7 +149,11 @@ func (e *ExecutorEngine) startSubscription(ctx context.Context, id string, execu
 
 	defer e.bufferPool.Put(buf)
 
-	e.executeSubscription(buf, id, executor, eventHandler)
+	if err := e.executeSubscription(buf, id, executor, eventHandler); err != nil {
+		e.logger.Error("subscription.Handle.startSubscription()",
+			abstractlogger.Error(err),
+		)
+	}
 
 	for {
 		buf.Reset()
@@ -158,13 +161,18 @@ func (e *ExecutorEngine) startSubscription(ctx context.Context, id string, execu
 		case <-ctx.Done():
 			return
 		case <-time.After(e.subscriptionUpdateInterval):
-			e.executeSubscription(buf, id, executor, eventHandler)
+			if err := e.executeSubscription(buf, id, executor, eventHandler); err != nil {
+				e.logger.Error("subscription.Handle.startSubscription()",
+					abstractlogger.Error(err),
+				)
+				break
+			}
 		}
 	}
 
 }
 
-func (e *ExecutorEngine) executeSubscription(buf *graphql.EngineResultWriter, id string, executor Executor, eventHandler EventHandler) {
+func (e *ExecutorEngine) executeSubscription(buf *graphql.EngineResultWriter, id string, executor Executor, eventHandler EventHandler) error {
 	buf.SetFlushCallback(func(data []byte) {
 		e.logger.Debug("subscription.Handle.executeSubscription()",
 			abstractlogger.ByteString("execution_result", data),
@@ -173,14 +181,14 @@ func (e *ExecutorEngine) executeSubscription(buf *graphql.EngineResultWriter, id
 	})
 	defer buf.SetFlushCallback(nil)
 
-	err := e.executeWithBackOff(id, executor, buf, eventHandler)
+	err := e.executeWithBackOff(executor, buf)
 	if err != nil {
 		e.logger.Error("subscription.Handle.executeSubscription()",
 			abstractlogger.Error(err),
 		)
 
 		eventHandler.Emit(EventTypeOnError, id, nil, err)
-		return
+		return err
 	}
 
 	if buf.Len() > 0 {
@@ -190,17 +198,19 @@ func (e *ExecutorEngine) executeSubscription(buf *graphql.EngineResultWriter, id
 		)
 		eventHandler.Emit(EventTypeOnSubscriptionData, id, data, nil)
 	}
+
+	return nil
 }
 
 // executeWithBackOff runs the executor wrapped in an exponential backOff algorithm of t=b^c
-func (e *ExecutorEngine) executeWithBackOff(id string, executor Executor, buf *graphql.EngineResultWriter, eventHandler EventHandler) error {
+func (e *ExecutorEngine) executeWithBackOff(executor Executor, buf *graphql.EngineResultWriter) error {
 	nextRetry := time.Second
 	var err error
 	trialCount := 0
 	for {
 		trialCount++
 		err = executor.Execute(buf)
-		if err == nil || !strings.Contains(err.Error(), "failed to WebSocket dial") {
+		if err == nil {
 			break
 		}
 		nextRetry *= 2
@@ -213,7 +223,7 @@ func (e *ExecutorEngine) executeWithBackOff(id string, executor Executor, buf *g
 		}
 		time.Sleep(nextRetry)
 	}
-	return &errOnExecuteFailureTimeout{err: err}
+	return err
 }
 
 func (e *ExecutorEngine) handleNonSubscriptionOperation(ctx context.Context, id string, executor Executor, eventHandler EventHandler) {

@@ -62,6 +62,7 @@ func TestExecutorEngine_StartExecutionBackoff(t *testing.T) {
 				},
 			},
 			subscriptionUpdateInterval: time.Second,
+			maxExecutionTries:          5,
 		}
 
 		go engine.startSubscription(ctx, "testID", executorMock, eventHandlerMock)
@@ -87,7 +88,7 @@ func TestExecutorEngine_StartExecutionBackoff(t *testing.T) {
 
 		var gottenError bool
 		eventHandlerMock := NewMockEventHandler(ctrl)
-		eventHandlerMock.EXPECT().Emit(EventTypeOnError, "testID", gomock.AssignableToTypeOf([]byte{}), gomock.AssignableToTypeOf(&errOnExecuteFailureTimeout{})).Times(1).Do(func(arg0, arg1, arg2, arg3 interface{}) {
+		eventHandlerMock.EXPECT().Emit(EventTypeOnError, "testID", gomock.AssignableToTypeOf([]byte{}), gomock.AssignableToTypeOf(&errTimeoutExecutingSubscription{})).Times(1).Do(func(arg0, arg1, arg2, arg3 interface{}) {
 			gottenError = true
 		})
 
