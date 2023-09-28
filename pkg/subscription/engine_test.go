@@ -17,58 +17,103 @@ import (
 )
 
 func TestExecutorEngine_StartExecutionBackoff(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+	t.Run("default retry case", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 
-	ctx, cancelFunc := context.WithTimeout(context.Background(), time.Minute)
-	defer cancelFunc()
+		ctx, cancelFunc := context.WithTimeout(context.Background(), time.Minute)
+		defer cancelFunc()
 
-	executorMock := NewMockExecutor(ctrl)
-	executorMock.EXPECT().SetContext(gomock.AssignableToTypeOf(ctx)).Times(1)
+		executorMock := NewMockExecutor(ctrl)
+		executorMock.EXPECT().SetContext(gomock.AssignableToTypeOf(ctx)).Times(1)
 
-	executeTimes := 0
-	var lastTime time.Time
-	nextBackOff := time.Second
-	sampleErr := errors.New("failed to WebSocket dial")
-	executorMock.EXPECT().Execute(gomock.AssignableToTypeOf(&graphql.EngineResultWriter{})).Do(func(arg interface{}) {
-		defer func() {
-			lastTime = time.Now()
-			executeTimes++
-		}()
-		if executeTimes == 0 {
-			return
-		}
-		duration := time.Since(lastTime)
-		if duration < nextBackOff {
-			t.Fatalf("expected next retry after %s got %s", nextBackOff.String(), duration.String())
-		}
-		lastTime = time.Now()
-		nextBackOff = nextBackOff * 2
-	}).Return(sampleErr).AnyTimes()
+		executeTimes := 0
+		var lastTime time.Time
+		nextBackOff := time.Second
+		sampleErr := errors.New("failed to WebSocket dial")
+		executorMock.EXPECT().Execute(gomock.AssignableToTypeOf(&graphql.EngineResultWriter{})).Do(func(arg interface{}) {
+			defer func() {
+				lastTime = time.Now()
+				executeTimes++
+			}()
+			if executeTimes == 0 {
+				return
+			}
+			duration := time.Since(lastTime)
+			if duration < nextBackOff {
+				t.Fatalf("expected next retry after %s got %s", nextBackOff.String(), duration.String())
+			}
+			nextBackOff = nextBackOff * 2
+		}).Return(sampleErr).AnyTimes()
 
-	executorPoolMock := NewMockExecutorPool(ctrl)
+		executorPoolMock := NewMockExecutorPool(ctrl)
 
-	eventHandlerMock := NewMockEventHandler(ctrl)
-	eventHandlerMock.EXPECT().Emit(EventTypeOnError, "testID", gomock.AssignableToTypeOf([]byte{}), sampleErr).AnyTimes()
+		eventHandlerMock := NewMockEventHandler(ctrl)
+		eventHandlerMock.EXPECT().Emit(EventTypeOnError, "testID", gomock.AssignableToTypeOf([]byte{}), sampleErr).AnyTimes()
 
-	engine := ExecutorEngine{
-		logger:           abstractlogger.Noop{},
-		subCancellations: subscriptionCancellations{},
-		executorPool:     executorPoolMock,
-		bufferPool: &sync.Pool{
-			New: func() interface{} {
-				writer := graphql.NewEngineResultWriterFromBuffer(bytes.NewBuffer(make([]byte, 0, 1024)))
-				return &writer
+		engine := ExecutorEngine{
+			logger:           abstractlogger.Noop{},
+			subCancellations: subscriptionCancellations{},
+			executorPool:     executorPoolMock,
+			bufferPool: &sync.Pool{
+				New: func() interface{} {
+					writer := graphql.NewEngineResultWriterFromBuffer(bytes.NewBuffer(make([]byte, 0, 1024)))
+					return &writer
+				},
 			},
-		},
-		subscriptionUpdateInterval: time.Second,
-	}
+			subscriptionUpdateInterval: time.Second,
+		}
 
-	go engine.startSubscription(ctx, "testID", executorMock, eventHandlerMock)
+		go engine.startSubscription(ctx, "testID", executorMock, eventHandlerMock)
 
-	assert.Eventually(t, func() bool {
-		return executeTimes >= 4
-	}, time.Second*15, time.Millisecond*100)
+		assert.Eventually(t, func() bool {
+			return executeTimes >= 4
+		}, time.Second*15, time.Millisecond*100)
+	})
+
+	t.Run("test max backoff", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		ctx, cancelFunc := context.WithTimeout(context.Background(), time.Minute)
+		defer cancelFunc()
+
+		maxRetries := 3
+
+		executorPoolMock := NewMockExecutorPool(ctrl)
+
+		executorMock := NewMockExecutor(ctrl)
+		executorMock.EXPECT().SetContext(gomock.AssignableToTypeOf(ctx)).Times(1)
+
+		var gottenError bool
+		eventHandlerMock := NewMockEventHandler(ctrl)
+		eventHandlerMock.EXPECT().Emit(EventTypeOnError, "testID", gomock.AssignableToTypeOf([]byte{}), gomock.AssignableToTypeOf(&errOnExecuteFailureTimeout{})).Times(1).Do(func(arg0, arg1, arg2, arg3 interface{}) {
+			gottenError = true
+		})
+
+		sampleErr := errors.New("failed to WebSocket dial")
+		executorMock.EXPECT().Execute(gomock.AssignableToTypeOf(&graphql.EngineResultWriter{})).Return(sampleErr).Times(maxRetries)
+
+		engine := ExecutorEngine{
+			logger:           abstractlogger.Noop{},
+			subCancellations: subscriptionCancellations{},
+			executorPool:     executorPoolMock,
+			bufferPool: &sync.Pool{
+				New: func() interface{} {
+					writer := graphql.NewEngineResultWriterFromBuffer(bytes.NewBuffer(make([]byte, 0, 1024)))
+					return &writer
+				},
+			},
+			subscriptionUpdateInterval: time.Second,
+			maxExecutionTries:          maxRetries,
+		}
+
+		go engine.startSubscription(ctx, "testID", executorMock, eventHandlerMock)
+
+		assert.Eventually(t, func() bool {
+			return gottenError
+		}, time.Second*8, time.Millisecond*100)
+	})
 }
 
 func TestExecutorEngine_StartOperation(t *testing.T) {

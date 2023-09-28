@@ -29,6 +29,18 @@ func (e *errOnBeforeStartHookFailure) Error() string {
 	return fmt.Sprintf("on before start hook failed: %s", e.wrappedErr.Error())
 }
 
+type errOnExecuteFailureTimeout struct {
+	err error
+}
+
+func (e *errOnExecuteFailureTimeout) Unwrap() error {
+	return e.err
+}
+
+func (e *errOnExecuteFailureTimeout) Error() string {
+	return fmt.Sprintf("timeout trying to execute subsctiption: %s", e.err.Error())
+}
+
 // Engine defines the function for a subscription engine.
 type Engine interface {
 	StartOperation(ctx context.Context, id string, payload []byte, eventHandler EventHandler) error
@@ -47,6 +59,8 @@ type ExecutorEngine struct {
 	bufferPool *sync.Pool
 	// subscriptionUpdateInterval is the actual interval on which the server sends subscription updates to the client.
 	subscriptionUpdateInterval time.Duration
+	// maxExecutionTries is the max amount of times the executeWithBackoff is allowed to run to before closing the connection
+	maxExecutionTries int
 }
 
 // StartOperation will start any operation.
@@ -182,7 +196,9 @@ func (e *ExecutorEngine) executeSubscription(buf *graphql.EngineResultWriter, id
 func (e *ExecutorEngine) executeWithBackOff(id string, executor Executor, buf *graphql.EngineResultWriter, eventHandler EventHandler) error {
 	nextRetry := time.Second
 	var err error
+	trialCount := 0
 	for {
+		trialCount++
 		err = executor.Execute(buf)
 		if err == nil || !strings.Contains(err.Error(), "failed to WebSocket dial") {
 			break
@@ -192,10 +208,12 @@ func (e *ExecutorEngine) executeWithBackOff(id string, executor Executor, buf *g
 			abstractlogger.Error(fmt.Errorf("%w. retrying in %s", err, nextRetry.String())),
 		)
 
-		eventHandler.Emit(EventTypeOnError, id, nil, err)
+		if trialCount == e.maxExecutionTries {
+			break
+		}
 		time.Sleep(nextRetry)
 	}
-	return err
+	return &errOnExecuteFailureTimeout{err: err}
 }
 
 func (e *ExecutorEngine) handleNonSubscriptionOperation(ctx context.Context, id string, executor Executor, eventHandler EventHandler) {
