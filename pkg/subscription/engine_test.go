@@ -289,7 +289,7 @@ func TestExecutorEngine_StartOperation(t *testing.T) {
 				Times(1)
 			executorMock.EXPECT().Execute(gomock.AssignableToTypeOf(&graphql.EngineResultWriter{})).
 				Return(errors.New("error")).
-				MinTimes(2)
+				MinTimes(1)
 
 			executorPoolMock := NewMockExecutorPool(ctrl)
 			executorPoolMock.EXPECT().Get(gomock.Eq(payload)).
@@ -303,7 +303,7 @@ func TestExecutorEngine_StartOperation(t *testing.T) {
 
 			eventHandlerMock := NewMockEventHandler(ctrl)
 			eventHandlerMock.EXPECT().Emit(gomock.Eq(EventTypeOnError), gomock.Eq(id), gomock.Nil(), gomock.Any()).
-				MinTimes(2)
+				Times(1)
 
 			engine := ExecutorEngine{
 				logger:           abstractlogger.Noop{},
@@ -316,6 +316,7 @@ func TestExecutorEngine_StartOperation(t *testing.T) {
 					},
 				},
 				subscriptionUpdateInterval: 2 * time.Millisecond,
+				maxExecutionTries:          1,
 			}
 
 			assert.Eventually(t, func() bool {
