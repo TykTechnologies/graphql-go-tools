@@ -4,12 +4,14 @@ on:
     branches:
       - master
     paths:
+      - '**'
       - '!v2/**'
       - '!.github/workflows/v2.yml'
   push:
     branches:
       - master
     paths:
+      - '**'
       - '!v2/**'
       - '!.github/workflows/v2.yml'
 jobs:
