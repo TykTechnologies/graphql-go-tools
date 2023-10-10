@@ -3,10 +3,10 @@ package ast_test
 import (
 	"testing"
 
+	"github.com/TykTechnologies/graphql-go-tools/v2/internal/pkg/unsafeparser"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/astprinter"
 	"github.com/stretchr/testify/assert"
-	"github.com/wundergraph/graphql-go-tools/v2/internal/pkg/unsafeparser"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/ast"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/astprinter"
 )
 
 func TestDocument_ReplaceRootOperationTypeDefinition(t *testing.T) {

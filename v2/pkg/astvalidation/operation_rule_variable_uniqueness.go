@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/ast"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/astvisitor"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/operationreport"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/astvisitor"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/operationreport"
 )
 
 // VariableUniqueness validates if variables are unique in a given document

@@ -7,10 +7,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/astparser"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/astprinter"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/asttransform"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/engine/plan"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/astparser"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/astprinter"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/asttransform"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/plan"
 )
 
 func TestNewSchemaFromReader(t *testing.T) {

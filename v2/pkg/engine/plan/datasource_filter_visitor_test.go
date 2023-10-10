@@ -9,9 +9,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/wundergraph/graphql-go-tools/v2/internal/pkg/unsafeparser"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/astvalidation"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/operationreport"
+	"github.com/TykTechnologies/graphql-go-tools/v2/internal/pkg/unsafeparser"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/astvalidation"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/operationreport"
 )
 
 type dsBuilder struct {

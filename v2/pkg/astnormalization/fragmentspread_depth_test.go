@@ -5,9 +5,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/wundergraph/graphql-go-tools/v2/internal/pkg/unsafeparser"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/asttransform"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/operationreport"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/operationreport"
+
+	"github.com/TykTechnologies/graphql-go-tools/v2/internal/pkg/unsafeparser"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/asttransform"
 )
 
 func TestRealDepthCalculator_CalculateDepthForFragmentSpread(t *testing.T) {

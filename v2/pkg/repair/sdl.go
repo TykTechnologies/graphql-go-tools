@@ -1,11 +1,11 @@
 package repair
 
 import (
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/ast"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/astparser"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/astprinter"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/astvisitor"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/operationreport"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/astparser"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/astprinter"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/astvisitor"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/operationreport"
 )
 
 type OptionsSDL struct {

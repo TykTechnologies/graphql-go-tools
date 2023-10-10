@@ -1,4 +1,4 @@
-//go:generate mockgen --build_flags=--mod=mod -self_package=github.com/wundergraph/graphql-go-tools/v2/pkg/engine/resolve -destination=resolve_mock_test.go -package=resolve . DataSource,BeforeFetchHook,AfterFetchHook
+//go:generate mockgen --build_flags=--mod=mod -self_package=github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/resolve -destination=resolve_mock_test.go -package=resolve . DataSource,BeforeFetchHook,AfterFetchHook
 
 package resolve
 
@@ -16,8 +16,8 @@ import (
 	"github.com/tidwall/gjson"
 	"golang.org/x/sync/singleflight"
 
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/fastbuffer"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/pool"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/fastbuffer"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/pool"
 )
 
 type Resolver struct {

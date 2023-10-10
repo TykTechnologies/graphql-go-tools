@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/starwars"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/starwars"
 )
 
 func TestFieldsValidator_Validate(t *testing.T) {

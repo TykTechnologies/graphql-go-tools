@@ -7,9 +7,9 @@ import (
 	"github.com/gobwas/ws"
 	log "github.com/jensneuse/abstractlogger"
 
-	http2 "github.com/wundergraph/graphql-go-tools/v2/pkg/testing/federationtesting/gateway/http"
+	http2 "github.com/TykTechnologies/graphql-go-tools/v2/pkg/testing/federationtesting/gateway/http"
 
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/graphql"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/graphql"
 )
 
 func NewDatasource(serviceConfig []ServiceConfig, httpClient *http.Client) *DatasourcePollerPoller {

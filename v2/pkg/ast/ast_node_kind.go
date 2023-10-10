@@ -1,8 +1,8 @@
 package ast
 
 import (
-	"github.com/wundergraph/graphql-go-tools/v2/internal/pkg/unsafebytes"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/lexer/literal"
+	"github.com/TykTechnologies/graphql-go-tools/v2/internal/pkg/unsafebytes"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/lexer/literal"
 )
 
 type NodeKind int

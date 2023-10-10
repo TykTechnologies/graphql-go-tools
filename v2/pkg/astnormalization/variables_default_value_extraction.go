@@ -6,10 +6,10 @@ import (
 	"github.com/buger/jsonparser"
 	"github.com/tidwall/sjson"
 
-	"github.com/wundergraph/graphql-go-tools/v2/internal/pkg/unsafebytes"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/ast"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/astimport"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/astvisitor"
+	"github.com/TykTechnologies/graphql-go-tools/v2/internal/pkg/unsafebytes"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/astimport"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/astvisitor"
 )
 
 func extractVariablesDefaultValue(walker *astvisitor.Walker) *variablesDefaultValueExtractionVisitor {

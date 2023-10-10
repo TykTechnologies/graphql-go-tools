@@ -7,8 +7,8 @@ package graph
 import (
 	"context"
 
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/testing/federationtesting/reviews/graph/generated"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/testing/federationtesting/reviews/graph/model"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/testing/federationtesting/reviews/graph/generated"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/testing/federationtesting/reviews/graph/model"
 )
 
 // FindProductByUpc is the resolver for the findProductByUpc field.

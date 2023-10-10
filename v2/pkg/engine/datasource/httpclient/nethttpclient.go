@@ -11,7 +11,7 @@ import (
 
 	"github.com/buger/jsonparser"
 
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/lexer/literal"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/lexer/literal"
 )
 
 const (

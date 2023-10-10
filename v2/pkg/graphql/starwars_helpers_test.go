@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/starwars"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/starwars"
 )
 
 type TestingTB interface {

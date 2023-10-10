@@ -1,6 +1,6 @@
 package resolve
 
-import "github.com/wundergraph/graphql-go-tools/v2/pkg/fastbuffer"
+import "github.com/TykTechnologies/graphql-go-tools/v2/pkg/fastbuffer"
 
 type BufPair struct {
 	Data   *fastbuffer.FastBuffer

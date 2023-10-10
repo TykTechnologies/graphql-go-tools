@@ -1,6 +1,6 @@
 package codegen
 
-import "github.com/wundergraph/graphql-go-tools/v2/pkg/ast"
+import "github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
 
 type DataSourceConfig struct {
 	NonNullString                 string

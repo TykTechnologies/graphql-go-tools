@@ -4,11 +4,11 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/ast"
-	graphqlDataSource "github.com/wundergraph/graphql-go-tools/v2/pkg/engine/datasource/graphql_datasource"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/engine/plan"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/engine/resolve"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/federation/federationdata"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
+	graphqlDataSource "github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/datasource/graphql_datasource"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/plan"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/resolve"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/federation/federationdata"
 )
 
 const (

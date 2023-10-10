@@ -1,8 +1,9 @@
 package astnormalization
 
 import (
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/ast"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/astvisitor"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/astvisitor"
+
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
 )
 
 func removeMergedTypeExtensions(walker *astvisitor.Walker) {

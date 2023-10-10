@@ -3,7 +3,7 @@ package codegen
 import (
 	"testing"
 
-	"github.com/wundergraph/graphql-go-tools/v2/internal/pkg/unsafeparser"
+	"github.com/TykTechnologies/graphql-go-tools/v2/internal/pkg/unsafeparser"
 )
 
 func TestManual(t *testing.T) {

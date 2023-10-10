@@ -15,12 +15,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/engine/datasource/graphql_datasource"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/engine/datasource/httpclient"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/engine/plan"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/graphql"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/starwars"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/testing/subscriptiontesting"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/graphql"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/starwars"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/testing/subscriptiontesting"
+
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/datasource/graphql_datasource"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/datasource/httpclient"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/plan"
 )
 
 type handlerRoutine func(ctx context.Context) func() bool

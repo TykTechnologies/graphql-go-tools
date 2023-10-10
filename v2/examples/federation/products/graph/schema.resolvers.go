@@ -10,8 +10,9 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/wundergraph/graphql-go-tools/v2/examples/federation/products/graph/generated"
-	"github.com/wundergraph/graphql-go-tools/v2/examples/federation/products/graph/model"
+	"github.com/TykTechnologies/graphql-go-tools/v2/examples/federation/products/graph/model"
+
+	"github.com/TykTechnologies/graphql-go-tools/v2/examples/federation/products/graph/generated"
 )
 
 // TopProducts is the resolver for the topProducts field.

@@ -1,4 +1,4 @@
-module github.com/wundergraph/graphql-go-tools/v2/examples/chat
+module github.com/TykTechnologies/graphql-go-tools/v2/examples/chat
 
 go 1.18
 

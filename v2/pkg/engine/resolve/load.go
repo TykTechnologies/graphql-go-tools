@@ -15,7 +15,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/singleflight"
 
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/pool"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/pool"
 )
 
 var (

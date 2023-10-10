@@ -1,7 +1,7 @@
 package plan
 
 import (
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/engine/resolve"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/resolve"
 )
 
 type Configuration struct {

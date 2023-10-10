@@ -8,10 +8,10 @@ import (
 
 	"github.com/jensneuse/diffview"
 
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/ast"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/lexer/keyword"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/lexer/token"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/testing/goldie"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/lexer/keyword"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/lexer/token"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/testing/goldie"
 )
 
 func TestLexer_Peek_Read(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/introspection"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/introspection"
 )
 
 var (
