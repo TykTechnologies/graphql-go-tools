@@ -224,7 +224,10 @@ func (e *ExecutorEngine) executeWithBackOff(executor Executor, buf *graphql.Engi
 		}
 		time.Sleep(nextRetry)
 	}
-	return &ErrorTimeoutExecutingSubscription{err}
+	if err != nil {
+		return &ErrorTimeoutExecutingSubscription{err}
+	}
+	return nil
 }
 
 func (e *ExecutorEngine) handleNonSubscriptionOperation(ctx context.Context, id string, executor Executor, eventHandler EventHandler) {

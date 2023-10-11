@@ -17,12 +17,6 @@ import (
 // GraphQLWSMessageType is a type that defines graphql-ws message type names.
 type GraphQLWSMessageType string
 
-// disconnectClientI is an interface that the GraphqlWs protocol implementation uses to kill connections after continously
-// failing to execute
-type disconnectClientI interface {
-	DisconnectWithReason(reason interface{}) error
-}
-
 const (
 	GraphQLWSMessageTypeConnectionInit      GraphQLWSMessageType = "connection_init"
 	GraphQLWSMessageTypeConnectionAck       GraphQLWSMessageType = "connection_ack"
@@ -167,9 +161,8 @@ func (g *GraphQLWSMessageWriter) write(message *GraphQLWSMessage) error {
 
 // GraphQLWSWriteEventHandler can be used to handle subscription events and forward them to a GraphQLWSMessageWriter.
 type GraphQLWSWriteEventHandler struct {
-	logger     abstractlogger.Logger
-	Writer     GraphQLWSMessageWriter
-	disconnect disconnectClientI
+	logger abstractlogger.Logger
+	Writer GraphQLWSMessageWriter
 }
 
 // Emit is an implementation of subscription.EventHandler. It forwards events to the HandleWriteEvent.
@@ -209,7 +202,7 @@ func (g *GraphQLWSWriteEventHandler) HandleWriteEvent(messageType GraphQLWSMessa
 		err = g.Writer.WriteError(id, graphql.RequestErrorsFromError(providedErr))
 		var timeoutErr *subscription.ErrorTimeoutExecutingSubscription
 		if errors.As(providedErr, &timeoutErr) {
-			err = g.disconnect.DisconnectWithReason(NewCloseReason(1011, timeoutErr.Error()))
+			err = g.Writer.Client.DisconnectWithReason(NewCloseReason(1011, timeoutErr.Error()))
 		}
 	case GraphQLWSMessageTypeConnectionError:
 		err = g.Writer.WriteConnectionError(providedErr.Error())
@@ -273,7 +266,6 @@ func NewProtocolGraphQLWSHandlerWithOptions(client subscription.TransportClient,
 				Client: client,
 				mu:     &sync.Mutex{},
 			},
-			disconnect: client,
 		},
 		initFunc: opts.WebSocketInitFunc,
 	}
