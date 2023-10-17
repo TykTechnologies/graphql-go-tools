@@ -788,46 +788,64 @@ func TestHandler_Handle(t *testing.T) {
 	})
 
 	t.Run("test handle", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
+		t.Run("default retry case", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
 
-		ctx, cancelFunc := context.WithTimeout(context.Background(), time.Minute)
-		defer cancelFunc()
+			ctx, cancelFunc := context.WithTimeout(context.Background(), time.Minute)
+			defer cancelFunc()
 
-		mockExecutor := NewMockExecutor(ctrl)
-		mockExecutor.EXPECT().SetContext(gomock.Any()).Times(1)
-		mockExecutor.EXPECT().OperationType().Return(ast.OperationTypeSubscription)
-		executeTimes := 0
-		var lastTime time.Time
-		nextBackOff := time.Second
-		sampleErr := errors.New("failed to WebSocket dial")
-		mockExecutor.EXPECT().Execute(gomock.AssignableToTypeOf(&graphql.EngineResultWriter{})).Do(func(arg interface{}) {
-			defer func() {
-				lastTime = time.Now()
-				executeTimes++
-			}()
-			if executeTimes == 0 {
-				return
-			}
-			duration := time.Since(lastTime)
-			if duration < nextBackOff {
-				t.Fatalf("expected next retry after %s got %s", nextBackOff.String(), duration.String())
-			}
-			nextBackOff = nextBackOff * 2
-		}).Return(sampleErr).AnyTimes()
+			mockExecutor := NewMockExecutor(ctrl)
+			mockExecutor.EXPECT().SetContext(gomock.Any()).Times(1)
+			mockExecutor.EXPECT().OperationType().Return(ast.OperationTypeSubscription)
+			executeTimes := 0
+			var lastTime time.Time
+			nextBackOff := time.Second
+			sampleErr := errors.New("failed to WebSocket dial")
+			mockExecutor.EXPECT().Execute(gomock.AssignableToTypeOf(&graphql.EngineResultWriter{})).Do(func(arg interface{}) {
+				defer func() {
+					lastTime = time.Now()
+					executeTimes++
+				}()
+				if executeTimes == 0 {
+					return
+				}
+				duration := time.Since(lastTime)
+				if duration < nextBackOff {
+					t.Fatalf("expected next retry after %s got %s", nextBackOff.String(), duration.String())
+				}
+				nextBackOff = nextBackOff * 2
+			}).Return(sampleErr).AnyTimes()
 
-		mockPool := NewMockExecutorPool(ctrl)
-		mockPool.EXPECT().Get(gomock.Any()).Return(mockExecutor, nil)
+			mockPool := NewMockExecutorPool(ctrl)
+			mockPool.EXPECT().Get(gomock.Any()).Return(mockExecutor, nil)
+			mockPool.EXPECT().Put(gomock.AssignableToTypeOf(mockExecutor))
 
-		_, client, routine := setupSubscriptionHandlerTest(t, mockPool)
-		go routine(ctx)()
-		payload := starwars.LoadQuery(t, starwars.FileRemainingJedisSubscription, nil)
-		client.prepareStartMessage("1", payload).withoutError().and().send()
+			handler, client, _ := setupSubscriptionHandlerTest(t, mockPool)
+			handler.maxExecutionTries = 2
+			go handler.Handle(ctx)
+			payload := starwars.LoadQuery(t, starwars.FileRemainingJedisSubscription, nil)
+			client.prepareStartMessage("1", payload).withoutError().and().send()
 
-		assert.Eventually(t, func() bool {
-			return executeTimes >= 4
-		}, time.Second*15, time.Millisecond*100)
-		fmt.Println(client.messagesFromServer)
+			assert.Eventually(t, func() bool {
+				foundMessage := 0
+				for _, msg := range client.messagesFromServer {
+					if msg.Type == MessageTypeError {
+						foundMessage++
+					}
+				}
+				return executeTimes >= 2 && foundMessage == 1
+			}, time.Second*20, time.Millisecond*100)
+		})
+		t.Run("text max backoff", func(t *testing.T) {
+			//ctrl := gomock.NewController(t)
+			//defer ctrl.Finish()
+			//ctx, cancelFunc := context.WithTimeout(context.Background(), time.Minute)
+			//defer cancelFunc()
+			//
+			//maxRetries := 3
+			//sampleErr := errors.New("failed to WebSocket dial")
+		})
 	})
 
 }
