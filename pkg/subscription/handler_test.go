@@ -834,7 +834,7 @@ func TestHandler_Handle(t *testing.T) {
 						foundMessage++
 					}
 				}
-				return executeTimes >= 2 && foundMessage == 1
+				return executeTimes >= 2 && foundMessage == 1 && !client.connected
 			}, time.Second*20, time.Millisecond*100)
 		})
 		t.Run("text max backoff", func(t *testing.T) {

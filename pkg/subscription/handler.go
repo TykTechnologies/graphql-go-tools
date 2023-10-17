@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -351,6 +352,12 @@ func (h *Handler) executeSubscription(buf *graphql.EngineResultWriter, id string
 		)
 
 		h.handleError(id, graphql.RequestErrorsFromError(err))
+		var timeoutErr *ErrorTimeoutExecutingSubscription
+		if errors.As(err, &timeoutErr) {
+			if err := h.client.Disconnect(); err != nil {
+				h.logger.Error("subscription.Handle.executeSubscription.Disconnect()", abstractlogger.Error(err))
+			}
+		}
 		return err
 	}
 
