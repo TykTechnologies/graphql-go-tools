@@ -838,13 +838,38 @@ func TestHandler_Handle(t *testing.T) {
 			}, time.Second*20, time.Millisecond*100)
 		})
 		t.Run("text max backoff", func(t *testing.T) {
-			//ctrl := gomock.NewController(t)
-			//defer ctrl.Finish()
-			//ctx, cancelFunc := context.WithTimeout(context.Background(), time.Minute)
-			//defer cancelFunc()
-			//
-			//maxRetries := 3
-			//sampleErr := errors.New("failed to WebSocket dial")
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			ctx, cancelFunc := context.WithTimeout(context.Background(), time.Minute)
+			defer cancelFunc()
+
+			maxRetries := 3
+			sampleErr := errors.New("failed to WebSocket dial")
+
+			mockExecutor := NewMockExecutor(ctrl)
+			mockExecutor.EXPECT().SetContext(gomock.Any()).Times(1)
+			mockExecutor.EXPECT().OperationType().Return(ast.OperationTypeSubscription)
+
+			mockExecutor.EXPECT().Execute(gomock.AssignableToTypeOf(&graphql.EngineResultWriter{})).Return(sampleErr).Times(maxRetries)
+
+			mockPool := NewMockExecutorPool(ctrl)
+			mockPool.EXPECT().Get(gomock.Any()).Return(mockExecutor, nil)
+			mockPool.EXPECT().Put(gomock.AssignableToTypeOf(mockExecutor))
+
+			handler, client, _ := setupSubscriptionHandlerTest(t, mockPool)
+			handler.maxExecutionTries = maxRetries
+			go handler.Handle(ctx)
+			payload := starwars.LoadQuery(t, starwars.FileRemainingJedisSubscription, nil)
+			client.prepareStartMessage("1", payload).withoutError().and().send()
+			assert.Eventually(t, func() bool {
+				foundMessage := 0
+				for _, msg := range client.messagesFromServer {
+					if msg.Type == MessageTypeError {
+						foundMessage++
+					}
+				}
+				return foundMessage == 1
+			}, time.Second*8, time.Millisecond)
 		})
 	})
 
