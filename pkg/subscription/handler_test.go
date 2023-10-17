@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/ast"
+	"github.com/golang/mock/gomock"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -783,6 +785,49 @@ func TestHandler_Handle(t *testing.T) {
 				assert.False(t, client.serverHasRead)
 			})
 		})
+	})
+
+	t.Run("test handle", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		ctx, cancelFunc := context.WithTimeout(context.Background(), time.Minute)
+		defer cancelFunc()
+
+		mockExecutor := NewMockExecutor(ctrl)
+		mockExecutor.EXPECT().SetContext(gomock.Any()).Times(1)
+		mockExecutor.EXPECT().OperationType().Return(ast.OperationTypeSubscription)
+		executeTimes := 0
+		var lastTime time.Time
+		nextBackOff := time.Second
+		sampleErr := errors.New("failed to WebSocket dial")
+		mockExecutor.EXPECT().Execute(gomock.AssignableToTypeOf(&graphql.EngineResultWriter{})).Do(func(arg interface{}) {
+			defer func() {
+				lastTime = time.Now()
+				executeTimes++
+			}()
+			if executeTimes == 0 {
+				return
+			}
+			duration := time.Since(lastTime)
+			if duration < nextBackOff {
+				t.Fatalf("expected next retry after %s got %s", nextBackOff.String(), duration.String())
+			}
+			nextBackOff = nextBackOff * 2
+		}).Return(sampleErr).AnyTimes()
+
+		mockPool := NewMockExecutorPool(ctrl)
+		mockPool.EXPECT().Get(gomock.Any()).Return(mockExecutor, nil)
+
+		_, client, routine := setupSubscriptionHandlerTest(t, mockPool)
+		go routine(ctx)()
+		payload := starwars.LoadQuery(t, starwars.FileRemainingJedisSubscription, nil)
+		client.prepareStartMessage("1", payload).withoutError().and().send()
+
+		assert.Eventually(t, func() bool {
+			return executeTimes >= 4
+		}, time.Second*15, time.Millisecond*100)
+		fmt.Println(client.messagesFromServer)
 	})
 
 }

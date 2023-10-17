@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
@@ -28,6 +29,7 @@ const (
 
 	DefaultKeepAliveInterval          = "15s"
 	DefaultSubscriptionUpdateInterval = "1s"
+	DefaultSubscriptionExecutionTries = 5
 )
 
 // Message defines the actual subscription message wich will be passed from client to server and vice versa.
@@ -84,6 +86,8 @@ type Handler struct {
 	bufferPool *sync.Pool
 	// initFunc will check initial payload to see whether to accept the websocket connection.
 	initFunc WebsocketInitFunc
+	// maxExecutionTries is the max amount of times the executeWithBackoff is allowed to run to before closing the connection
+	maxExecutionTries int
 }
 
 func NewHandlerWithInitFunc(
@@ -108,6 +112,7 @@ func NewHandlerWithInitFunc(
 		keepAliveInterval:          keepAliveInterval,
 		subscriptionUpdateInterval: subscriptionUpdateInterval,
 		subCancellations:           subscriptionCancellations{},
+		maxExecutionTries:          DefaultSubscriptionExecutionTries,
 		executorPool:               executorPool,
 		bufferPool: &sync.Pool{
 			New: func() interface{} {
@@ -309,7 +314,10 @@ func (h *Handler) startSubscription(ctx context.Context, id string, executor Exe
 
 	defer h.bufferPool.Put(buf)
 
-	h.executeSubscription(buf, id, executor)
+	if err := h.executeSubscription(buf, id, executor); err != nil {
+		h.logger.Error("subscription.Handle.startSubscription()", abstractlogger.Error(err))
+		return
+	}
 
 	for {
 		buf.Reset()
@@ -317,14 +325,17 @@ func (h *Handler) startSubscription(ctx context.Context, id string, executor Exe
 		case <-ctx.Done():
 			return
 		case <-time.After(h.subscriptionUpdateInterval):
-			h.executeSubscription(buf, id, executor)
+			if err := h.executeSubscription(buf, id, executor); err != nil {
+				h.logger.Error("subscription.Handle.startSubscription()", abstractlogger.Error(err))
+				break
+			}
 		}
 	}
 
 }
 
 // executeSubscription will keep execution the subscription until it ends.
-func (h *Handler) executeSubscription(buf *graphql.EngineResultWriter, id string, executor Executor) {
+func (h *Handler) executeSubscription(buf *graphql.EngineResultWriter, id string, executor Executor) error {
 	buf.SetFlushCallback(func(data []byte) {
 		h.logger.Debug("subscription.Handle.executeSubscription()",
 			abstractlogger.ByteString("execution_result", data),
@@ -333,14 +344,14 @@ func (h *Handler) executeSubscription(buf *graphql.EngineResultWriter, id string
 	})
 	defer buf.SetFlushCallback(nil)
 
-	err := executor.Execute(buf)
+	err := h.executeWithBackOff(executor, buf)
 	if err != nil {
 		h.logger.Error("subscription.Handle.executeSubscription()",
 			abstractlogger.Error(err),
 		)
 
 		h.handleError(id, graphql.RequestErrorsFromError(err))
-		return
+		return err
 	}
 
 	if buf.Len() > 0 {
@@ -350,6 +361,46 @@ func (h *Handler) executeSubscription(buf *graphql.EngineResultWriter, id string
 		)
 		h.sendData(id, data)
 	}
+	return nil
+}
+
+type ErrorTimeoutExecutingSubscription struct {
+	err error
+}
+
+func (e *ErrorTimeoutExecutingSubscription) Error() string {
+	return fmt.Sprintf("error executing subsctiption: %v", e.err)
+}
+
+func (e *ErrorTimeoutExecutingSubscription) Unwrap() error {
+	return e.err
+}
+
+// executeWithBackOff runs the executor wrapped in an exponential backOff algorithm of t=b^c
+func (h *Handler) executeWithBackOff(executor Executor, buf *graphql.EngineResultWriter) error {
+	nextRetry := time.Second
+	var err error
+	trialCount := 0
+	for {
+		trialCount++
+		err = executor.Execute(buf)
+		if err == nil {
+			break
+		}
+		nextRetry *= 2
+		h.logger.Error("subscription.Handle.executeSubscription()",
+			abstractlogger.Error(fmt.Errorf("%w. retrying in %s", err, nextRetry.String())),
+		)
+
+		if trialCount == h.maxExecutionTries {
+			break
+		}
+		time.Sleep(nextRetry)
+	}
+	if err != nil {
+		return &ErrorTimeoutExecutingSubscription{err}
+	}
+	return nil
 }
 
 // handleStop will handle a stop message,
