@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/ast"
 
 	"github.com/TykTechnologies/graphql-go-tools/v2/internal/pkg/unsafeparser"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/asttransform"
 )
 

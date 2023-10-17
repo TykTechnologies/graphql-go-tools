@@ -14,8 +14,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/ast"
 
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/datasource/httpclient"
 	. "github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/datasourcetesting"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/plan"
