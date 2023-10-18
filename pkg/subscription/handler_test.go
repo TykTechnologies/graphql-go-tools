@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/ast"
+	"github.com/golang/mock/gomock"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -651,6 +653,7 @@ func TestHandler_Handle(t *testing.T) {
 
 			t.Run("should fail with validation error for invalid Subscription", func(t *testing.T) {
 				subscriptionHandler, client, handlerRoutine := setupSubscriptionHandlerTest(t, executorPool)
+				subscriptionHandler.maxExecutionTries = 1
 				payload, err := subscriptiontesting.GraphQLRequestForOperation(subscriptiontesting.InvalidSubscriptionLiveMessages)
 				require.NoError(t, err)
 				client.prepareStartMessage("1", payload).withoutError().and().send()
@@ -672,7 +675,7 @@ func TestHandler_Handle(t *testing.T) {
 				assert.Len(t, messagesFromServer, 1)
 				assert.Equal(t, "1", messagesFromServer[0].Id)
 				assert.Equal(t, MessageTypeError, messagesFromServer[0].Type)
-				assert.Equal(t, `[{"message":"differing fields for objectName 'a' on (potentially) same type","path":["subscription","messageAdded"]}]`, string(messagesFromServer[0].Payload))
+				assert.Equal(t, `[{"message":"error executing subscription: differing fields for objectName 'a' on (potentially) same type, locations: [], path: [subscription,messageAdded]"}]`, string(messagesFromServer[0].Payload))
 				assert.Equal(t, 1, subscriptionHandler.ActiveSubscriptions())
 			})
 
@@ -782,6 +785,92 @@ func TestHandler_Handle(t *testing.T) {
 
 				assert.False(t, client.serverHasRead)
 			})
+		})
+	})
+
+	t.Run("test handle", func(t *testing.T) {
+		t.Run("default retry case", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			ctx, cancelFunc := context.WithTimeout(context.Background(), time.Minute)
+			defer cancelFunc()
+
+			mockExecutor := NewMockExecutor(ctrl)
+			mockExecutor.EXPECT().SetContext(gomock.Any()).Times(1)
+			mockExecutor.EXPECT().OperationType().Return(ast.OperationTypeSubscription)
+			executeTimes := 0
+			var lastTime time.Time
+			nextBackOff := time.Second
+			sampleErr := errors.New("failed to WebSocket dial")
+			mockExecutor.EXPECT().Execute(gomock.AssignableToTypeOf(&graphql.EngineResultWriter{})).Do(func(arg interface{}) {
+				defer func() {
+					lastTime = time.Now()
+					executeTimes++
+				}()
+				if executeTimes == 0 {
+					return
+				}
+				duration := time.Since(lastTime)
+				if duration < nextBackOff {
+					t.Fatalf("expected next retry after %s got %s", nextBackOff.String(), duration.String())
+				}
+				nextBackOff = nextBackOff * 2
+			}).Return(sampleErr).AnyTimes()
+
+			mockPool := NewMockExecutorPool(ctrl)
+			mockPool.EXPECT().Get(gomock.Any()).Return(mockExecutor, nil)
+			mockPool.EXPECT().Put(gomock.AssignableToTypeOf(mockExecutor))
+
+			handler, client, _ := setupSubscriptionHandlerTest(t, mockPool)
+			handler.maxExecutionTries = 2
+			go handler.Handle(ctx)
+			payload := starwars.LoadQuery(t, starwars.FileRemainingJedisSubscription, nil)
+			client.prepareStartMessage("1", payload).withoutError().and().send()
+
+			assert.Eventually(t, func() bool {
+				foundMessage := 0
+				for _, msg := range client.messagesFromServer {
+					if msg.Type == MessageTypeError {
+						foundMessage++
+					}
+				}
+				return executeTimes >= 2 && foundMessage == 1 && !client.connected
+			}, time.Second*20, time.Millisecond*100)
+		})
+		t.Run("text max backoff", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			ctx, cancelFunc := context.WithTimeout(context.Background(), time.Minute)
+			defer cancelFunc()
+
+			maxRetries := 3
+			sampleErr := errors.New("failed to WebSocket dial")
+
+			mockExecutor := NewMockExecutor(ctrl)
+			mockExecutor.EXPECT().SetContext(gomock.Any()).Times(1)
+			mockExecutor.EXPECT().OperationType().Return(ast.OperationTypeSubscription)
+
+			mockExecutor.EXPECT().Execute(gomock.AssignableToTypeOf(&graphql.EngineResultWriter{})).Return(sampleErr).Times(maxRetries)
+
+			mockPool := NewMockExecutorPool(ctrl)
+			mockPool.EXPECT().Get(gomock.Any()).Return(mockExecutor, nil)
+			mockPool.EXPECT().Put(gomock.AssignableToTypeOf(mockExecutor))
+
+			handler, client, _ := setupSubscriptionHandlerTest(t, mockPool)
+			handler.maxExecutionTries = maxRetries
+			go handler.Handle(ctx)
+			payload := starwars.LoadQuery(t, starwars.FileRemainingJedisSubscription, nil)
+			client.prepareStartMessage("1", payload).withoutError().and().send()
+			assert.Eventually(t, func() bool {
+				foundMessage := 0
+				for _, msg := range client.messagesFromServer {
+					if msg.Type == MessageTypeError {
+						foundMessage++
+					}
+				}
+				return foundMessage == 1
+			}, time.Second*8, time.Millisecond)
 		})
 	})
 
