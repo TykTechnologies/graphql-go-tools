@@ -653,6 +653,7 @@ func TestHandler_Handle(t *testing.T) {
 
 			t.Run("should fail with validation error for invalid Subscription", func(t *testing.T) {
 				subscriptionHandler, client, handlerRoutine := setupSubscriptionHandlerTest(t, executorPool)
+				subscriptionHandler.maxExecutionTries = 1
 				payload, err := subscriptiontesting.GraphQLRequestForOperation(subscriptiontesting.InvalidSubscriptionLiveMessages)
 				require.NoError(t, err)
 				client.prepareStartMessage("1", payload).withoutError().and().send()
@@ -674,7 +675,7 @@ func TestHandler_Handle(t *testing.T) {
 				assert.Len(t, messagesFromServer, 1)
 				assert.Equal(t, "1", messagesFromServer[0].Id)
 				assert.Equal(t, MessageTypeError, messagesFromServer[0].Type)
-				assert.Equal(t, `[{"message":"differing fields for objectName 'a' on (potentially) same type","path":["subscription","messageAdded"]}]`, string(messagesFromServer[0].Payload))
+				assert.Equal(t, `[{"message":"error executing subscription: differing fields for objectName 'a' on (potentially) same type, locations: [], path: [subscription,messageAdded]"}]`, string(messagesFromServer[0].Payload))
 				assert.Equal(t, 1, subscriptionHandler.ActiveSubscriptions())
 			})
 
