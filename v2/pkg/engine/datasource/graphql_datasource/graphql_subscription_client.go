@@ -11,7 +11,7 @@ import (
 	"github.com/buger/jsonparser"
 	"github.com/cespare/xxhash/v2"
 	"github.com/jensneuse/abstractlogger"
-	"nhooyr.io/websocket"
+	"github.com/pvormste/websocket"
 )
 
 const ackWaitTimeout = 30 * time.Second

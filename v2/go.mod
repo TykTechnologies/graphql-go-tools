@@ -19,6 +19,7 @@ require (
 	github.com/jensneuse/diffview v1.0.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/pkg/errors v0.9.1
+	github.com/pvormste/websocket v1.8.8
 	github.com/r3labs/sse/v2 v2.8.1
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.0
 	github.com/sebdah/goldie/v2 v2.5.3
@@ -34,7 +35,6 @@ require (
 	golang.org/x/exp v0.0.0-20230203172020-98cc5a0785f9
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 	gopkg.in/yaml.v2 v2.4.0
-	nhooyr.io/websocket v1.8.7
 )
 
 require (
@@ -62,9 +62,9 @@ require (
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
 	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f // indirect
-	golang.org/x/net v0.11.0 // indirect
-	golang.org/x/sys v0.9.0 // indirect
-	golang.org/x/text v0.10.0 // indirect
+	golang.org/x/net v0.17.0 // indirect
+	golang.org/x/sys v0.13.0 // indirect
+	golang.org/x/text v0.13.0 // indirect
 	gopkg.in/cenkalti/backoff.v1 v1.1.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

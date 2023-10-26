@@ -15,10 +15,10 @@ import (
 
 	"github.com/buger/jsonparser"
 	ll "github.com/jensneuse/abstractlogger"
+	"github.com/pvormste/websocket"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
-	"nhooyr.io/websocket"
 )
 
 func logger() ll.Logger {
