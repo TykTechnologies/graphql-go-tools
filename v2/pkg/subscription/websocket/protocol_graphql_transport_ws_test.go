@@ -3,6 +3,7 @@ package websocket
 import (
 	"context"
 	"errors"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -11,8 +12,8 @@ import (
 	"github.com/jensneuse/abstractlogger"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/TykTechnologies/graphql-go-tools/pkg/graphql"
-	"github.com/TykTechnologies/graphql-go-tools/pkg/subscription"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/graphql"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/subscription"
 )
 
 func TestGraphQLTransportWSMessageReader_Read(t *testing.T) {
@@ -367,6 +368,9 @@ func TestProtocolGraphQLTransportWSHandler_Handle(t *testing.T) {
 
 	t.Run("for connection_init", func(t *testing.T) {
 		t.Run("should time out if no connection_init message is sent", func(t *testing.T) {
+			if runtime.GOOS == "windows" {
+				t.Skip("this test fails on Windows due to different timings than unix, consider fixing it at some point")
+			}
 			testClient := NewTestClient(false)
 			protocol := NewTestProtocolGraphQLTransportWSHandler(testClient)
 			protocol.connectionInitTimeOutDuration = 2 * time.Millisecond
@@ -407,6 +411,9 @@ func TestProtocolGraphQLTransportWSHandler_Handle(t *testing.T) {
 		})
 
 		t.Run("should not time out if connection_init message is sent before time out", func(t *testing.T) {
+			if runtime.GOOS == "windows" {
+				t.Skip("this test fails on Windows due to different timings than unix, consider fixing it at some point")
+			}
 			testClient := NewTestClient(false)
 			protocol := NewTestProtocolGraphQLTransportWSHandler(testClient)
 			protocol.heartbeatInterval = 4 * time.Millisecond
@@ -468,7 +475,6 @@ func TestProtocolGraphQLTransportWSHandler_Handle(t *testing.T) {
 
 		operation := []byte(`{"operationName":"Hello","query":"query Hello { hello }"}`)
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		mockEngine := NewMockEngine(ctrl)
 		mockEngine.EXPECT().StartOperation(gomock.Eq(ctx), gomock.Eq("2"), gomock.Eq(operation), gomock.Eq(&protocol.eventHandler))
 
