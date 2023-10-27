@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/99designs/gqlgen v0.17.22
+	github.com/asyncapi/parser-go v0.4.2
 	github.com/buger/jsonparser v1.1.1
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/dave/jennifer v1.4.0
@@ -40,6 +41,8 @@ require (
 require (
 	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/agnivade/levenshtein v1.1.1 // indirect
+	github.com/asyncapi/converter-go v0.3.0 // indirect
+	github.com/asyncapi/spec-json-schemas/v2 v2.14.0 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/gobwas/httphead v0.0.0-20180130184737-2c6c146eadee // indirect
 	github.com/gobwas/pool v0.2.0 // indirect
@@ -61,6 +64,9 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
+	github.com/xeipuuv/gojsonpointer v0.0.0-20190809123943-df4f5c81cb3b // indirect
+	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
+	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f // indirect
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sys v0.13.0 // indirect
