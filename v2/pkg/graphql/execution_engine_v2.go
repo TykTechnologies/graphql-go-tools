@@ -139,41 +139,47 @@ func (e *internalExecutionContext) reset() {
 }
 
 type ExecutionEngineV2 struct {
-	logger                       abstractlogger.Logger
-	config                       EngineV2Configuration
-	planner                      *plan.Planner
-	plannerMu                    sync.Mutex
-	resolver                     *resolve.Resolver
-	internalExecutionContextPool sync.Pool
-	executionPlanCache           *lru.Cache
+	logger                        abstractlogger.Logger
+	config                        EngineV2Configuration
+	planner                       *plan.Planner
+	plannerMu                     sync.Mutex
+	resolver                      *resolve.Resolver
+	executionPlanCache            *lru.Cache
+	customExecutionEngineExecutor *CustomExecutionEngineV2Executor
 }
 
 type WebsocketBeforeStartHook interface {
 	OnBeforeStart(reqCtx context.Context, operation *Request) error
 }
 
-type ExecutionOptionsV2 func(ctx *internalExecutionContext)
+type ExecutionOptionsV2 func(postProcessor *postprocess.Processor, resolveContext *resolve.Context)
 
 func WithBeforeFetchHook(hook resolve.BeforeFetchHook) ExecutionOptionsV2 {
-	return func(ctx *internalExecutionContext) {
-		ctx.resolveContext.SetBeforeFetchHook(hook)
+	return func(postProcessor *postprocess.Processor, resolveContext *resolve.Context) {
+		resolveContext.SetBeforeFetchHook(hook)
+	}
+}
+
+func WithUpstreamHeaders(header http.Header) ExecutionOptionsV2 {
+	return func(postProcessor *postprocess.Processor, resolveContext *resolve.Context) {
+		postProcessor.AddPostProcessor(postprocess.NewProcessInjectHeader(header))
 	}
 }
 
 func WithAfterFetchHook(hook resolve.AfterFetchHook) ExecutionOptionsV2 {
-	return func(ctx *internalExecutionContext) {
-		ctx.resolveContext.SetAfterFetchHook(hook)
+	return func(postProcessor *postprocess.Processor, resolveContext *resolve.Context) {
+		resolveContext.SetAfterFetchHook(hook)
 	}
 }
 
 func WithAdditionalHttpHeaders(headers http.Header, excludeByKeys ...string) ExecutionOptionsV2 {
-	return func(ctx *internalExecutionContext) {
+	return func(postProcessor *postprocess.Processor, resolveContext *resolve.Context) {
 		if len(headers) == 0 {
 			return
 		}
 
-		if ctx.resolveContext.Request.Header == nil {
-			ctx.resolveContext.Request.Header = make(http.Header)
+		if resolveContext.Request.Header == nil {
+			resolveContext.Request.Header = make(http.Header)
 		}
 
 		excludeMap := make(map[string]bool)
@@ -187,7 +193,7 @@ func WithAdditionalHttpHeaders(headers http.Header, excludeByKeys ...string) Exe
 			}
 
 			for _, headerValue := range headerValues {
-				ctx.resolveContext.Request.Header.Add(headerKey, headerValue)
+				resolveContext.Request.Header.Add(headerKey, headerValue)
 			}
 		}
 	}
@@ -211,22 +217,36 @@ func NewExecutionEngineV2(ctx context.Context, logger abstractlogger.Logger, eng
 	for _, fieldCfg := range introspectionCfg.BuildFieldConfigurations() {
 		engineConfig.AddFieldConfiguration(fieldCfg)
 	}
-
-	return &ExecutionEngineV2{
-		logger:   logger,
-		config:   engineConfig,
-		planner:  plan.NewPlanner(ctx, engineConfig.plannerConfig),
-		resolver: resolve.New(ctx, engineConfig.dataLoaderConfig.EnableSingleFlightLoader),
-		internalExecutionContextPool: sync.Pool{
-			New: func() interface{} {
-				return newInternalExecutionContext()
+	/*
+		return &ExecutionEngineV2{
+			logger:   logger,
+			config:   engineConfig,
+			planner:  plan.NewPlanner(ctx, engineConfig.plannerConfig),
+			resolver: resolve.New(ctx, engineConfig.dataLoaderConfig.EnableSingleFlightLoader),
+			internalExecutionContextPool: sync.Pool{
+				New: func() interface{} {
+					return newInternalExecutionContext()
+				},
 			},
-		},
+			executionPlanCache: executionPlanCache,
+		}, nil*/
+	executionEngine := &ExecutionEngineV2{
+		logger:             logger,
+		config:             engineConfig,
+		planner:            plan.NewPlanner(ctx, engineConfig.plannerConfig),
+		resolver:           resolve.New(ctx, engineConfig.dataLoaderConfig.EnableSingleFlightLoader),
 		executionPlanCache: executionPlanCache,
-	}, nil
+	}
+
+	executor, err := NewCustomExecutionEngineV2Executor(executionEngine)
+	if err != nil {
+		return nil, err
+	}
+	executionEngine.customExecutionEngineExecutor = executor
+	return executionEngine, nil
 }
 
-func (e *ExecutionEngineV2) Execute(ctx context.Context, operation *Request, writer resolve.FlushWriter, options ...ExecutionOptionsV2) error {
+func (e *ExecutionEngineV2) Normalize(operation *Request) error {
 	if !operation.IsNormalized() {
 		result, err := operation.Normalize(e.config.schema)
 		if err != nil {
@@ -237,7 +257,10 @@ func (e *ExecutionEngineV2) Execute(ctx context.Context, operation *Request, wri
 			return result.Errors
 		}
 	}
+	return nil
+}
 
+func (e *ExecutionEngineV2) ValidateForSchema(operation *Request) error {
 	result, err := operation.ValidateForSchema(e.config.schema)
 	if err != nil {
 		return err
@@ -245,27 +268,41 @@ func (e *ExecutionEngineV2) Execute(ctx context.Context, operation *Request, wri
 	if !result.Valid {
 		return result.Errors
 	}
+	return nil
+}
 
-	execContext := e.getExecutionCtx()
-	defer e.putExecutionCtx(execContext)
+func (e *ExecutionEngineV2) InputValidation(operation *Request) error {
+	result, err := operation.ValidateInput(e.config.schema)
+	if err != nil {
+		return err
+	}
+	if !result.Valid {
+		return result.Errors
+	}
+	return nil
+}
 
-	execContext.prepare(ctx, operation.Variables, operation.request)
-
+func (e *ExecutionEngineV2) Setup(ctx context.Context, postProcessor *postprocess.Processor, resolveContext *resolve.Context, operation *Request, options ...ExecutionOptionsV2) {
 	for i := range options {
-		options[i](execContext)
+		options[i](postProcessor, resolveContext)
 	}
+}
 
-	var report operationreport.Report
-	cachedPlan := e.getCachedPlan(execContext, &operation.document, &e.config.schema.document, operation.OperationName, &report)
+func (e *ExecutionEngineV2) Plan(postProcessor *postprocess.Processor, operation *Request, report *operationreport.Report) (plan.Plan, error) {
+	cachedPlan := e.getCachedPlan(postProcessor, &operation.document, &e.config.schema.document, operation.OperationName, report)
 	if report.HasErrors() {
-		return report
+		return nil, report
 	}
+	return cachedPlan, nil
+}
 
-	switch p := cachedPlan.(type) {
+func (e *ExecutionEngineV2) Resolve(resolveContext *resolve.Context, planResult plan.Plan, writer resolve.FlushWriter) error {
+	var err error
+	switch p := planResult.(type) {
 	case *plan.SynchronousResponsePlan:
-		err = e.resolver.ResolveGraphQLResponse(execContext.resolveContext, p.Response, nil, writer)
+		err = e.resolver.ResolveGraphQLResponse(resolveContext, p.Response, nil, writer)
 	case *plan.SubscriptionResponsePlan:
-		err = e.resolver.ResolveGraphQLSubscription(execContext.resolveContext, p.Response, writer)
+		err = e.resolver.ResolveGraphQLSubscription(resolveContext, p.Response, writer)
 	default:
 		return errors.New("execution of operation is not possible")
 	}
@@ -273,7 +310,43 @@ func (e *ExecutionEngineV2) Execute(ctx context.Context, operation *Request, wri
 	return err
 }
 
-func (e *ExecutionEngineV2) getCachedPlan(ctx *internalExecutionContext, operation, definition *ast.Document, operationName string, report *operationreport.Report) plan.Plan {
+func (e *ExecutionEngineV2) Teardown() {
+}
+
+func (e *ExecutionEngineV2) Execute(ctx context.Context, operation *Request, writer resolve.FlushWriter, options ...ExecutionOptionsV2) error {
+	return e.customExecutionEngineExecutor.Execute(ctx, operation, writer, options...)
+}
+
+/*
+	func (e *ExecutionEngineV2) Execute(ctx context.Context, operation *Request, writer resolve.FlushWriter, options ...ExecutionOptionsV2) error {
+		execContext := e.getExecutionCtx()
+		defer e.putExecutionCtx(execContext)
+
+		execContext.prepare(ctx, operation.Variables, operation.request)
+
+		for i := range options {
+			options[i](execContext)
+		}
+
+		var report operationreport.Report
+		cachedPlan := e.getCachedPlan(execContext, &operation.document, &e.config.schema.document, operation.OperationName, &report)
+		if report.HasErrors() {
+			return report
+		}
+
+		switch p := cachedPlan.(type) {
+		case *plan.SynchronousResponsePlan:
+			err = e.resolver.ResolveGraphQLResponse(execContext.resolveContext, p.Response, nil, writer)
+		case *plan.SubscriptionResponsePlan:
+			err = e.resolver.ResolveGraphQLSubscription(execContext.resolveContext, p.Response, writer)
+		default:
+			return errors.New("execution of operation is not possible")
+		}
+
+		return err
+	}
+*/
+func (e *ExecutionEngineV2) getCachedPlan(postProcessor *postprocess.Processor, operation, definition *ast.Document, operationName string, report *operationreport.Report) plan.Plan {
 
 	hash := pool.Hash64.Get()
 	hash.Reset()
@@ -299,7 +372,7 @@ func (e *ExecutionEngineV2) getCachedPlan(ctx *internalExecutionContext, operati
 		return nil
 	}
 
-	p := ctx.postProcessor.Process(planResult)
+	p := postProcessor.Process(planResult)
 	e.executionPlanCache.Add(cacheKey, p)
 	return p
 }
@@ -308,11 +381,7 @@ func (e *ExecutionEngineV2) GetWebsocketBeforeStartHook() WebsocketBeforeStartHo
 	return e.config.websocketBeforeStartHook
 }
 
-func (e *ExecutionEngineV2) getExecutionCtx() *internalExecutionContext {
-	return e.internalExecutionContextPool.Get().(*internalExecutionContext)
-}
-
-func (e *ExecutionEngineV2) putExecutionCtx(ctx *internalExecutionContext) {
-	ctx.reset()
-	e.internalExecutionContextPool.Put(ctx)
-}
+var (
+	_ CustomExecutionEngineV2   = (*ExecutionEngineV2)(nil)
+	_ ExecutionEngineV2Executor = (*ExecutionEngineV2)(nil)
+)
