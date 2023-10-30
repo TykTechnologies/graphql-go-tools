@@ -114,7 +114,7 @@ func TestWithAdditionalHttpHeaders(t *testing.T) {
 		}
 
 		optionsFn := WithAdditionalHttpHeaders(reqHeader)
-		optionsFn(internalExecutionCtx)
+		optionsFn(internalExecutionCtx.postProcessor, internalExecutionCtx.resolveContext)
 
 		assert.Equal(t, reqHeader, internalExecutionCtx.resolveContext.Request.Header)
 	})
@@ -137,7 +137,7 @@ func TestWithAdditionalHttpHeaders(t *testing.T) {
 		}
 
 		optionsFn := WithAdditionalHttpHeaders(reqHeader, excludableRuntimeHeaders...)
-		optionsFn(internalExecutionCtx)
+		optionsFn(internalExecutionCtx.postProcessor, internalExecutionCtx.resolveContext)
 
 		expectedHeaders := http.Header{
 			http.CanonicalHeaderKey("X-Other-Key"): []string{"x-other-value"},
@@ -1401,7 +1401,7 @@ func TestExecutionEngineV2_GetCachedPlan(t *testing.T) {
 		}
 
 		report := operationreport.Report{}
-		cachedPlan := engine.getCachedPlan(firstInternalExecCtx, &gqlRequest.document, &schema.document, gqlRequest.OperationName, &report)
+		cachedPlan := engine.getCachedPlan(firstInternalExecCtx.postProcessor, &gqlRequest.document, &schema.document, gqlRequest.OperationName, &report)
 		_, oldestCachedPlan, _ := engine.executionPlanCache.GetOldest()
 		assert.False(t, report.HasErrors())
 		assert.Equal(t, 1, engine.executionPlanCache.Len())
@@ -1412,7 +1412,7 @@ func TestExecutionEngineV2_GetCachedPlan(t *testing.T) {
 			http.CanonicalHeaderKey("Authorization"): []string{"123abc"},
 		}
 
-		cachedPlan = engine.getCachedPlan(secondInternalExecCtx, &gqlRequest.document, &schema.document, gqlRequest.OperationName, &report)
+		cachedPlan = engine.getCachedPlan(secondInternalExecCtx.postProcessor, &gqlRequest.document, &schema.document, gqlRequest.OperationName, &report)
 		_, oldestCachedPlan, _ = engine.executionPlanCache.GetOldest()
 		assert.False(t, report.HasErrors())
 		assert.Equal(t, 1, engine.executionPlanCache.Len())
@@ -1429,7 +1429,7 @@ func TestExecutionEngineV2_GetCachedPlan(t *testing.T) {
 		}
 
 		report := operationreport.Report{}
-		cachedPlan := engine.getCachedPlan(firstInternalExecCtx, &gqlRequest.document, &schema.document, gqlRequest.OperationName, &report)
+		cachedPlan := engine.getCachedPlan(firstInternalExecCtx.postProcessor, &gqlRequest.document, &schema.document, gqlRequest.OperationName, &report)
 		_, oldestCachedPlan, _ := engine.executionPlanCache.GetOldest()
 		assert.False(t, report.HasErrors())
 		assert.Equal(t, 1, engine.executionPlanCache.Len())
@@ -1440,7 +1440,7 @@ func TestExecutionEngineV2_GetCachedPlan(t *testing.T) {
 			http.CanonicalHeaderKey("Authorization"): []string{"xyz098"},
 		}
 
-		cachedPlan = engine.getCachedPlan(secondInternalExecCtx, &differentGqlRequest.document, &schema.document, differentGqlRequest.OperationName, &report)
+		cachedPlan = engine.getCachedPlan(secondInternalExecCtx.postProcessor, &differentGqlRequest.document, &schema.document, differentGqlRequest.OperationName, &report)
 		_, oldestCachedPlan, _ = engine.executionPlanCache.GetOldest()
 		assert.False(t, report.HasErrors())
 		assert.Equal(t, 2, engine.executionPlanCache.Len())

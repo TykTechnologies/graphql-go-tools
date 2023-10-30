@@ -1,9 +1,11 @@
 package graphql
 
 import (
-	"github.com/TykTechnologies/graphql-go-tools/pkg/starwars"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/starwars"
 )
 
 func TestRequest_ValidateInput(t *testing.T) {
