@@ -19,6 +19,10 @@ func (p *Processor) AddPostProcessor(pr PostProcessor) {
 	p.postProcessors = append([]PostProcessor{pr}, p.postProcessors...)
 }
 
+func (p *Processor) Count() int {
+	return len(p.postProcessors)
+}
+
 func DefaultProcessor() *Processor {
 	return &Processor{
 		[]PostProcessor{

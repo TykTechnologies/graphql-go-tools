@@ -10,7 +10,6 @@ import (
 )
 
 func TestProcessInjectHeader_Process(t *testing.T) {
-
 	pre := &plan.SynchronousResponsePlan{
 		Response: &resolve.GraphQLResponse{
 			Data: &resolve.Object{

@@ -199,6 +199,15 @@ func WithAdditionalHttpHeaders(headers http.Header, excludeByKeys ...string) Exe
 	}
 }
 
+func WithHeaderModifier(modifier postprocess.HeaderModifier) ExecutionOptionsV2 {
+	return func(postProcessor *postprocess.Processor, resolveContext *resolve.Context) {
+		if modifier == nil {
+			return
+		}
+		postProcessor.AddPostProcessor(postprocess.NewProcessModifyHeader(modifier))
+	}
+}
+
 func NewExecutionEngineV2(ctx context.Context, logger abstractlogger.Logger, engineConfig EngineV2Configuration) (*ExecutionEngineV2, error) {
 	executionPlanCache, err := lru.New(1024)
 	if err != nil {
@@ -217,19 +226,7 @@ func NewExecutionEngineV2(ctx context.Context, logger abstractlogger.Logger, eng
 	for _, fieldCfg := range introspectionCfg.BuildFieldConfigurations() {
 		engineConfig.AddFieldConfiguration(fieldCfg)
 	}
-	/*
-		return &ExecutionEngineV2{
-			logger:   logger,
-			config:   engineConfig,
-			planner:  plan.NewPlanner(ctx, engineConfig.plannerConfig),
-			resolver: resolve.New(ctx, engineConfig.dataLoaderConfig.EnableSingleFlightLoader),
-			internalExecutionContextPool: sync.Pool{
-				New: func() interface{} {
-					return newInternalExecutionContext()
-				},
-			},
-			executionPlanCache: executionPlanCache,
-		}, nil*/
+
 	executionEngine := &ExecutionEngineV2{
 		logger:             logger,
 		config:             engineConfig,
