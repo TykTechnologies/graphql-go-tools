@@ -368,25 +368,31 @@ func TestProtocolGraphQLTransportWSHandler_Handle(t *testing.T) {
 
 	t.Run("for connection_init", func(t *testing.T) {
 		t.Run("should time out if no connection_init message is sent", func(t *testing.T) {
-			if runtime.GOOS == "windows" {
-				t.Skip("this test fails on Windows due to different timings than unix, consider fixing it at some point")
-			}
 			testClient := NewTestClient(false)
 			protocol := NewTestProtocolGraphQLTransportWSHandler(testClient)
-			protocol.connectionInitTimeOutDuration = 2 * time.Millisecond
-			protocol.eventHandler.OnConnectionOpened = protocol.startConnectionInitTimer
+
+			var timeOutActionContext context.Context
+			protocol.connectionInitTimeOutDuration = 5 * time.Millisecond
+			protocol.eventHandler.OnConnectionOpened = func() {
+				timeOutActionContext = protocol.startConnectionInitTimer(time.NewTimer(protocol.connectionInitTimeOutDuration))
+			}
 
 			protocol.eventHandler.Emit(subscription.EventTypeOnConnectionOpened, "", nil, nil)
-			time.Sleep(10 * time.Millisecond)
-			assert.True(t, protocol.connectionInitTimerStarted)
-			assert.False(t, protocol.eventHandler.Writer.Client.IsConnected())
+			assert.Eventuallyf(t, func() bool {
+				<-timeOutActionContext.Done()
+				assert.True(t, protocol.connectionInitTimerStarted)
+				assert.False(t, protocol.eventHandler.Writer.Client.IsConnected())
+				return true
+			}, 1*time.Second, 2*time.Millisecond, "connection_init timer did not time out")
 		})
 
 		t.Run("should close connection after multiple connection_init messages", func(t *testing.T) {
 			testClient := NewTestClient(false)
 			protocol := NewTestProtocolGraphQLTransportWSHandler(testClient)
 			protocol.connectionInitTimeOutDuration = 50 * time.Millisecond
-			protocol.eventHandler.OnConnectionOpened = protocol.startConnectionInitTimer
+			protocol.eventHandler.OnConnectionOpened = func() {
+				protocol.startConnectionInitTimer(time.NewTimer(protocol.connectionInitTimeOutDuration))
+			}
 
 			ctrl := gomock.NewController(t)
 			mockEngine := NewMockEngine(ctrl)
@@ -418,7 +424,9 @@ func TestProtocolGraphQLTransportWSHandler_Handle(t *testing.T) {
 			protocol := NewTestProtocolGraphQLTransportWSHandler(testClient)
 			protocol.heartbeatInterval = 4 * time.Millisecond
 			protocol.connectionInitTimeOutDuration = 25 * time.Millisecond
-			protocol.eventHandler.OnConnectionOpened = protocol.startConnectionInitTimer
+			protocol.eventHandler.OnConnectionOpened = func() {
+				protocol.startConnectionInitTimer(time.NewTimer(protocol.connectionInitTimeOutDuration))
+			}
 
 			ctrl := gomock.NewController(t)
 			mockEngine := NewMockEngine(ctrl)
