@@ -24,6 +24,7 @@ func TestGetSchemaUsageInfo(t *testing.T) {
 					Name: []byte("searchResults"),
 					Info: &resolve.FieldInfo{
 						Name:            "searchResults",
+						NamedType:       "SearchResults",
 						ParentTypeNames: []string{"Query"},
 						Source:          source,
 					},
@@ -42,6 +43,7 @@ func TestGetSchemaUsageInfo(t *testing.T) {
 									},
 									Info: &resolve.FieldInfo{
 										Name:            "__typename",
+										NamedType:       "String",
 										ParentTypeNames: []string{"Human", "Droid"},
 										Source:          source,
 									},
@@ -55,6 +57,7 @@ func TestGetSchemaUsageInfo(t *testing.T) {
 									OnTypeNames: [][]byte{[]byte("Human"), []byte("Droid")},
 									Info: &resolve.FieldInfo{
 										Name:            "name",
+										NamedType:       "String",
 										ParentTypeNames: []string{"Human", "Droid"},
 										Source:          source,
 									},
@@ -68,6 +71,7 @@ func TestGetSchemaUsageInfo(t *testing.T) {
 									OnTypeNames: [][]byte{[]byte("Starship")},
 									Info: &resolve.FieldInfo{
 										Name:            "length",
+										NamedType:       "String",
 										ParentTypeNames: []string{"Starship"},
 										Source:          source,
 									},
@@ -76,7 +80,8 @@ func TestGetSchemaUsageInfo(t *testing.T) {
 									Name: []byte("user"),
 									Info: &resolve.FieldInfo{
 										Name:            "user",
-										ParentTypeNames: []string{"searchResults"},
+										NamedType:       "User",
+										ParentTypeNames: []string{"SearchResults"},
 										Source:          source,
 									},
 									Value: &resolve.Object{
@@ -87,7 +92,8 @@ func TestGetSchemaUsageInfo(t *testing.T) {
 												Name: []byte("account"),
 												Info: &resolve.FieldInfo{
 													Name:            "account",
-													ParentTypeNames: []string{"user"},
+													NamedType:       "Account",
+													ParentTypeNames: []string{"User"},
 													Source:          source,
 												},
 												Value: &resolve.Object{
@@ -98,7 +104,8 @@ func TestGetSchemaUsageInfo(t *testing.T) {
 															Name: []byte("name"),
 															Info: &resolve.FieldInfo{
 																Name:            "name",
-																ParentTypeNames: []string{"account"},
+																NamedType:       "String",
+																ParentTypeNames: []string{"Account"},
 																Source:          source,
 															},
 															Value: &resolve.String{
@@ -109,18 +116,20 @@ func TestGetSchemaUsageInfo(t *testing.T) {
 															Name: []byte("shippingInfo"),
 															Info: &resolve.FieldInfo{
 																Name:            "shippingInfo",
-																ParentTypeNames: []string{"account"},
+																NamedType:       "ShippingInfo",
+																ParentTypeNames: []string{"Account"},
 																Source:          source,
 															},
 															Value: &resolve.Object{
-																Path:     []string{"shippingInfo"},
+																Path:     []string{"ShippingInfo"},
 																Nullable: true,
 																Fields: []*resolve.Field{
 																	{
 																		Name: []byte("zip"),
 																		Info: &resolve.FieldInfo{
 																			Name:            "zip",
-																			ParentTypeNames: []string{"shippingInfo"},
+																			NamedType:       "String",
+																			ParentTypeNames: []string{"ShippingInfo"},
 																			Source:          source,
 																		},
 																		Value: &resolve.String{
@@ -158,6 +167,7 @@ func TestGetSchemaUsageInfo(t *testing.T) {
 				FieldName: "searchResults",
 				TypeNames: []string{"Query"},
 				Path:      []string{"searchResults"},
+				NamedType: "SearchResults",
 				Source: TypeFieldSource{
 					IDs: []string{"https://swapi.dev/api"},
 				},
@@ -166,6 +176,7 @@ func TestGetSchemaUsageInfo(t *testing.T) {
 				Path:      []string{"searchResults", "__typename"},
 				TypeNames: []string{"Human", "Droid"},
 				FieldName: "__typename",
+				NamedType: "String",
 				Source: TypeFieldSource{
 					IDs: []string{"https://swapi.dev/api"},
 				},
@@ -174,6 +185,7 @@ func TestGetSchemaUsageInfo(t *testing.T) {
 				Path:      []string{"searchResults", "name"},
 				TypeNames: []string{"Human", "Droid"},
 				FieldName: "name",
+				NamedType: "String",
 				Source: TypeFieldSource{
 					IDs: []string{"https://swapi.dev/api"},
 				},
@@ -181,6 +193,7 @@ func TestGetSchemaUsageInfo(t *testing.T) {
 			{
 				Path:      []string{"searchResults", "length"},
 				TypeNames: []string{"Starship"},
+				NamedType: "String",
 				FieldName: "length",
 				Source: TypeFieldSource{
 					IDs: []string{"https://swapi.dev/api"},
@@ -188,7 +201,8 @@ func TestGetSchemaUsageInfo(t *testing.T) {
 			},
 			{
 				Path:      []string{"searchResults", "user"},
-				TypeNames: []string{"searchResults"},
+				NamedType: "User",
+				TypeNames: []string{"SearchResults"},
 				FieldName: "user",
 				Source: TypeFieldSource{
 					IDs: []string{"https://swapi.dev/api"},
@@ -196,7 +210,8 @@ func TestGetSchemaUsageInfo(t *testing.T) {
 			},
 			{
 				Path:      []string{"searchResults", "user", "account"},
-				TypeNames: []string{"user"},
+				TypeNames: []string{"User"},
+				NamedType: "Account",
 				FieldName: "account",
 				Source: TypeFieldSource{
 					IDs: []string{"https://swapi.dev/api"},
@@ -204,7 +219,8 @@ func TestGetSchemaUsageInfo(t *testing.T) {
 			},
 			{
 				Path:      []string{"searchResults", "user", "account", "name"},
-				TypeNames: []string{"account"},
+				TypeNames: []string{"Account"},
+				NamedType: "String",
 				FieldName: "name",
 				Source: TypeFieldSource{
 					IDs: []string{"https://swapi.dev/api"},
@@ -212,7 +228,8 @@ func TestGetSchemaUsageInfo(t *testing.T) {
 			},
 			{
 				Path:      []string{"searchResults", "user", "account", "shippingInfo"},
-				TypeNames: []string{"account"},
+				NamedType: "ShippingInfo",
+				TypeNames: []string{"Account"},
 				FieldName: "shippingInfo",
 				Source: TypeFieldSource{
 					IDs: []string{"https://swapi.dev/api"},
@@ -220,7 +237,8 @@ func TestGetSchemaUsageInfo(t *testing.T) {
 			},
 			{
 				Path:      []string{"searchResults", "user", "account", "shippingInfo", "zip"},
-				TypeNames: []string{"shippingInfo"},
+				TypeNames: []string{"ShippingInfo"},
+				NamedType: "String",
 				FieldName: "zip",
 				Source: TypeFieldSource{
 					IDs: []string{"https://swapi.dev/api"},
