@@ -25,17 +25,15 @@ func TestProcessModifyHeader_Process(t *testing.T) {
 			return func(t *testing.T) {
 				p := &plan.SynchronousResponsePlan{
 					Response: &resolve.GraphQLResponse{
-						Data: &resolve.Array{
-							Item: &resolve.Object{
-								Fetch: f,
-							},
+						Data: &resolve.Object{
+							Fetch: f,
 						},
 					},
 				}
 
 				modifyHeaderPostProcessor := NewProcessModifyHeader(headerModifier)
 				modifyHeaderPostProcessor.Process(p)
-				assert.Equal(t, expectedFetch, p.Response.Data.(*resolve.Array).Item.(*resolve.Object).Fetch)
+				assert.Equal(t, expectedFetch, p.Response.Data.Fetch)
 			}
 		}
 
