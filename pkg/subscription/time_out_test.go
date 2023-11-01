@@ -19,11 +19,11 @@ func TestTimeOutChecker(t *testing.T) {
 
 		timeOutCtx, timeOutCancel := context.WithCancel(context.Background())
 		params := TimeOutParams{
-			Name:            "",
-			Logger:          abstractlogger.Noop{},
-			TimeOutContext:  timeOutCtx,
-			TimeOutAction:   timeOutAction,
-			TimeOutDuration: 100 * time.Millisecond,
+			Name:           "",
+			Logger:         abstractlogger.Noop{},
+			TimeOutContext: timeOutCtx,
+			TimeOutAction:  timeOutAction,
+			Timer:          time.NewTimer(100 * time.Millisecond),
 		}
 		go TimeOutChecker(params)
 		time.Sleep(5 * time.Millisecond)
@@ -46,11 +46,11 @@ func TestTimeOutChecker(t *testing.T) {
 		defer timeOutCancel()
 
 		params := TimeOutParams{
-			Name:            "",
-			Logger:          abstractlogger.Noop{},
-			TimeOutContext:  timeOutCtx,
-			TimeOutAction:   timeOutAction,
-			TimeOutDuration: 10 * time.Millisecond,
+			Name:           "",
+			Logger:         abstractlogger.Noop{},
+			TimeOutContext: timeOutCtx,
+			TimeOutAction:  timeOutAction,
+			Timer:          time.NewTimer(10 * time.Millisecond),
 		}
 		go TimeOutChecker(params)
 		wg.Wait()
