@@ -9,6 +9,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/dave/jennifer v1.4.0
 	github.com/davecgh/go-spew v1.1.1
+	github.com/getkin/kin-openapi v0.89.0
 	github.com/gobwas/ws v1.0.4
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.5.9
@@ -44,6 +45,9 @@ require (
 	github.com/asyncapi/converter-go v0.3.0 // indirect
 	github.com/asyncapi/spec-json-schemas/v2 v2.14.0 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
+	github.com/ghodss/yaml v1.0.0 // indirect
+	github.com/go-openapi/jsonpointer v0.19.5 // indirect
+	github.com/go-openapi/swag v0.19.5 // indirect
 	github.com/gobwas/httphead v0.0.0-20180130184737-2c6c146eadee // indirect
 	github.com/gobwas/pool v0.2.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
@@ -51,6 +55,7 @@ require (
 	github.com/klauspost/compress v1.14.4 // indirect
 	github.com/logrusorgru/aurora/v3 v3.0.0 // indirect
 	github.com/magiconair/properties v1.8.0 // indirect
+	github.com/mailru/easyjson v0.0.0-20190626092158-b2ccc519800e // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
