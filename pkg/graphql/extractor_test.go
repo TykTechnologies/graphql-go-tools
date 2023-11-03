@@ -10,7 +10,6 @@ import (
 )
 
 func TestExtractor_ExtractFieldsFromRequest(t *testing.T) {
-
 	schema, err := NewSchemaFromString(testDefinition)
 	require.NoError(t, err)
 
