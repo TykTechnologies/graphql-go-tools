@@ -39,7 +39,7 @@ func TestExtractor_ExtractFieldsFromRequest(t *testing.T) {
 		fields := make(RequestTypes)
 		report := operationreport.Report{}
 
-		NewExtractor().ExtractFieldsFromRequestSingleOperation(&request, request.OperationName, schema, &report, fields)
+		NewExtractor().ExtractFieldsFromRequestSingleOperation(&request, schema, &report, fields)
 		expectedFields := RequestTypes{
 			"Post":  {"description": {}, "id": {}, "user": {}},
 			"Query": {"posts": {}},
@@ -53,7 +53,7 @@ func TestExtractor_ExtractFieldsFromRequest(t *testing.T) {
 		report := operationreport.Report{}
 		request.OperationName = ""
 
-		NewExtractor().ExtractFieldsFromRequestSingleOperation(&request, request.OperationName, schema, &report, fields)
+		NewExtractor().ExtractFieldsFromRequestSingleOperation(&request, schema, &report, fields)
 		expectedFields := RequestTypes{
 			"Foo":   {"fooField": {}},
 			"Query": {"foo": {}},

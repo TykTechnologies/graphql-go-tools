@@ -46,9 +46,9 @@ func (e *Extractor) ExtractFieldsFromRequest(request *Request, schema *Schema, r
 	e.walker.Walk(&request.document, &schema.document, report)
 }
 
-func (e *Extractor) ExtractFieldsFromRequestSingleOperation(request *Request, operationName string, schema *Schema, report *operationreport.Report, data RequestTypes) {
+func (e *Extractor) ExtractFieldsFromRequestSingleOperation(request *Request, schema *Schema, report *operationreport.Report, data RequestTypes) {
 	e.visitor.singleOperation = true
-	e.visitor.operationName = operationName
+	e.visitor.operationName = request.OperationName
 
 	e.ExtractFieldsFromRequest(request, schema, report, data)
 }
