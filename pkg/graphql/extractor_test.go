@@ -60,6 +60,21 @@ func TestExtractor_ExtractFieldsFromRequest(t *testing.T) {
 		}
 		assert.Equal(t, expectedFields, fields)
 	})
+
+	t.Run("with operation limit no operation custom query", func(t *testing.T) {
+		schema, err := NewSchemaFromString(testDefinitionCustomQuery)
+		require.NoError(t, err)
+		fields := make(RequestTypes)
+		report := operationreport.Report{}
+		request.OperationName = ""
+
+		NewExtractor().ExtractFieldsFromRequestSingleOperation(&request, schema, &report, fields)
+		expectedFields := RequestTypes{
+			"Foo":         {"fooField": {}},
+			"CustomQuery": {"foo": {}},
+		}
+		assert.Equal(t, expectedFields, fields)
+	})
 }
 
 const testOperation = `query ArgsQuery {
@@ -119,3 +134,28 @@ type Foo {
 scalar ID
 scalar String
 `
+
+const testDefinitionCustomQuery = `
+directive @include(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
+schema {
+	query: CustomQuery
+}
+type CustomQuery {
+	posts: [Post]
+	foo(bar: String!, baz: Boolean!): Foo
+}
+type User {
+	id: ID
+	name: String
+	posts: [Post]
+}
+type Post {
+	id: ID
+	description: String
+	user: User
+}
+type Foo {
+	fooField: String
+}
+scalar ID
+scalar String`
