@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -659,24 +658,4 @@ func (b *backoffTestData) GetGottenError() bool {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	return b.gottenError
-}
-
-func TestNothing(t *testing.T) {
-	fmt.Printf("start: %s\n", time.Now())
-
-	i := 0
-	timer := time.NewTimer(1 * time.Second)
-	for {
-		t := <-timer.C
-		i++
-		fmt.Printf("timer: %s\n", t.String())
-
-		if i > 5 {
-			break
-		}
-
-		timer.Reset(2 * time.Second)
-	}
-
-	fmt.Printf("end: %s\n", time.Now())
 }
