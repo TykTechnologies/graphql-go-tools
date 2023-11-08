@@ -34,8 +34,8 @@ require (
 	go.uber.org/atomic v1.9.0
 	go.uber.org/multierr v1.6.0
 	go.uber.org/zap v1.18.1
-	golang.org/x/exp v0.0.0-20230203172020-98cc5a0785f9
-	golang.org/x/sync v0.3.0
+	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
+	golang.org/x/sync v0.4.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
