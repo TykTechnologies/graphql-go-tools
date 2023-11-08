@@ -12,6 +12,8 @@ import (
 	"github.com/buger/jsonparser"
 	log "github.com/jensneuse/abstractlogger"
 	"github.com/r3labs/sse/v2"
+
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/resolve"
 )
 
 var (
@@ -29,10 +31,10 @@ type gqlSSEConnectionHandler struct {
 	options GraphQLSubscriptionOptions
 }
 
-func newSSEConnectionHandler(ctx context.Context, conn *http.Client, opts GraphQLSubscriptionOptions, l log.Logger) *gqlSSEConnectionHandler {
+func newSSEConnectionHandler(ctx *resolve.Context, conn *http.Client, opts GraphQLSubscriptionOptions, l log.Logger) *gqlSSEConnectionHandler {
 	return &gqlSSEConnectionHandler{
 		conn:    conn,
-		ctx:     ctx,
+		ctx:     ctx.Context(),
 		log:     l,
 		options: opts,
 	}

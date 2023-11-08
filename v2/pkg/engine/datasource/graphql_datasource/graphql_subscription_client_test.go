@@ -11,14 +11,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/buger/jsonparser"
 	ll "github.com/jensneuse/abstractlogger"
 	"github.com/pvormste/websocket"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
+
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/resolve"
 )
 
 func logger() ll.Logger {
@@ -160,7 +161,7 @@ func TestWebsocketSubscriptionClientDeDuplication(t *testing.T) {
 
 	next := make(chan []byte)
 	ctx, clientCancel := context.WithCancel(context.Background())
-	err := client.Subscribe(ctx, GraphQLSubscriptionOptions{
+	err := client.Subscribe(resolve.NewContext(ctx), GraphQLSubscriptionOptions{
 		URL: server.URL,
 		Body: GraphQLBody{
 			Query: `subscription {messageAdded(roomName: "room"){text}}`,
@@ -175,7 +176,7 @@ func TestWebsocketSubscriptionClientDeDuplication(t *testing.T) {
 
 		ctx, cancel := context.WithCancel(context.Background())
 
-		err := client.Subscribe(ctx, GraphQLSubscriptionOptions{
+		err := client.Subscribe(resolve.NewContext(ctx), GraphQLSubscriptionOptions{
 			URL: server.URL,
 			Body: GraphQLBody{
 				Query: `subscription {messageAdded(roomName: "room"){text}}`,
@@ -214,7 +215,7 @@ func TestWebsocketSubscriptionClientImmediateClientCancel(t *testing.T) {
 		WithWSSubProtocol(ProtocolGraphQLWS),
 	)
 	next := make(chan []byte)
-	err := client.Subscribe(ctx, GraphQLSubscriptionOptions{
+	err := client.Subscribe(resolve.NewContext(ctx), GraphQLSubscriptionOptions{
 		URL: server.URL,
 		Body: GraphQLBody{
 			Query: `subscription {messageAdded(roomName: "room"){text}}`,
@@ -269,7 +270,7 @@ func TestWebsocketSubscriptionClientWithServerDisconnect(t *testing.T) {
 		WithWSSubProtocol(ProtocolGraphQLWS),
 	)
 	next := make(chan []byte)
-	err := client.Subscribe(ctx, GraphQLSubscriptionOptions{
+	err := client.Subscribe(resolve.NewContext(ctx), GraphQLSubscriptionOptions{
 		URL: server.URL,
 		Body: GraphQLBody{
 			Query: `subscription {messageAdded(roomName: "room"){text}}`,
