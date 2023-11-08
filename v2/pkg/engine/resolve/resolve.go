@@ -5,13 +5,13 @@ package resolve
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
 	"sync"
 
 	"github.com/buger/jsonparser"
-	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
 	"golang.org/x/sync/singleflight"
 
