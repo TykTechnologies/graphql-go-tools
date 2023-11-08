@@ -326,7 +326,7 @@ func (l *V2Loader) mergeResult(res *result, items []int) error {
 		l.data.RootNode = node
 		return nil
 	}
-	if len(items) == 1 {
+	if len(items) == 1 && res.batchStats == nil {
 		l.data.MergeNodesWithPath(items[0], node, res.postProcessing.MergePath)
 		return nil
 	}
