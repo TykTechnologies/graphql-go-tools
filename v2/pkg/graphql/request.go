@@ -124,6 +124,95 @@ func (r *Request) parseQueryOnce() (report operationreport.Report) {
 	return report
 }
 
+func (r *Request) scanOperationDefinitionsFindSelectionSet() (selectionSet *ast.SelectionSet, err error) {
+	report := r.parseQueryOnce()
+	if report.HasErrors() {
+		return nil, report
+	}
+
+	var operationDefinitionRef = ast.InvalidRef
+	var possibleOperationDefinitionRefs = make([]int, 0)
+
+	for i := 0; i < len(r.document.RootNodes); i++ {
+		if r.document.RootNodes[i].Kind == ast.NodeKindOperationDefinition {
+			possibleOperationDefinitionRefs = append(possibleOperationDefinitionRefs, r.document.RootNodes[i].Ref)
+		}
+	}
+
+	if len(possibleOperationDefinitionRefs) == 0 {
+		return nil, nil
+	} else if len(possibleOperationDefinitionRefs) == 1 {
+		operationDefinitionRef = possibleOperationDefinitionRefs[0]
+	} else {
+		for i := 0; i < len(possibleOperationDefinitionRefs); i++ {
+			ref := possibleOperationDefinitionRefs[i]
+			name := r.document.OperationDefinitionNameString(ref)
+
+			if r.OperationName == name {
+				operationDefinitionRef = ref
+				break
+			}
+		}
+	}
+
+	if operationDefinitionRef == ast.InvalidRef {
+		return
+	}
+
+	operationDef := r.document.OperationDefinitions[operationDefinitionRef]
+	if operationDef.OperationType != ast.OperationTypeQuery {
+		return
+	}
+	if !operationDef.HasSelections {
+		return
+	}
+
+	selectionSet = &r.document.SelectionSets[operationDef.SelectionSet]
+	if len(selectionSet.SelectionRefs) == 0 {
+		return
+	}
+
+	return selectionSet, nil
+}
+
+func (r *Request) scanFragmentDefinitionsFindSelectionSets() ([]*ast.SelectionSet, error) {
+	report := r.parseQueryOnce()
+	if report.HasErrors() {
+		return nil, report
+	}
+
+	// See the following constants:
+	//
+	// * inlineFragmentedIntrospectionQueryWithFragmentOnQuery
+	// * inlineFragmentedIntrospectionQueryType
+	// * fragmentedIntrospectionQuery
+
+	var selectionSets []*ast.SelectionSet
+	for i := 0; i < len(r.document.FragmentDefinitions); i++ {
+		fragment := r.document.FragmentDefinitions[i]
+		if fragment.HasSelections {
+			if fragment.SelectionSet == ast.InvalidRef {
+				continue
+			}
+			selectionSet := r.document.SelectionSets[fragment.SelectionSet]
+			selectionSets = append(selectionSets, &selectionSet)
+		}
+	}
+
+	for i := 0; i < len(r.document.InlineFragments); i++ {
+		inlineFragment := r.document.InlineFragments[i]
+		if inlineFragment.HasSelections {
+			if inlineFragment.SelectionSet == ast.InvalidRef {
+				continue
+			}
+			selectionSet := r.document.SelectionSets[inlineFragment.SelectionSet]
+			selectionSets = append(selectionSets, &selectionSet)
+		}
+	}
+
+	return selectionSets, nil
+}
+
 func (r *Request) IsIntrospectionQuery() (result bool, err error) {
 	report := r.parseQueryOnce()
 	if report.HasErrors() {
@@ -188,6 +277,44 @@ func (r *Request) IsIntrospectionQuery() (result bool, err error) {
 	}
 
 	return true, nil
+}
+
+// IsIntrospectionQueryStrict returns true if the client tries to query __schema or __type fields in any way.
+// IsIntrospectionQuery returns false if schema/type introspection query contains additional non-introspection fields.
+// This breaks the granular access schema of Tyk Gateway.
+func (r *Request) IsIntrospectionQueryStrict() (result bool, err error) {
+	selectionSets, err := r.scanFragmentDefinitionsFindSelectionSets()
+	if err != nil {
+		return
+	}
+	selectionSet, err := r.scanOperationDefinitionsFindSelectionSet()
+	if err != nil {
+		return
+	}
+	if selectionSet != nil {
+		selectionSets = append(selectionSets, selectionSet)
+	}
+
+	for _, selectionSetItem := range selectionSets {
+		for i := 0; i < len(selectionSetItem.SelectionRefs); i++ {
+			selection := r.document.Selections[selectionSetItem.SelectionRefs[i]]
+			if selection.Kind != ast.SelectionKindField {
+				continue
+			}
+
+			fieldName := r.document.FieldNameUnsafeString(selection.Ref)
+			switch fieldName {
+			case schemaIntrospectionFieldName, typeIntrospectionFieldName:
+				// The query wants to access an introspection field, return true.
+				return true, nil
+			default:
+				// non-introspection field, continue scanning.
+				continue
+			}
+		}
+	}
+
+	return
 }
 
 func (r *Request) OperationType() (OperationType, error) {
