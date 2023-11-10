@@ -3,8 +3,8 @@ package kafka_datasource
 import (
 	"context"
 	"encoding/json"
-	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
 
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/plan"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/resolve"
 	"github.com/jensneuse/abstractlogger"
