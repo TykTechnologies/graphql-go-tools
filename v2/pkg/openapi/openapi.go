@@ -41,7 +41,7 @@ func isValidResponse(status int) bool {
 
 func MakeTypeNameFromPathName(name string) string {
 	parsed := strings.Split(name, "/")
-	return fmt.Sprintf("%s", strcase.ToCamel(parsed[len(parsed)-1]))
+	return strcase.ToCamel(parsed[len(parsed)-1])
 }
 
 func MakeInputTypeName(name string) string {
