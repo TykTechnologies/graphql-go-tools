@@ -1,5 +1,6 @@
 schema {
     query: Query
+    mutation: Mutation
 }
 
 type Query {
@@ -9,7 +10,17 @@ type Query {
     getCarts: [Cart]
 }
 
+type Mutation {
+    "Creates new Cart"
+    createCart(cartInput: CartInput!): Cart
+}
+
 type Cart {
+    id: Int
+    products: [ProductsListItem]
+}
+
+input CartInput {
     id: Int
     products: [ProductsListItem]
 }
