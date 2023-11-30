@@ -19,7 +19,10 @@ import (
 	"github.com/TykTechnologies/graphql-go-tools/pkg/operationreport"
 )
 
-var errTypeNameExtractionImpossible = errors.New("type name extraction is impossible")
+var (
+	errTypeNameExtractionImpossible = errors.New("type name extraction is impossible")
+	errNotPrimitiveType             = errors.New("not a primitive type")
+)
 
 type converter struct {
 	openapi         *openapi3.T
@@ -119,8 +122,6 @@ func getParamTypeRef(kind string) (introspection.TypeRef, error) {
 	return introspection.TypeRef{}, fmt.Errorf("unknown type: %s", kind)
 }
 
-var errNotPrimitiveType = errors.New("not a primitive type")
-
 func getPrimitiveGraphQLTypeName(openapiType string) (string, error) {
 	switch openapiType {
 	case "string":
@@ -136,11 +137,14 @@ func getPrimitiveGraphQLTypeName(openapiType string) (string, error) {
 	}
 }
 
-func (c *converter) getGraphQLTypeName(schemaRef *openapi3.SchemaRef) (string, error) {
+func (c *converter) getGraphQLTypeName(schemaRef *openapi3.SchemaRef, inputType bool) (string, error) {
 	if schemaRef.Value.Type == "object" || schemaRef.Value.Type == "array" {
 		graphqlTypeName, err := extractFullTypeNameFromRef(schemaRef.Ref)
 		if err != nil {
 			return "", err
+		}
+		if inputType {
+			return MakeInputTypeName(graphqlTypeName), nil
 		}
 		return graphqlTypeName, nil
 	}
@@ -162,12 +166,15 @@ func makeTypeNameFromPropertyName(name string, schemaRef *openapi3.SchemaRef) (s
 	return "", fmt.Errorf("error while making type name from property name: %s is a unsupported type", name)
 }
 
-func (c *converter) makeTypeRefFromSchemaRef(schemaRef *openapi3.SchemaRef, name string, required bool) (*introspection.TypeRef, error) {
+func (c *converter) makeTypeRefFromSchemaRef(schemaRef *openapi3.SchemaRef, name string, inputType, required bool) (*introspection.TypeRef, error) {
 	name = strcase.ToLowerCamel(name)
 
-	graphQLTypeName, err := c.getGraphQLTypeName(schemaRef)
+	graphQLTypeName, err := c.getGraphQLTypeName(schemaRef, inputType)
 	if errors.Is(err, errTypeNameExtractionImpossible) {
 		graphQLTypeName, err = makeTypeNameFromPropertyName(name, schemaRef)
+		if inputType {
+			graphQLTypeName = MakeInputTypeName(graphQLTypeName)
+		}
 	}
 	if err != nil {
 		return nil, err
@@ -200,7 +207,7 @@ func (c *converter) makeTypeRefFromSchemaRef(schemaRef *openapi3.SchemaRef, name
 
 func (c *converter) processSchemaProperties(fullType *introspection.FullType, schema openapi3.Schema) error {
 	for name, schemaRef := range schema.Properties {
-		typeRef, err := c.makeTypeRefFromSchemaRef(schemaRef, name, isNonNullable(name, schema.Required))
+		typeRef, err := c.makeTypeRefFromSchemaRef(schemaRef, name, false, isNonNullable(name, schema.Required))
 		if err != nil {
 			return err
 		}
@@ -220,7 +227,7 @@ func (c *converter) processSchemaProperties(fullType *introspection.FullType, sc
 
 func (c *converter) processInputFields(ft *introspection.FullType, schemaRef *openapi3.SchemaRef) error {
 	for name, property := range schemaRef.Value.Properties {
-		typeRef, err := c.makeTypeRefFromSchemaRef(property, name, isNonNullable(name, schemaRef.Value.Required))
+		typeRef, err := c.makeTypeRefFromSchemaRef(property, name, true, isNonNullable(name, schemaRef.Value.Required))
 		if err != nil {
 			return err
 		}

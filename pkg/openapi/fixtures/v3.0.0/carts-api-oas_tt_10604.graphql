@@ -22,9 +22,13 @@ type Cart {
 
 input CartInput {
     id: Int
-    products: [ProductsListItem]
+    products: [ProductsListItemInput]
 }
 
 type ProductsListItem {
+    product_id: Int
+}
+
+type ProductsListItemInput {
     product_id: Int
 }
