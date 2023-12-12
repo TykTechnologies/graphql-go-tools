@@ -554,8 +554,10 @@ func (c *converter) importQueryType() (*introspection.FullType, error) {
 						if len(schema.Value.Properties) == 0 {
 							typeName = "JSON"
 							c.addScalarType(typeName, preDefinedScalarTypes[typeName])
-							err = nil
+						} else {
+							typeName = MakeTypeNameFromPathName(pathName)
 						}
+						err = nil
 					}
 				}
 				if err != nil {
