@@ -283,6 +283,11 @@ func (c *converter) processArrayWithFullTypeName(fullTypeName string, schema *op
 }
 
 func (c *converter) processObject(schema *openapi3.SchemaRef) error {
+	// If the schema value doesn't have any properties, the object will be stored in an arbitrary JSON type.
+	if len(schema.Value.Properties) == 0 {
+		return nil
+	}
+
 	fullTypeName, err := extractFullTypeNameFromRef(schema.Ref)
 	if errors.Is(err, errTypeNameExtractionImpossible) {
 		fullTypeName = MakeTypeNameFromPathName(c.currentPathName)
@@ -348,9 +353,6 @@ func (c *converter) processSchema(schema *openapi3.SchemaRef) error {
 		return c.processObject(schema)
 	}
 
-	sort.Slice(c.fullTypes, func(i, j int) bool {
-		return c.fullTypes[i].Name < c.fullTypes[j].Name
-	})
 	return nil
 }
 
@@ -546,6 +548,16 @@ func (c *converter) importQueryType() (*introspection.FullType, error) {
 				}
 
 				typeName, err := extractTypeName(status, operation)
+				if errors.Is(err, errTypeNameExtractionImpossible) {
+					if kind == "object" {
+						// If the schema value doesn't have any properties, the object will be stored in an arbitrary JSON type.
+						if len(schema.Value.Properties) == 0 {
+							typeName = "JSON"
+							c.addScalarType(typeName, preDefinedScalarTypes[typeName])
+							err = nil
+						}
+					}
+				}
 				if err != nil {
 					return nil, err
 				}
