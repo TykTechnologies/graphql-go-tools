@@ -161,7 +161,7 @@ func extractFullTypeNameFromRef(ref string) (string, error) {
 
 func makeTypeNameFromPropertyName(name string, schemaRef *openapi3.SchemaRef) (string, error) {
 	if schemaRef.Value.Type == "array" {
-		return fmt.Sprintf("%sListItem", strcase.ToCamel(name)), nil
+		return makeListItemFromTypeName(name), nil
 	}
 	return "", fmt.Errorf("error while making type name from property name: %s is a unsupported type", name)
 }
@@ -245,6 +245,10 @@ func (c *converter) processInputFields(ft *introspection.FullType, schemaRef *op
 
 func (c *converter) processArray(schema *openapi3.SchemaRef) error {
 	fullTypeName, err := extractFullTypeNameFromRef(schema.Value.Items.Ref)
+	if errors.Is(err, errTypeNameExtractionImpossible) {
+		fullTypeName = makeListItemFromTypeName(MakeTypeNameFromPathName(c.currentPathName))
+		err = nil
+	}
 	if err != nil {
 		return err
 	}
@@ -557,6 +561,9 @@ func (c *converter) importQueryType() (*introspection.FullType, error) {
 						} else {
 							typeName = MakeTypeNameFromPathName(pathName)
 						}
+						err = nil
+					} else if kind == "array" {
+						typeName = makeListItemFromTypeName(MakeTypeNameFromPathName(pathName))
 						err = nil
 					}
 				}

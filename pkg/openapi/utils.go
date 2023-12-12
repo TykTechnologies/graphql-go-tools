@@ -1,6 +1,10 @@
 package openapi
 
-import "github.com/TykTechnologies/graphql-go-tools/pkg/introspection"
+import (
+	"fmt"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/introspection"
+	"github.com/iancoleman/strcase"
+)
 
 var preDefinedScalarTypes = map[string]string{
 	"JSON": "The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).",
@@ -26,4 +30,10 @@ func (c *converter) addScalarType(typeName, description string) {
 	}
 	c.knownFullTypes[typeName] = typeDetails
 	c.fullTypes = append(c.fullTypes, scalarType)
+}
+
+// makeListItemFromTypeName returns a formatted string by concatenating the given typeName with "ListItem",
+// using the ToCamel function from the strcase package to convert the typeName to camel case.
+func makeListItemFromTypeName(typeName string) string {
+	return fmt.Sprintf("%sListItem", strcase.ToCamel(typeName))
 }

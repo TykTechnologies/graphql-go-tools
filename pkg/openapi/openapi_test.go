@@ -86,4 +86,8 @@ func TestOpenAPI_v3_0_0(t *testing.T) {
 	t.Run("tt-10696-unnamed-object.yaml", func(t *testing.T) {
 		testFixtureFile(t, "v3.0.0", "tt-10696-unnamed-object.yaml")
 	})
+
+	t.Run("tt-10696-unnamed-array-of-objects.yaml", func(t *testing.T) {
+		testFixtureFile(t, "v3.0.0", "tt-10696-unnamed-array-of-objects.yaml")
+	})
 }
