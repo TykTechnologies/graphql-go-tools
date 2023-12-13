@@ -5,9 +5,9 @@ schema {
 type Query {
     """
     Retrieve usage statistics for an application
-    The Ably system can be queried to obtain usage statistics for a given application, and results are provided aggregated across all channels in use in the application in the specified period. Stats may be used to track usage against account quotas.
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
     """
-    getStats(direction: String, end: String, limit: Int, start: String, unit: String): [StatsListItem]
+    getStats(unit: String): [StatsListItem]
 }
 
 type StatsListItem {
