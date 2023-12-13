@@ -2,6 +2,7 @@ package openapi
 
 import (
 	"fmt"
+
 	"github.com/TykTechnologies/graphql-go-tools/pkg/introspection"
 	"github.com/iancoleman/strcase"
 )
