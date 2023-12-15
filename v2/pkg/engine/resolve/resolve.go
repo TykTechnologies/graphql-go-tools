@@ -15,9 +15,8 @@ import (
 )
 
 type Resolver struct {
-	ctx                      context.Context
-	enableSingleFlightLoader bool
-	toolPool                 sync.Pool
+	ctx      context.Context
+	toolPool sync.Pool
 }
 
 type tools struct {
@@ -42,7 +41,6 @@ func New(ctx context.Context) *Resolver {
 
 func (r *Resolver) getTools() *tools {
 	t := r.toolPool.Get().(*tools)
-	t.loader.enableSingleFlight = r.enableSingleFlightLoader
 	return t
 }
 
