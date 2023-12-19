@@ -82,7 +82,7 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 					if err != nil {
 						return nil, err
 					}
-					inputValue, err = c.addParameters(fullTypeName, schema)
+					inputValue, err = c.getInputValue(fullTypeName, schema)
 					if err != nil {
 						return nil, err
 					}
@@ -93,7 +93,7 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 				}
 
 				for _, parameter := range operation.Parameters {
-					inputValue, err = c.addParameters(parameter.Value.Name, parameter.Value.Schema)
+					inputValue, err = c.getInputValue(parameter.Value.Name, parameter.Value.Schema)
 					if err != nil {
 						return nil, err
 					}

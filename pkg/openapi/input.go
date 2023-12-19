@@ -45,7 +45,7 @@ func (c *converter) processInputObject(schema *openapi3.SchemaRef) error {
 	return nil
 }
 
-func (c *converter) addParameters(name string, schema *openapi3.SchemaRef) (*introspection.InputValue, error) {
+func (c *converter) getInputValue(name string, schema *openapi3.SchemaRef) (*introspection.InputValue, error) {
 	paramType := schema.Value.Type
 	if paramType == "array" {
 		paramType = schema.Value.Items.Value.Type
