@@ -20,6 +20,7 @@ func (c *converter) importQueryType() (*introspection.FullType, error) {
 	}
 	for pathName, pathItem := range c.openapi.Paths {
 		c.currentPathName = pathName
+		c.currentPathItem = pathItem
 		// We only support HTTP GET operation.
 		for _, method := range []string{http.MethodGet} {
 			operation := pathItem.GetOperation(method)
@@ -79,30 +80,40 @@ func (c *converter) importQueryType() (*introspection.FullType, error) {
 	return queryType, nil
 }
 
+func (c *converter) processParameter(field *introspection.Field, parameter *openapi3.ParameterRef) error {
+	schema := parameter.Value.Schema
+	if schema == nil {
+		mediaType := parameter.Value.Content.Get("application/json")
+		if mediaType != nil {
+			schema = mediaType.Schema
+		}
+	}
+	if schema == nil {
+		return nil
+	}
+	return c.importQueryTypeFieldParameter(field, parameter.Value, schema)
+}
+
 func (c *converter) importQueryTypeFields(typeRef *introspection.TypeRef, operation *openapi3.Operation) (*introspection.Field, error) {
-	f := introspection.Field{
+	field := &introspection.Field{
 		Name:        strcase.ToLowerCamel(operation.OperationID),
 		Type:        *typeRef,
 		Description: getOperationDescription(operation),
 	}
 
 	for _, parameter := range operation.Parameters {
-		schema := parameter.Value.Schema
-		if schema == nil {
-			mediaType := parameter.Value.Content.Get("application/json")
-			if mediaType != nil {
-				schema = mediaType.Schema
-			}
-		}
-		if schema == nil {
-			continue
-		}
-		err := c.importQueryTypeFieldParameter(&f, parameter.Value, schema)
-		if err != nil {
+		if err := c.processParameter(field, parameter); err != nil {
 			return nil, err
 		}
 	}
-	return &f, nil
+
+	for _, parameter := range c.currentPathItem.Parameters {
+		if err := c.processParameter(field, parameter); err != nil {
+			return nil, err
+		}
+	}
+
+	return field, nil
 }
 
 func (c *converter) importQueryTypeFieldParameter(field *introspection.Field, parameter *openapi3.Parameter, schema *openapi3.SchemaRef) error {
