@@ -22,6 +22,7 @@ type converter struct {
 	knownEnums      map[string]*introspection.FullType
 	fullTypes       []introspection.FullType
 	currentPathName string
+	currentPathItem *openapi3.PathItem
 }
 
 type knownFullTypeDetails struct {
