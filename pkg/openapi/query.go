@@ -106,18 +106,30 @@ func (c *converter) importQueryTypeFields(typeRef *introspection.TypeRef, operat
 }
 
 func (c *converter) importQueryTypeFieldParameter(field *introspection.Field, parameter *openapi3.Parameter, schema *openapi3.SchemaRef) error {
-	paramType := schema.Value.Type
-	if paramType == "array" {
-		paramType = schema.Value.Items.Value.Type
-	}
+	var (
+		err     error
+		gqlType string
+		typeRef introspection.TypeRef
+	)
 
-	typeRef, err := getTypeRef(paramType)
-	if err != nil {
-		return err
-	}
-	gqlType, err := getPrimitiveGraphQLTypeName(paramType)
-	if err != nil {
-		return err
+	if len(schema.Value.Enum) > 0 {
+		enumType := c.createOrGetEnumType(parameter.Name, schema)
+		typeRef = getEnumTypeRef()
+		gqlType = enumType.Name
+	} else {
+		paramType := schema.Value.Type
+		if paramType == "array" {
+			paramType = schema.Value.Items.Value.Type
+		}
+
+		typeRef, err = getTypeRef(paramType)
+		if err != nil {
+			return err
+		}
+		gqlType, err = getPrimitiveGraphQLTypeName(paramType)
+		if err != nil {
+			return err
+		}
 	}
 
 	if schema.Value.Items != nil {

@@ -19,6 +19,7 @@ var (
 type converter struct {
 	openapi         *openapi3.T
 	knownFullTypes  map[string]*knownFullTypeDetails
+	knownEnums      map[string]*introspection.FullType
 	fullTypes       []introspection.FullType
 	currentPathName string
 }
@@ -31,6 +32,7 @@ func ImportParsedOpenAPIv3Document(document *openapi3.T, report *operationreport
 	c := &converter{
 		openapi:        document,
 		knownFullTypes: make(map[string]*knownFullTypeDetails),
+		knownEnums:     make(map[string]*introspection.FullType),
 		fullTypes:      make([]introspection.FullType, 0),
 	}
 	data := introspection.Data{}
