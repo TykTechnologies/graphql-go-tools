@@ -118,31 +118,31 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 				}
 				typeRef.Name = &typeName
 
-				f := introspection.Field{
+				field := &introspection.Field{
 					Name:        MakeFieldNameFromOperationID(operation.OperationID),
 					Type:        typeRef,
 					Description: getOperationDescription(operation),
 				}
-				if f.Name == "" {
-					f.Name = MakeFieldNameFromEndpoint(method, pathName)
+				if field.Name == "" {
+					field.Name = MakeFieldNameFromEndpoint(method, pathName)
 				}
 
 				if operation.RequestBody != nil {
-					if err = c.getInputValueFromRequestBody(&f, status, operation); err != nil {
+					if err = c.getInputValueFromRequestBody(field, status, operation); err != nil {
 						return nil, err
 					}
 				}
-				if err = c.getInputValuesFromParameters(&f, operation.Parameters); err != nil {
+				if err = c.getInputValuesFromParameters(field, operation.Parameters); err != nil {
 					return nil, err
 				}
-				if err = c.getInputValuesFromParameters(&f, c.currentPathItem.Parameters); err != nil {
+				if err = c.getInputValuesFromParameters(field, c.currentPathItem.Parameters); err != nil {
 					return nil, err
 				}
 
-				sort.Slice(f.Args, func(i, j int) bool {
-					return f.Args[i].Name < f.Args[j].Name
+				sort.Slice(field.Args, func(i, j int) bool {
+					return field.Args[i].Name < field.Args[j].Name
 				})
-				mutationType.Fields = append(mutationType.Fields, f)
+				mutationType.Fields = append(mutationType.Fields, *field)
 			}
 		}
 	}
