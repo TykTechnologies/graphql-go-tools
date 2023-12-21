@@ -51,6 +51,28 @@ func (c *converter) tryMakeTypeNameFromOperation(status int, operation *openapi3
 	return "String"
 }
 
+// getInputValueFromRequestBody retrieves the input value from the request body and adds it to the field arguments.
+func (c *converter) getInputValueFromRequestBody(field *introspection.Field, status int, operation *openapi3.Operation) error {
+	var typeName string
+	schema := getJSONSchemaFromRequestBody(operation)
+	if schema == nil {
+		typeName = c.tryMakeTypeNameFromOperation(status, operation)
+	}
+	typeName, err := c.getReturnType(schema)
+	if err != nil {
+		return err
+	}
+	inputValue, err := c.getInputValue(typeName, schema)
+	if err != nil {
+		return err
+	}
+	if operation.RequestBody.Value.Required {
+		inputValue.Type = convertToNonNull(&inputValue.Type)
+	}
+	field.Args = append(field.Args, *inputValue)
+	return nil
+}
+
 func (c *converter) importMutationType() (*introspection.FullType, error) {
 	mutationType := &introspection.FullType{
 		Kind: introspection.OBJECT,
@@ -83,11 +105,6 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 				if schema == nil {
 					typeName = c.tryMakeTypeNameFromOperation(status, operation)
 				} else {
-					kind := schema.Value.Type
-					if kind == "" {
-						// We assume that it is an object type.
-						kind = "object"
-					}
 					typeName, err = c.getReturnType(schema)
 					if err != nil {
 						return nil, err
@@ -110,23 +127,11 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 					f.Name = MakeFieldNameFromEndpoint(method, pathName)
 				}
 
-				var inputValue *introspection.InputValue
 				if operation.RequestBody != nil {
-					schema := getJSONSchemaFromRequestBody(operation)
-					fullTypeName, err := extractFullTypeNameFromRef(schema.Ref)
-					if err != nil {
+					if err = c.getInputValueFromRequestBody(&f, status, operation); err != nil {
 						return nil, err
 					}
-					inputValue, err = c.getInputValue(fullTypeName, schema)
-					if err != nil {
-						return nil, err
-					}
-					if operation.RequestBody.Value.Required {
-						inputValue.Type = convertToNonNull(&inputValue.Type)
-					}
-					f.Args = append(f.Args, *inputValue)
 				}
-
 				if err = c.getInputValuesFromParameters(&f, operation.Parameters); err != nil {
 					return nil, err
 				}

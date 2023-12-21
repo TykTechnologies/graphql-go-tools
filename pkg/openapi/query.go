@@ -42,17 +42,20 @@ func (c *converter) importQueryType() (*introspection.FullType, error) {
 
 				schema := getJSONSchema(status, operation)
 
-				var typeName string
+				var (
+					kind     string
+					typeName string
+				)
 				if schema == nil {
 					typeName = c.tryMakeTypeNameFromOperation(status, operation)
 				} else {
+					kind = schema.Value.Type
 					typeName, err = c.getReturnType(schema)
 					if err != nil {
 						return nil, err
 					}
 				}
 
-				kind := schema.Value.Type
 				if kind == "" {
 					// We assume that it is an object type.
 					kind = "object"
