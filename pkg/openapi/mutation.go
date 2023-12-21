@@ -33,6 +33,24 @@ func (c *converter) getInputValuesFromParameters(field *introspection.Field, par
 	return nil
 }
 
+// tryMakeTypeNameFromOperation generates a new type name for unnamed objects based on the status code and operation.
+// If the response schema is an object, it returns a type name generated from the current path name. Otherwise, it returns "String".
+func (c *converter) tryMakeTypeNameFromOperation(status int, operation *openapi3.Operation) string {
+	// Try to make a new type name for unnamed objects.
+	responseRef := operation.Responses.Get(status)
+	if responseRef != nil && responseRef.Value != nil {
+		mediaType := responseRef.Value.Content.Get("application/json")
+		if mediaType != nil && mediaType.Schema != nil && mediaType.Schema.Value != nil {
+			if mediaType.Schema.Value.Type == "object" {
+				return MakeTypeNameFromPathName(c.currentPathName)
+			}
+		}
+	}
+	// IBM/openapi-to-graphql uses String as return type.
+	// TODO: https://stackoverflow.com/questions/44737043/is-it-possible-to-not-return-any-data-when-using-a-graphql-mutation/44773532#44773532
+	return "String"
+}
+
 func (c *converter) importMutationType() (*introspection.FullType, error) {
 	mutationType := &introspection.FullType{
 		Kind: introspection.OBJECT,
@@ -60,44 +78,20 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 					continue
 				}
 
-				// TODO: try to remove this block
-				/*typeName, err := extractTypeName(status, operation)
-				if errors.Is(err, errTypeNameExtractionImpossible) {
-					// Try to make a new type name for unnamed objects.
-					responseRef := operation.Responses.Get(status)
-					if responseRef != nil && responseRef.Value != nil {
-						mediaType := responseRef.Value.Content.Get("application/json")
-						if mediaType != nil && mediaType.Schema != nil && mediaType.Schema.Value != nil {
-							if mediaType.Schema.Value.Type == "object" {
-								typeName = MakeTypeNameFromPathName(c.currentPathName)
-								err = nil
-							}
-						}
-					}
-
-					if typeName == "" {
-						// IBM/openapi-to-graphql uses String as return type.
-						// TODO: https://stackoverflow.com/questions/44737043/is-it-possible-to-not-return-any-data-when-using-a-graphql-mutation/44773532#44773532
-						typeName = "String"
-						err = nil
-					}
-				}
-				if err != nil {
-					return nil, err
-				}*/
-
+				var typeName string
 				schema := getJSONSchema(status, operation)
 				if schema == nil {
-					continue
-				}
-				kind := schema.Value.Type
-				if kind == "" {
-					// We assume that it is an object type.
-					kind = "object"
-				}
-				typeName, err := c.getReturnType(schema)
-				if err != nil {
-					return nil, err
+					typeName = c.tryMakeTypeNameFromOperation(status, operation)
+				} else {
+					kind := schema.Value.Type
+					if kind == "" {
+						// We assume that it is an object type.
+						kind = "object"
+					}
+					typeName, err = c.getReturnType(schema)
+					if err != nil {
+						return nil, err
+					}
 				}
 
 				typeName = strcase.ToCamel(typeName)
