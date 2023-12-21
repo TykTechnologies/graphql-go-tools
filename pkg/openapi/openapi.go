@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-
 	"github.com/TykTechnologies/graphql-go-tools/pkg/ast"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/introspection"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/operationreport"
@@ -46,7 +45,9 @@ func ImportParsedOpenAPIv3Document(document *openapi3.T, report *operationreport
 		report.AddInternalError(err)
 		return nil
 	}
-	data.Schema.Types = append(data.Schema.Types, *queryType)
+	if len(queryType.Fields) > 0 {
+		data.Schema.Types = append(data.Schema.Types, *queryType)
+	}
 
 	mutationType, err := c.importMutationType()
 	if err != nil {
