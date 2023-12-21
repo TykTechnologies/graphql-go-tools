@@ -25,9 +25,9 @@ func testFixtureFile(t *testing.T, version, name string) {
 	require.NoError(t, err)
 
 	if strings.HasSuffix(name, ".yaml") {
-		name = strings.Trim(name, ".yaml")
+		name = strings.TrimSuffix(name, ".yaml")
 	} else if strings.HasSuffix(name, ".json") {
-		name = strings.Trim(name, ".json")
+		name = strings.TrimSuffix(name, ".json")
 	} else {
 		require.Fail(t, "unrecognized file: %s", name)
 	}
@@ -95,7 +95,11 @@ func TestOpenAPI_v3_0_0(t *testing.T) {
 		testFixtureFile(t, "v3.0.0", "tt-10696-unnamed-array-of-primitive-types.yaml")
 	})
 
-	t.Run("enums.yaml", func(t *testing.T) {
-		testFixtureFile(t, "v3.0.0", "enums.yaml")
+	t.Run("enums-query.yaml", func(t *testing.T) {
+		testFixtureFile(t, "v3.0.0", "enums-query.yaml")
+	})
+
+	t.Run("enums-mutation.yaml", func(t *testing.T) {
+		testFixtureFile(t, "v3.0.0", "enums-mutation.yaml")
 	})
 }

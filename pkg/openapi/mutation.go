@@ -7,16 +7,42 @@ import (
 	"strconv"
 
 	"github.com/TykTechnologies/graphql-go-tools/pkg/introspection"
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/iancoleman/strcase"
 )
+
+// getInputValueFromParameter retrieves the input value from the given parameter and adds it to the field arguments.
+// If the parameter is required, the input value is converted to a non-null type.
+func (c *converter) getInputValueFromParameter(field *introspection.Field, parameter *openapi3.ParameterRef) error {
+	inputValue, err := c.getInputValue(parameter.Value.Name, parameter.Value.Schema)
+	if err != nil {
+		return err
+	}
+	if parameter.Value.Required {
+		inputValue.Type = convertToNonNull(&inputValue.Type)
+	}
+	field.Args = append(field.Args, *inputValue)
+	return nil
+}
+
+func (c *converter) getInputValuesFromParameters(field *introspection.Field, parameters openapi3.Parameters) error {
+	for _, parameter := range parameters {
+		if err := c.getInputValueFromParameter(field, parameter); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func (c *converter) importMutationType() (*introspection.FullType, error) {
 	mutationType := &introspection.FullType{
 		Kind: introspection.OBJECT,
 		Name: "Mutation",
 	}
+
 	for pathName, pathItem := range c.openapi.Paths {
 		c.currentPathName = pathName
+		c.currentPathItem = pathItem
 		for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodDelete} {
 			operation := pathItem.GetOperation(method)
 			if operation == nil {
@@ -92,15 +118,11 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 					f.Args = append(f.Args, *inputValue)
 				}
 
-				for _, parameter := range operation.Parameters {
-					inputValue, err = c.getInputValue(parameter.Value.Name, parameter.Value.Schema)
-					if err != nil {
-						return nil, err
-					}
-					if parameter.Value.Required {
-						inputValue.Type = convertToNonNull(&inputValue.Type)
-					}
-					f.Args = append(f.Args, *inputValue)
+				if err = c.getInputValuesFromParameters(&f, operation.Parameters); err != nil {
+					return nil, err
+				}
+				if err = c.getInputValuesFromParameters(&f, c.currentPathItem.Parameters); err != nil {
+					return nil, err
 				}
 
 				sort.Slice(f.Args, func(i, j int) bool {
