@@ -7,7 +7,7 @@ type Query {
     Retrieve usage statistics for an application
     The Ably system can be queried to obtain usage statistics for a given application, and results are provided aggregated across all channels in use in the application in the specified period. Stats may be used to track usage against account quotas.
     """
-    getStats(X-Ably-Version: String, direction: Direction, end: String, format: Format, limit: Int, start: String, unit: Unit): JSON
+    getStats(direction: Direction, end: String, format: Format, limit: Int, start: String, unit: Unit, xAblyVersion: String): JSON
 }
 
 enum Direction {

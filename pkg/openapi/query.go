@@ -158,7 +158,7 @@ func (c *converter) importQueryTypeFieldParameter(field *introspection.Field, pa
 		typeRef = convertToNonNull(&typeRef)
 	}
 	iv := introspection.InputValue{
-		Name: parameter.Name,
+		Name: strcase.ToLowerCamel(parameter.Name),
 		Type: typeRef,
 	}
 
