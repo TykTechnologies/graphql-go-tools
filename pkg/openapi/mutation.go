@@ -1,7 +1,6 @@
 package openapi
 
 import (
-	"errors"
 	"net/http"
 	"sort"
 	"strconv"
@@ -61,7 +60,8 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 					continue
 				}
 
-				typeName, err := extractTypeName(status, operation)
+				// TODO: try to remove this block
+				/*typeName, err := extractTypeName(status, operation)
 				if errors.Is(err, errTypeNameExtractionImpossible) {
 					// Try to make a new type name for unnamed objects.
 					responseRef := operation.Responses.Get(status)
@@ -84,7 +84,22 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 				}
 				if err != nil {
 					return nil, err
+				}*/
+
+				schema := getJSONSchema(status, operation)
+				if schema == nil {
+					continue
 				}
+				kind := schema.Value.Type
+				if kind == "" {
+					// We assume that it is an object type.
+					kind = "object"
+				}
+				typeName, err := c.getReturnType(schema)
+				if err != nil {
+					return nil, err
+				}
+
 				typeName = strcase.ToCamel(typeName)
 				typeRef, err := getTypeRef("object")
 				if err != nil {
