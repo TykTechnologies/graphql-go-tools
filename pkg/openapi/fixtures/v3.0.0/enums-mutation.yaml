@@ -1,13 +1,13 @@
 openapi: "3.0.0"
 info:
-  title: Ably - getStats
+  title: AcmeCorp - getStats
   version: 1.0.0
 servers:
   - url: http://localhost:3004/
 paths:
   /stats:
     post:
-      description: The Ably system can be queried to obtain usage statistics for a given application, and results are provided aggregated across all channels in use in the application in the specified period. Stats may be used to track usage against account quotas.
+      description: The AcmeCorp system can be queried to obtain usage statistics for a given application, and results are provided aggregated across all channels in use in the application in the specified period. Stats may be used to track usage against account quotas.
       operationId: getStats
       parameters:
         - $ref: "#/components/parameters/filterStart"
@@ -80,7 +80,7 @@ components:
 
   parameters:
     channelId:
-      description: The [Channel's ID](https://www.ably.io/documentation/rest/channels).
+      description: The [Channel's ID](https://www.AcmeCorp.io/documentation/rest/channels).
       in: path
       name: channel_id
       required: true
@@ -120,7 +120,7 @@ components:
       schema:
         type: string
     key_name:
-      description: The [key name](https://www.ably.io/documentation/rest-api/token-request-spec#api-key-format) comprises of the app ID and key ID of an API key.
+      description: The [key name](https://www.AcmeCorp.io/documentation/rest-api/token-request-spec#api-key-format) comprises of the app ID and key ID of an API key.
       in: path
       name: keyName
       required: true
@@ -140,6 +140,6 @@ components:
     versionHeader:
       description: The version of the API you wish to use.
       in: header
-      name: X-Ably-Version
+      name: X-AcmeCorp-Version
       schema:
         type: string
