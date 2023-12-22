@@ -53,14 +53,18 @@ func (c *converter) tryMakeTypeNameFromOperation(status int, operation *openapi3
 
 // getInputValueFromRequestBody retrieves the input value from the request body and adds it to the field arguments.
 func (c *converter) getInputValueFromRequestBody(field *introspection.Field, status int, operation *openapi3.Operation) error {
-	var typeName string
+	var (
+		typeName string
+		err      error
+	)
 	schema := getJSONSchemaFromRequestBody(operation)
 	if schema == nil {
 		typeName = c.tryMakeTypeNameFromOperation(status, operation)
-	}
-	typeName, err := c.getReturnType(schema)
-	if err != nil {
-		return err
+	} else {
+		typeName, err = c.getReturnType(schema)
+		if err != nil {
+			return err
+		}
 	}
 	inputValue, err := c.getInputValue(typeName, schema)
 	if err != nil {
