@@ -34,7 +34,6 @@ func testFixtureFile(t *testing.T, version, name string) {
 
 	graphqlDoc, err := os.ReadFile(fmt.Sprintf("./fixtures/%s/%s.graphql", version, name))
 	require.NoError(t, err)
-	fmt.Println(w.String())
 	require.Equal(t, string(graphqlDoc), w.String())
 }
 
