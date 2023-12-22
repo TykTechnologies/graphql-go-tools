@@ -24,8 +24,9 @@ func (c *converter) createOrGetEnumType(name string, schema *openapi3.SchemaRef)
 	}
 
 	enumType := &introspection.FullType{
-		Kind: introspection.ENUM,
-		Name: name,
+		Kind:        introspection.ENUM,
+		Name:        name,
+		Description: schema.Value.Description,
 	}
 
 	for _, enum := range schema.Value.Enum {

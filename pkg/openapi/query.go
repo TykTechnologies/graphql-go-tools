@@ -54,6 +54,9 @@ func (c *converter) importQueryType() (*introspection.FullType, error) {
 					if err != nil {
 						return nil, err
 					}
+					if len(schema.Value.Enum) > 0 {
+						c.createOrGetEnumType(typeName, schema)
+					}
 				}
 
 				if kind == "" {
