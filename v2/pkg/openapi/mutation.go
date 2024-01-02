@@ -65,6 +65,9 @@ func (c *converter) getInputValueFromRequestBody(field *introspection.Field, sta
 		if err != nil {
 			return err
 		}
+		if len(schema.Value.Enum) > 0 {
+			c.createOrGetEnumType(typeName, schema)
+		}
 	}
 	inputValue, err := c.getInputValue(typeName, schema)
 	if err != nil {
@@ -112,6 +115,9 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 					typeName, err = c.getReturnType(schema)
 					if err != nil {
 						return nil, err
+					}
+					if len(schema.Value.Enum) > 0 {
+						c.createOrGetEnumType(typeName, schema)
 					}
 				}
 

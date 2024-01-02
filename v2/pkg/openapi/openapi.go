@@ -38,15 +38,15 @@ func ImportParsedOpenAPIv3Document(document *openapi3.T, report *operationreport
 	}
 	data := introspection.Data{}
 
-	data.Schema.QueryType = &introspection.TypeName{
-		Name: "Query",
-	}
 	queryType, err := c.importQueryType()
 	if err != nil {
 		report.AddInternalError(err)
 		return nil
 	}
 	if len(queryType.Fields) > 0 {
+		data.Schema.QueryType = &introspection.TypeName{
+			Name: "Query",
+		}
 		data.Schema.Types = append(data.Schema.Types, *queryType)
 	}
 
