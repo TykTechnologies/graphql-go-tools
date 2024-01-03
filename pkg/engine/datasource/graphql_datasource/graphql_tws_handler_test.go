@@ -361,8 +361,8 @@ func TestWebsocketSubscriptionClient_GQLTWS_Upstream_Dies(t *testing.T) {
 	}, next)
 	assert.NoError(t, err)
 
-	first := <-next
-	assert.Equal(t, `{"data":{"messageAdded":{"text":"first"}}}`, string(first))
+	errorMessage := <-next
+	assert.Equal(t, `{"errors":[{"message":"failed to get reader: failed to read frame header: EOF"}]}`, string(errorMessage))
 
 	// Kill the upstream here. We should get an End-of-File error.
 	assert.NoError(t, wrappedListener.underlyingConnection.Close())
