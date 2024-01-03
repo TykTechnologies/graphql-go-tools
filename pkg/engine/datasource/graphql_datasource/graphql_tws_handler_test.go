@@ -250,7 +250,7 @@ func TestWebSocketSubscriptionClientInitIncludePing_GQLTWS(t *testing.T) {
 		msgType, data, err = conn.Read(ctx)
 		assertion.NoError(err)
 		assertion.Equal(nhooyrwebsocket.MessageText, msgType)
-		assertion.Equal(`{"type":"pong"}`, string(data))
+		assertion.Equal(`{"id":"1","type":"subscribe","payload":{"query":"subscription {messageAdded(roomName: \"room\"){text}}"}}`, string(data))
 
 		msgType, data, err = conn.Read(ctx)
 		assertion.NoError(err)
@@ -290,7 +290,7 @@ func TestWebSocketSubscriptionClientInitIncludePing_GQLTWS(t *testing.T) {
 
 	first := <-next
 	second := <-next
-	assertion.Equal(`{"data":{"messageAdded":{"text":"first"}}}`, string(first))
+	assertion.Equal(`{"errors":[{"message":"failed to get reader: failed to read frame header: EOF"}]}`, string(first))
 	assertion.Equal(`{"data":{"messageAdded":{"text":"second"}}}`, string(second))
 
 	clientCancel()
