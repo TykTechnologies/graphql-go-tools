@@ -1,6 +1,8 @@
 package openapi
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
@@ -62,6 +64,12 @@ func (c *converter) getInputValueFromRequestBody(field *introspection.Field, sta
 		typeName = c.tryMakeTypeNameFromOperation(status, operation)
 	} else {
 		typeName, err = c.getReturnType(schema)
+		if errors.Is(err, errNotPrimitiveType) {
+			if schema.Value.OneOf != nil {
+				c.addScalarType("JSON", preDefinedScalarTypes["JSON"])
+				err = nil
+			}
+		}
 		if err != nil {
 			return err
 		}
@@ -113,6 +121,12 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 					typeName = c.tryMakeTypeNameFromOperation(status, operation)
 				} else {
 					typeName, err = c.getReturnType(schema)
+					if errors.Is(err, errNotPrimitiveType) {
+						if schema.Value.OneOf != nil {
+							fmt.Println(schema.Value.OneOf)
+							err = nil
+						}
+					}
 					if err != nil {
 						return nil, err
 					}
