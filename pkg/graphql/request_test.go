@@ -76,26 +76,6 @@ func TestRequest_Print(t *testing.T) {
 	assert.Equal(t, query, bytesBuf.String())
 }
 
-func TestRequest_IsNormalized(t *testing.T) {
-	request := Request{
-		isNormalized: true,
-	}
-
-	result := request.IsNormalized()
-
-	assert.True(t, result, "Expect IsNormalized to be true")
-}
-
-func TestRequest_IsValidated(t *testing.T) {
-	request := Request{
-		isValidated: true,
-	}
-
-	result := request.IsValidated()
-
-	assert.True(t, result, "Expect IsValidated to be true")
-}
-
 func TestRequest_CalculateComplexity(t *testing.T) {
 	t.Run("should return error when schema is nil", func(t *testing.T) {
 		request := Request{}
