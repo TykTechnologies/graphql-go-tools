@@ -57,6 +57,9 @@ func (c *converter) getInputValue(name string, schema *openapi3.SchemaRef) (*int
 		enumType := c.createOrGetEnumType(name, schema)
 		typeRef = getEnumTypeRef()
 		gqlType = enumType.Name
+	} else if schema.Value.OneOf != nil && len(schema.Value.OneOf) > 0 {
+		gqlType = name // JSON
+		typeRef = introspection.TypeRef{Kind: 0}
 	} else {
 		paramType := schema.Value.Type
 		if paramType == "array" {

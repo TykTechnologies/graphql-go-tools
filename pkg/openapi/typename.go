@@ -12,7 +12,7 @@ func (c *converter) tryExtractTypeName(schemaRef *openapi3.SchemaRef) (graphqlTy
 	if schemaRef.Value.Type == "object" {
 		// If the schema value doesn't have any properties, the object will be stored in an arbitrary JSON type.
 		if len(schemaRef.Value.Properties) == 0 {
-			graphqlTypeName = "JSON"
+			graphqlTypeName = JsonScalarType
 			c.addScalarType(graphqlTypeName, preDefinedScalarTypes[graphqlTypeName])
 		} else {
 			// Unnamed object

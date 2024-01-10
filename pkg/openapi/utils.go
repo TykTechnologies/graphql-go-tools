@@ -10,8 +10,10 @@ import (
 	"github.com/iancoleman/strcase"
 )
 
+const JsonScalarType = "JSON"
+
 var preDefinedScalarTypes = map[string]string{
-	"JSON": "The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).",
+	JsonScalarType: "The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).",
 }
 
 // addScalarType adds a new scalar type to the converter's known full types list.
