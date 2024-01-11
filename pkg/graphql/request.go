@@ -40,6 +40,7 @@ type Request struct {
 	document     ast.Document
 	isParsed     bool
 	isNormalized bool
+	isValidated  bool
 	request      resolve.Request
 
 	validForSchema map[uint64]ValidationResult
