@@ -316,9 +316,10 @@ func TestRequest_IsValidated(t *testing.T) {
 		result := request.IsValidated(schema)
 		assert.False(t, result)
 
-		request.ValidateForSchema(schema)
+		valRes, _ := request.ValidateForSchema(schema)
 
 		result2 := request.IsValidated(schema)
+		assert.True(t, valRes.Valid)
 		assert.True(t, result2)
 	})
 }
