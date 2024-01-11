@@ -1,6 +1,7 @@
 package openapi
 
 import (
+	"errors"
 	"net/http"
 	"sort"
 	"strconv"
@@ -8,6 +9,48 @@ import (
 	"github.com/TykTechnologies/graphql-go-tools/pkg/introspection"
 	"github.com/getkin/kin-openapi/openapi3"
 )
+
+func (c *converter) checkAndProcessOneOfKeyword(schema *openapi3.SchemaRef) error {
+	if schema.Value.OneOf == nil {
+		return nil
+	}
+	for _, oneOfSchema := range schema.Value.OneOf {
+		err := c.processSchema(oneOfSchema)
+		if err != nil {
+			return err
+		}
+	}
+	// Create a UNION type here
+	if len(schema.Value.OneOf) > 0 {
+		unionName := MakeTypeNameFromPathName(c.currentPathName)
+		if _, ok := c.knownUnions[unionName]; ok {
+			// Already have the union definition.
+			// TODO: Do we need to add more types to this UNION?
+			return nil
+		}
+		unionType := &introspection.FullType{
+			Kind:          introspection.UNION,
+			Name:          unionName,
+			PossibleTypes: []introspection.TypeRef{},
+		}
+		for _, oneOfSchema := range schema.Value.OneOf {
+			fullTypeName, err := extractFullTypeNameFromRef(oneOfSchema.Ref)
+			if errors.Is(err, errTypeNameExtractionImpossible) {
+				fullTypeName = MakeTypeNameFromPathName(c.currentPathName)
+				err = nil
+			}
+			if err != nil {
+				return err
+			}
+			unionType.PossibleTypes = append(unionType.PossibleTypes, introspection.TypeRef{
+				Kind: introspection.OBJECT,
+				Name: &fullTypeName,
+			})
+		}
+		c.fullTypes = append(c.fullTypes, *unionType)
+	}
+	return nil
+}
 
 func (c *converter) processSchema(schema *openapi3.SchemaRef) error {
 	if schema.Value.Type == "array" {
@@ -18,6 +61,11 @@ func (c *converter) processSchema(schema *openapi3.SchemaRef) error {
 		return c.processArray(schema)
 	} else if schema.Value.Type == "object" {
 		return c.processObject(schema)
+	}
+
+	err := c.checkAndProcessOneOfKeyword(schema)
+	if err != nil {
+		return err
 	}
 
 	return nil

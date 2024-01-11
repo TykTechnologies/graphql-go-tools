@@ -2,7 +2,6 @@ package openapi
 
 import (
 	"errors"
-
 	"github.com/getkin/kin-openapi/openapi3"
 )
 
@@ -31,7 +30,7 @@ func (c *converter) tryExtractTypeName(schemaRef *openapi3.SchemaRef) (graphqlTy
 	return
 }
 
-func (c *converter) getReturnType(schemaRef *openapi3.SchemaRef) (graphqlTypeName string, err error) {
+func (c *converter) getTypeNameFromSchema(schemaRef *openapi3.SchemaRef) (graphqlTypeName string, err error) {
 	if schemaRef.Value.Type != "object" && schemaRef.Value.Type != "array" {
 		if schemaRef.Ref != "" {
 			return extractFullTypeNameFromRef(schemaRef.Ref)
@@ -48,6 +47,18 @@ func (c *converter) getReturnType(schemaRef *openapi3.SchemaRef) (graphqlTypeNam
 		return c.tryExtractTypeName(schemaRef)
 	}
 	return graphqlTypeName, err
+}
+
+func (c *converter) getReturnType(schemaRef *openapi3.SchemaRef) (string, error) {
+	typeName, err := c.getTypeNameFromSchema(schemaRef)
+	if err == nil {
+		return typeName, nil
+	}
+
+	if schemaRef.Value.OneOf != nil && len(schemaRef.Value.OneOf) > 0 {
+		return MakeTypeNameFromPathName(c.currentPathName), nil
+	}
+	return "", err
 }
 
 // getGraphQLTypeName returns the GraphQL type name corresponding to the given OpenAPI schema reference.
