@@ -326,18 +326,13 @@ func TestRequest_IsValidated(t *testing.T) {
 
 func TestRequest_IsValid(t *testing.T) {
 	t.Run("should return false if schema hash does not exist", func(t *testing.T) {
-		s := Schema{
-			hash: nil,
-		}
 		r := Request{
 			OperationName: "Hello",
 			Variables:     nil,
 			Query:         `query Hello { hello }`,
 		}
 
-		schemaHash, err := s.Hash()
-		result := r.IsValid(schemaHash)
-		assert.Nil(t, err)
+		result := r.IsValid(1234)
 		assert.False(t, result)
 	})
 
