@@ -46,6 +46,69 @@ func (c *converter) processInputObject(schema *openapi3.SchemaRef) error {
 	return nil
 }
 
+// makeInputObjectFromAllOf converts a schema with multiple "allOf" properties into an input object.
+func (c *converter) makeInputObjectFromAllOf(schema *openapi3.SchemaRef) (string, error) {
+	cc := newConverter(c.openapi)
+	for _, allOfSchema := range schema.Value.AllOf {
+		if err := cc.processSchema(allOfSchema); err != nil {
+			return "", err
+		}
+	}
+	mergedType := introspection.FullType{
+		Kind: introspection.INPUTOBJECT,
+		Name: MakeInputTypeName(MakeTypeNameFromPathName(c.currentPathName)),
+	}
+	knownFields := make(map[string]struct{})
+	knownEnumValues := make(map[string]struct{})
+	knownInputFields := make(map[string]struct{})
+	for _, fullType := range cc.fullTypes {
+		for _, field := range fullType.Fields {
+			if _, ok := knownFields[field.Name]; !ok {
+				knownFields[field.Name] = struct{}{}
+				// Convert a Field to a InputValue
+				inputValue := introspection.InputValue{
+					Name:        field.Name,
+					Description: field.Description,
+					Type:        field.Type,
+				}
+				mergedType.InputFields = append(mergedType.InputFields, inputValue)
+			}
+		}
+		for _, enumValue := range fullType.EnumValues {
+			if _, ok := knownEnumValues[enumValue.Name]; !ok {
+				knownEnumValues[enumValue.Name] = struct{}{}
+				mergedType.EnumValues = append(mergedType.EnumValues, enumValue)
+			}
+		}
+		for _, inputField := range fullType.InputFields {
+			if _, ok := knownEnumValues[inputField.Name]; !ok {
+				knownInputFields[inputField.Name] = struct{}{}
+				mergedType.InputFields = append(mergedType.InputFields, inputField)
+			}
+		}
+		mergedType.PossibleTypes = append(mergedType.PossibleTypes, fullType.PossibleTypes...)
+		mergedType.Interfaces = append(mergedType.Interfaces, fullType.Interfaces...)
+	}
+
+	sort.Slice(mergedType.Fields, func(i, j int) bool {
+		return mergedType.Fields[i].Name < mergedType.Fields[j].Name
+	})
+	sort.Slice(mergedType.InputFields, func(i, j int) bool {
+		return mergedType.InputFields[i].Name < mergedType.InputFields[j].Name
+	})
+	sort.Slice(mergedType.EnumValues, func(i, j int) bool {
+		return mergedType.EnumValues[i].Name < mergedType.EnumValues[j].Name
+	})
+
+	c.fullTypes = append(c.fullTypes, mergedType)
+	sort.Slice(c.fullTypes, func(i, j int) bool {
+		return c.fullTypes[i].Name < c.fullTypes[j].Name
+	})
+	c.knownFullTypes[mergedType.Name] = &knownFullTypeDetails{}
+
+	return mergedType.Name, nil
+}
+
 func (c *converter) getInputValue(name string, schema *openapi3.SchemaRef) (*introspection.InputValue, error) {
 	var (
 		err     error
@@ -60,6 +123,12 @@ func (c *converter) getInputValue(name string, schema *openapi3.SchemaRef) (*int
 	} else if schema.Value.OneOf != nil && len(schema.Value.OneOf) > 0 {
 		gqlType = name // JSON
 		typeRef = introspection.TypeRef{Kind: 0}
+	} else if schema.Value.AllOf != nil && len(schema.Value.AllOf) > 0 {
+		gqlType, err = c.makeInputObjectFromAllOf(schema)
+		if err != nil {
+			return nil, err
+		}
+		typeRef = introspection.TypeRef{Kind: 7}
 	} else {
 		paramType := schema.Value.Type
 		if paramType == "array" {

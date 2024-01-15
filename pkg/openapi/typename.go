@@ -58,6 +58,10 @@ func (c *converter) getReturnType(schemaRef *openapi3.SchemaRef) (string, error)
 	if schemaRef.Value.OneOf != nil && len(schemaRef.Value.OneOf) > 0 {
 		return MakeTypeNameFromPathName(c.currentPathName), nil
 	}
+
+	if schemaRef.Value.AllOf != nil && len(schemaRef.Value.AllOf) > 0 {
+		return MakeTypeNameFromPathName(c.currentPathName), nil
+	}
 	return "", err
 }
 

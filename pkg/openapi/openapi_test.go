@@ -122,4 +122,8 @@ func TestOpenAPI_v3_0_0(t *testing.T) {
 	t.Run("oneOf-response-type.yaml", func(t *testing.T) {
 		testFixtureFile(t, "v3.0.0", "oneOf-response-type.yaml")
 	})
+
+	t.Run("allOf-input-type.yaml", func(t *testing.T) {
+		testFixtureFile(t, "v3.0.0", "allOf-input-type.yaml")
+	})
 }

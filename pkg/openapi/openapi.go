@@ -30,14 +30,18 @@ type knownFullTypeDetails struct {
 	hasDescription bool
 }
 
-func ImportParsedOpenAPIv3Document(document *openapi3.T, report *operationreport.Report) *ast.Document {
-	c := &converter{
+func newConverter(document *openapi3.T) *converter {
+	return &converter{
 		openapi:        document,
 		knownFullTypes: make(map[string]*knownFullTypeDetails),
 		knownEnums:     make(map[string]*introspection.FullType),
 		knownUnions:    make(map[string]*introspection.FullType),
 		fullTypes:      make([]introspection.FullType, 0),
 	}
+}
+
+func ImportParsedOpenAPIv3Document(document *openapi3.T, report *operationreport.Report) *ast.Document {
+	c := newConverter(document)
 	data := introspection.Data{}
 
 	queryType, err := c.importQueryType()
