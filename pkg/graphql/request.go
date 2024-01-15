@@ -114,10 +114,10 @@ func (r *Request) IsValidated(schema *Schema) bool {
 	if err != nil {
 		return false
 	}
-	return r.IsValid(schemaHash)
+	return r.isValid(schemaHash)
 }
 
-func (r *Request) IsValid(schemaHash uint64) bool {
+func (r *Request) isValid(schemaHash uint64) bool {
 	result, ok := r.validForSchema[schemaHash]
 	if !ok {
 		return false

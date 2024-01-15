@@ -324,7 +324,7 @@ func TestRequest_IsValidated(t *testing.T) {
 	})
 }
 
-func TestRequest_IsValid(t *testing.T) {
+func TestRequest_isValid(t *testing.T) {
 	t.Run("should return false if schema hash does not exist", func(t *testing.T) {
 		r := Request{
 			OperationName: "Hello",
@@ -332,7 +332,7 @@ func TestRequest_IsValid(t *testing.T) {
 			Query:         `query Hello { hello }`,
 		}
 
-		result := r.IsValid(1234)
+		result := r.isValid(1234)
 		assert.False(t, result)
 	})
 
@@ -341,7 +341,7 @@ func TestRequest_IsValid(t *testing.T) {
 		r := requestForQuery(t, starwars.FileHeroWithAliasesQuery)
 
 		schemaHash, err := schema.Hash()
-		result := r.IsValid(schemaHash)
+		result := r.isValid(schemaHash)
 		assert.Nil(t, err)
 		assert.False(t, result)
 	})
@@ -353,7 +353,7 @@ func TestRequest_IsValid(t *testing.T) {
 		schemaHash, err := schema.Hash()
 
 		validation, _ := r.ValidateForSchema(schema)
-		result2 := r.IsValid(schemaHash)
+		result2 := r.isValid(schemaHash)
 
 		assert.Nil(t, err)
 		assert.True(t, validation.Valid)
