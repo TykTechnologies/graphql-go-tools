@@ -1,0 +1,25 @@
+schema {
+    query: Query
+    mutation: Mutation
+}
+
+type Query {
+    pets: Pets
+}
+
+type Mutation {
+    postPets(catInput: CatInput): Pets
+}
+
+input CatInput {
+    age: Int
+    hunts: Boolean
+}
+
+type Pets {
+    age: Int
+    bark: Boolean
+    breed: Breed
+    color: String
+    hunts: Boolean
+}
