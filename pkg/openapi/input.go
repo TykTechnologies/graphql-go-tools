@@ -49,7 +49,10 @@ func (c *converter) processInputObject(schema *openapi3.SchemaRef) error {
 // makeInputObjectFromAllOf converts a schema with multiple "allOf" properties into an input object.
 func (c *converter) makeInputObjectFromAllOf(schema *openapi3.SchemaRef) (string, error) {
 	cc := newConverter(c.openapi)
-	for _, allOfSchema := range schema.Value.AllOf {
+	for i, allOfSchema := range schema.Value.AllOf {
+		if allOfSchema.Ref == "" {
+			allOfSchema.Ref = fmt.Sprintf("unnamed-type-allof-%d", i)
+		}
 		if err := cc.processSchema(allOfSchema); err != nil {
 			return "", err
 		}
@@ -59,35 +62,37 @@ func (c *converter) makeInputObjectFromAllOf(schema *openapi3.SchemaRef) (string
 		Name: MakeInputTypeName(MakeTypeNameFromPathName(c.currentPathName)),
 	}
 	knownFields := make(map[string]struct{})
-	knownEnumValues := make(map[string]struct{})
 	knownInputFields := make(map[string]struct{})
 	for _, fullType := range cc.fullTypes {
-		for _, field := range fullType.Fields {
-			if _, ok := knownFields[field.Name]; !ok {
-				knownFields[field.Name] = struct{}{}
-				// Convert a Field to a InputValue
-				inputValue := introspection.InputValue{
-					Name:        field.Name,
-					Description: field.Description,
-					Type:        field.Type,
+		if fullType.Kind == introspection.OBJECT {
+			for _, field := range fullType.Fields {
+				if _, ok := knownFields[field.Name]; !ok {
+					knownFields[field.Name] = struct{}{}
+					// Convert a Field to a InputValue
+					inputValue := introspection.InputValue{
+						Name:        field.Name,
+						Description: field.Description,
+						Type:        field.Type,
+					}
+					mergedType.InputFields = append(mergedType.InputFields, inputValue)
 				}
-				mergedType.InputFields = append(mergedType.InputFields, inputValue)
+			}
+			for _, inputField := range fullType.InputFields {
+				if _, ok := knownInputFields[inputField.Name]; !ok {
+					knownInputFields[inputField.Name] = struct{}{}
+					mergedType.InputFields = append(mergedType.InputFields, inputField)
+				}
+			}
+			mergedType.PossibleTypes = append(mergedType.PossibleTypes, fullType.PossibleTypes...)
+			mergedType.Interfaces = append(mergedType.Interfaces, fullType.Interfaces...)
+		} else if fullType.Kind == introspection.ENUM {
+			if _, ok := c.knownEnums[fullType.Name]; ok {
+				continue
+			} else {
+				c.knownEnums[fullType.Name] = &fullType
+				c.fullTypes = append(c.fullTypes, fullType)
 			}
 		}
-		for _, enumValue := range fullType.EnumValues {
-			if _, ok := knownEnumValues[enumValue.Name]; !ok {
-				knownEnumValues[enumValue.Name] = struct{}{}
-				mergedType.EnumValues = append(mergedType.EnumValues, enumValue)
-			}
-		}
-		for _, inputField := range fullType.InputFields {
-			if _, ok := knownEnumValues[inputField.Name]; !ok {
-				knownInputFields[inputField.Name] = struct{}{}
-				mergedType.InputFields = append(mergedType.InputFields, inputField)
-			}
-		}
-		mergedType.PossibleTypes = append(mergedType.PossibleTypes, fullType.PossibleTypes...)
-		mergedType.Interfaces = append(mergedType.Interfaces, fullType.Interfaces...)
 	}
 
 	sort.Slice(mergedType.Fields, func(i, j int) bool {

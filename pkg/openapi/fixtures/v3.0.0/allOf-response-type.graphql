@@ -11,6 +11,13 @@ type Mutation {
     postPets(catInput: CatInput): Pets
 }
 
+enum Breed {
+    DINGO
+    HUSKY
+    RETRIEVER
+    SHEPHERD
+}
+
 input CatInput {
     age: Int
     hunts: Boolean

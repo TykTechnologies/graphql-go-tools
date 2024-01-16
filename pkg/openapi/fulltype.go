@@ -2,6 +2,7 @@ package openapi
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
@@ -60,15 +61,34 @@ func (c *converter) checkAndProcessAllOfKeyword(schema *openapi3.SchemaRef) erro
 		return nil
 	}
 
-	var typeName = MakeTypeNameFromPathName(c.currentPathName)
+	var (
+		err      error
+		typeName string
+	)
+
+	if schema.Ref != "" {
+		typeName, err = extractFullTypeNameFromRef(schema.Ref)
+		if errors.Is(err, errTypeNameExtractionImpossible) {
+			typeName = MakeTypeNameFromPathName(c.currentPathName)
+			err = nil
+		}
+		if err != nil {
+			return err
+		}
+	} else {
+		typeName = MakeTypeNameFromPathName(c.currentPathName)
+	}
 	if _, ok := c.knownFullTypes[typeName]; ok {
 		// Already created, passing it.
 		return nil
 	}
 
 	cc := newConverter(c.openapi)
-	for _, allOfSchema := range schema.Value.AllOf {
-		if err := cc.processSchema(allOfSchema); err != nil {
+	for i, allOfSchema := range schema.Value.AllOf {
+		if allOfSchema.Ref == "" {
+			allOfSchema.Ref = fmt.Sprintf("unnamed-type-allof-%d", i)
+		}
+		if err = cc.processSchema(allOfSchema); err != nil {
 			return err
 		}
 	}
@@ -77,29 +97,24 @@ func (c *converter) checkAndProcessAllOfKeyword(schema *openapi3.SchemaRef) erro
 		Name: typeName,
 	}
 	knownFields := make(map[string]struct{})
-	knownEnumValues := make(map[string]struct{})
-	knownInputFields := make(map[string]struct{})
 	for _, fullType := range cc.fullTypes {
-		for _, field := range fullType.Fields {
-			if _, ok := knownFields[field.Name]; !ok {
-				knownFields[field.Name] = struct{}{}
-				mergedType.Fields = append(mergedType.Fields, field)
+		if fullType.Kind == introspection.OBJECT {
+			for _, field := range fullType.Fields {
+				if _, ok := knownFields[field.Name]; !ok {
+					knownFields[field.Name] = struct{}{}
+					mergedType.Fields = append(mergedType.Fields, field)
+				}
+			}
+			mergedType.PossibleTypes = append(mergedType.PossibleTypes, fullType.PossibleTypes...)
+			mergedType.Interfaces = append(mergedType.Interfaces, fullType.Interfaces...)
+		} else if fullType.Kind == introspection.ENUM {
+			if _, ok := c.knownEnums[fullType.Name]; ok {
+				continue
+			} else {
+				c.knownEnums[fullType.Name] = &fullType
+				c.fullTypes = append(c.fullTypes, fullType)
 			}
 		}
-		for _, enumValue := range fullType.EnumValues {
-			if _, ok := knownEnumValues[enumValue.Name]; !ok {
-				knownEnumValues[enumValue.Name] = struct{}{}
-				mergedType.EnumValues = append(mergedType.EnumValues, enumValue)
-			}
-		}
-		for _, inputField := range fullType.InputFields {
-			if _, ok := knownEnumValues[inputField.Name]; !ok {
-				knownInputFields[inputField.Name] = struct{}{}
-				mergedType.InputFields = append(mergedType.InputFields, inputField)
-			}
-		}
-		mergedType.PossibleTypes = append(mergedType.PossibleTypes, fullType.PossibleTypes...)
-		mergedType.Interfaces = append(mergedType.Interfaces, fullType.Interfaces...)
 	}
 
 	sort.Slice(mergedType.Fields, func(i, j int) bool {
