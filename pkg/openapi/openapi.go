@@ -19,7 +19,7 @@ var (
 type converter struct {
 	openapi         *openapi3.T
 	knownFullTypes  map[string]*knownFullTypeDetails
-	knownEnums      map[string]*introspection.FullType
+	knownEnums      map[string]introspection.FullType
 	knownUnions     map[string]*introspection.FullType
 	fullTypes       []introspection.FullType
 	currentPathName string
@@ -34,7 +34,7 @@ func newConverter(document *openapi3.T) *converter {
 	return &converter{
 		openapi:        document,
 		knownFullTypes: make(map[string]*knownFullTypeDetails),
-		knownEnums:     make(map[string]*introspection.FullType),
+		knownEnums:     make(map[string]introspection.FullType),
 		knownUnions:    make(map[string]*introspection.FullType),
 		fullTypes:      make([]introspection.FullType, 0),
 	}

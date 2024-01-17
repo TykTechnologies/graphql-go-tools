@@ -89,7 +89,7 @@ func (c *converter) makeInputObjectFromAllOf(schema *openapi3.SchemaRef) (string
 			if _, ok := c.knownEnums[fullType.Name]; ok {
 				continue
 			} else {
-				c.knownEnums[fullType.Name] = &fullType
+				c.knownEnums[fullType.Name] = fullType
 				c.fullTypes = append(c.fullTypes, fullType)
 			}
 		}

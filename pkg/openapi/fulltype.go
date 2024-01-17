@@ -111,7 +111,7 @@ func (c *converter) checkAndProcessAllOfKeyword(schema *openapi3.SchemaRef) erro
 			if _, ok := c.knownEnums[fullType.Name]; ok {
 				continue
 			} else {
-				c.knownEnums[fullType.Name] = &fullType
+				c.knownEnums[fullType.Name] = fullType
 				c.fullTypes = append(c.fullTypes, fullType)
 			}
 		}
