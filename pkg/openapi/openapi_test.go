@@ -134,4 +134,8 @@ func TestOpenAPI_v3_0_0(t *testing.T) {
 	t.Run("allOf-input-type-composition.yaml", func(t *testing.T) {
 		testFixtureFile(t, "v3.0.0", "allOf-input-type-composition.yaml")
 	})
+
+	t.Run("allOf-response-type-composition.yaml", func(t *testing.T) {
+		testFixtureFile(t, "v3.0.0", "allOf-response-type-composition.yaml")
+	})
 }
