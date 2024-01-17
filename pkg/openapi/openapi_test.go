@@ -150,4 +150,16 @@ func TestOpenAPI_v3_0_0(t *testing.T) {
 	t.Run("allOf-query-response-type.yaml", func(t *testing.T) {
 		testFixtureFile(t, "v3.0.0", "allOf-query-response-type.yaml")
 	})
+
+	t.Run("anyOf-input-type.yaml", func(t *testing.T) {
+		testFixtureFile(t, "v3.0.0", "anyOf-input-type.yaml")
+	})
+
+	t.Run("anyOf-response-type.yaml", func(t *testing.T) {
+		testFixtureFile(t, "v3.0.0", "anyOf-response-type.yaml")
+	})
+
+	t.Run("anyOf-query-response-type.yaml", func(t *testing.T) {
+		testFixtureFile(t, "v3.0.0", "anyOf-query-response-type.yaml")
+	})
 }

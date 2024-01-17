@@ -149,6 +149,85 @@ func (c *converter) checkAndProcessAllOfKeyword(schema *openapi3.SchemaRef) erro
 	return nil
 }
 
+func (c *converter) checkAndProcessAnyOfKeyword(schema *openapi3.SchemaRef) error {
+	if schema.Value.AnyOf == nil {
+		return nil
+	}
+
+	var (
+		err      error
+		typeName string
+	)
+
+	if schema.Ref != "" {
+		typeName, err = extractFullTypeNameFromRef(schema.Ref)
+		if errors.Is(err, errTypeNameExtractionImpossible) {
+			typeName = MakeTypeNameFromPathName(c.currentPathName)
+			err = nil
+		}
+		if err != nil {
+			return err
+		}
+	} else {
+		typeName = MakeTypeNameFromPathName(c.currentPathName)
+	}
+	if _, ok := c.knownFullTypes[typeName]; ok {
+		// Already created, passing it.
+		return nil
+	}
+
+	cc := newConverter(c.openapi)
+	for i, allOfSchema := range schema.Value.AnyOf {
+		if allOfSchema.Ref == "" {
+			allOfSchema.Ref = fmt.Sprintf("unnamed-type-allof-%d", i)
+		}
+		if err = cc.processSchema(allOfSchema); err != nil {
+			return err
+		}
+	}
+	mergedType := introspection.FullType{
+		Kind: introspection.OBJECT,
+		Name: typeName,
+	}
+	knownFields := make(map[string]struct{})
+	for _, fullType := range cc.fullTypes {
+		if fullType.Kind == introspection.OBJECT {
+			for _, field := range fullType.Fields {
+				if _, ok := knownFields[field.Name]; !ok {
+					knownFields[field.Name] = struct{}{}
+					mergedType.Fields = append(mergedType.Fields, field)
+				}
+			}
+			mergedType.PossibleTypes = append(mergedType.PossibleTypes, fullType.PossibleTypes...)
+			mergedType.Interfaces = append(mergedType.Interfaces, fullType.Interfaces...)
+		} else if fullType.Kind == introspection.ENUM {
+			if _, ok := c.knownEnums[fullType.Name]; ok {
+				continue
+			} else {
+				c.knownEnums[fullType.Name] = fullType
+				c.fullTypes = append(c.fullTypes, fullType)
+			}
+		}
+	}
+
+	sort.Slice(mergedType.Fields, func(i, j int) bool {
+		return mergedType.Fields[i].Name < mergedType.Fields[j].Name
+	})
+	sort.Slice(mergedType.InputFields, func(i, j int) bool {
+		return mergedType.InputFields[i].Name < mergedType.InputFields[j].Name
+	})
+	sort.Slice(mergedType.EnumValues, func(i, j int) bool {
+		return mergedType.EnumValues[i].Name < mergedType.EnumValues[j].Name
+	})
+
+	c.fullTypes = append(c.fullTypes, mergedType)
+	sort.Slice(c.fullTypes, func(i, j int) bool {
+		return c.fullTypes[i].Name < c.fullTypes[j].Name
+	})
+	c.knownFullTypes[mergedType.Name] = &knownFullTypeDetails{}
+	return nil
+}
+
 func (c *converter) processSchema(schema *openapi3.SchemaRef) error {
 	if schema.Value.Type == "array" {
 		arrayOf := schema.Value.Items.Value.Type
@@ -166,6 +245,11 @@ func (c *converter) processSchema(schema *openapi3.SchemaRef) error {
 	}
 
 	err = c.checkAndProcessAllOfKeyword(schema)
+	if err != nil {
+		return err
+	}
+
+	err = c.checkAndProcessAnyOfKeyword(schema)
 	if err != nil {
 		return err
 	}

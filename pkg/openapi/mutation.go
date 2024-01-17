@@ -146,7 +146,7 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 					Description: getOperationDescription(operation),
 				}
 				if field.Name == "" {
-					field.Name = MakeFieldNameFromEndpoint(method, pathName)
+					field.Name = MakeFieldNameFromEndpointForMutation(method, pathName)
 				}
 
 				if operation.RequestBody != nil {
