@@ -15,6 +15,20 @@ func (c *converter) checkAndProcessOneOfKeyword(schema *openapi3.SchemaRef) erro
 	if schema.Value.OneOf == nil {
 		return nil
 	}
+
+	// Set name to unnamed schemas.
+	var namedSchema = 1
+	for _, oneOfSchema := range schema.Value.OneOf {
+		if oneOfSchema.Ref == "" {
+			if namedSchema <= 1 {
+				oneOfSchema.Ref = fmt.Sprintf("%sMember", MakeTypeNameFromPathName(c.currentPathName))
+			} else {
+				oneOfSchema.Ref = fmt.Sprintf("%sMember%d", MakeTypeNameFromPathName(c.currentPathName), namedSchema)
+			}
+			namedSchema++
+		}
+	}
+
 	for _, oneOfSchema := range schema.Value.OneOf {
 		err := c.processSchema(oneOfSchema)
 		if err != nil {
