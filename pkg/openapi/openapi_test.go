@@ -138,4 +138,12 @@ func TestOpenAPI_v3_0_0(t *testing.T) {
 	t.Run("allOf-response-type-composition.yaml", func(t *testing.T) {
 		testFixtureFile(t, "v3.0.0", "allOf-response-type-composition.yaml")
 	})
+
+	t.Run("allOf-query-composition.yaml", func(t *testing.T) {
+		testFixtureFile(t, "v3.0.0", "allOf-query-composition.yaml")
+	})
+
+	t.Run("allOf-query-response-type.yaml", func(t *testing.T) {
+		testFixtureFile(t, "v3.0.0", "allOf-query-response-type.yaml")
+	})
 }
