@@ -67,21 +67,15 @@ func (c *converter) checkAndProcessOneOfKeyword(schema *openapi3.SchemaRef) erro
 	return nil
 }
 
-// checkAndProcessAllOfKeyword checks for the "allOf" keyword in the schema and processes it if it exists.
-// It merges the fields, enum values, input fields, possible types, and interfaces of the allOf schemas into one merged type.
-// The merged type is then added to the list of full types and stored in the knownFullTypes map.
-func (c *converter) checkAndProcessAllOfKeyword(schema *openapi3.SchemaRef) error {
-	if schema.Value.AllOf == nil {
-		return nil
-	}
-
+func (c *converter) checkAndProcessAllOfAnyOfCommon(ref string, items openapi3.SchemaRefs) error {
 	var (
 		err      error
 		typeName string
 	)
 
-	if schema.Ref != "" {
-		typeName, err = extractFullTypeNameFromRef(schema.Ref)
+	// schema.Ref
+	if ref != "" {
+		typeName, err = extractFullTypeNameFromRef(ref)
 		if errors.Is(err, errTypeNameExtractionImpossible) {
 			typeName = MakeTypeNameFromPathName(c.currentPathName)
 			err = nil
@@ -98,11 +92,11 @@ func (c *converter) checkAndProcessAllOfKeyword(schema *openapi3.SchemaRef) erro
 	}
 
 	cc := newConverter(c.openapi)
-	for i, allOfSchema := range schema.Value.AllOf {
-		if allOfSchema.Ref == "" {
-			allOfSchema.Ref = fmt.Sprintf("unnamed-type-allof-%d", i)
+	for i, item := range items {
+		if item.Ref == "" {
+			item.Ref = fmt.Sprintf("unnamed-type-item-%d", i)
 		}
-		if err = cc.processSchema(allOfSchema); err != nil {
+		if err = cc.processSchema(item); err != nil {
 			return err
 		}
 	}
@@ -149,83 +143,26 @@ func (c *converter) checkAndProcessAllOfKeyword(schema *openapi3.SchemaRef) erro
 	return nil
 }
 
+// checkAndProcessAllOfKeyword checks for the "allOf" keyword in the schema and processes it if it exists.
+// It merges the fields, enum values, input fields, possible types, and interfaces of the allOf schemas into one merged type.
+// The merged type is then added to the list of full types and stored in the knownFullTypes map.
+func (c *converter) checkAndProcessAllOfKeyword(schema *openapi3.SchemaRef) error {
+	if schema.Value.AllOf == nil {
+		return nil
+	}
+	return c.checkAndProcessAllOfAnyOfCommon(schema.Ref, schema.Value.AllOf)
+}
+
+// checkAndProcessAnyOfKeyword checks for the "anyOf" keyword in the schema and processes it if it exists.
+// It calls the checkAndProcessAllOfAnyOfCommon method with the schema reference and the anyOf schemas.
+// This method is used to handle schemas that have multiple possible types as defined by the anyOf keyword.
+// It merges the fields, enum values, input fields, possible types, and interfaces of the anyOf schemas into one merged type.
+// The merged type is then added to the list of full types and stored in the knownFullTypes map.
 func (c *converter) checkAndProcessAnyOfKeyword(schema *openapi3.SchemaRef) error {
 	if schema.Value.AnyOf == nil {
 		return nil
 	}
-
-	var (
-		err      error
-		typeName string
-	)
-
-	if schema.Ref != "" {
-		typeName, err = extractFullTypeNameFromRef(schema.Ref)
-		if errors.Is(err, errTypeNameExtractionImpossible) {
-			typeName = MakeTypeNameFromPathName(c.currentPathName)
-			err = nil
-		}
-		if err != nil {
-			return err
-		}
-	} else {
-		typeName = MakeTypeNameFromPathName(c.currentPathName)
-	}
-	if _, ok := c.knownFullTypes[typeName]; ok {
-		// Already created, passing it.
-		return nil
-	}
-
-	cc := newConverter(c.openapi)
-	for i, allOfSchema := range schema.Value.AnyOf {
-		if allOfSchema.Ref == "" {
-			allOfSchema.Ref = fmt.Sprintf("unnamed-type-allof-%d", i)
-		}
-		if err = cc.processSchema(allOfSchema); err != nil {
-			return err
-		}
-	}
-	mergedType := introspection.FullType{
-		Kind: introspection.OBJECT,
-		Name: typeName,
-	}
-	knownFields := make(map[string]struct{})
-	for _, fullType := range cc.fullTypes {
-		if fullType.Kind == introspection.OBJECT {
-			for _, field := range fullType.Fields {
-				if _, ok := knownFields[field.Name]; !ok {
-					knownFields[field.Name] = struct{}{}
-					mergedType.Fields = append(mergedType.Fields, field)
-				}
-			}
-			mergedType.PossibleTypes = append(mergedType.PossibleTypes, fullType.PossibleTypes...)
-			mergedType.Interfaces = append(mergedType.Interfaces, fullType.Interfaces...)
-		} else if fullType.Kind == introspection.ENUM {
-			if _, ok := c.knownEnums[fullType.Name]; ok {
-				continue
-			} else {
-				c.knownEnums[fullType.Name] = fullType
-				c.fullTypes = append(c.fullTypes, fullType)
-			}
-		}
-	}
-
-	sort.Slice(mergedType.Fields, func(i, j int) bool {
-		return mergedType.Fields[i].Name < mergedType.Fields[j].Name
-	})
-	sort.Slice(mergedType.InputFields, func(i, j int) bool {
-		return mergedType.InputFields[i].Name < mergedType.InputFields[j].Name
-	})
-	sort.Slice(mergedType.EnumValues, func(i, j int) bool {
-		return mergedType.EnumValues[i].Name < mergedType.EnumValues[j].Name
-	})
-
-	c.fullTypes = append(c.fullTypes, mergedType)
-	sort.Slice(c.fullTypes, func(i, j int) bool {
-		return c.fullTypes[i].Name < c.fullTypes[j].Name
-	})
-	c.knownFullTypes[mergedType.Name] = &knownFullTypeDetails{}
-	return nil
+	return c.checkAndProcessAllOfAnyOfCommon(schema.Ref, schema.Value.AnyOf)
 }
 
 func (c *converter) processSchema(schema *openapi3.SchemaRef) error {
