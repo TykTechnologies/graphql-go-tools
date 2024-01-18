@@ -67,6 +67,24 @@ func (c *converter) checkAndProcessOneOfKeyword(schema *openapi3.SchemaRef) erro
 	return nil
 }
 
+func (c *converter) mergedTypePostProcessing(mergedType introspection.FullType) {
+	sort.Slice(mergedType.Fields, func(i, j int) bool {
+		return mergedType.Fields[i].Name < mergedType.Fields[j].Name
+	})
+	sort.Slice(mergedType.InputFields, func(i, j int) bool {
+		return mergedType.InputFields[i].Name < mergedType.InputFields[j].Name
+	})
+	sort.Slice(mergedType.EnumValues, func(i, j int) bool {
+		return mergedType.EnumValues[i].Name < mergedType.EnumValues[j].Name
+	})
+
+	c.fullTypes = append(c.fullTypes, mergedType)
+	sort.Slice(c.fullTypes, func(i, j int) bool {
+		return c.fullTypes[i].Name < c.fullTypes[j].Name
+	})
+	c.knownFullTypes[mergedType.Name] = &knownFullTypeDetails{}
+}
+
 func (c *converter) checkAndProcessAllOfAnyOfCommon(ref string, items openapi3.SchemaRefs) error {
 	var (
 		err      error
@@ -116,8 +134,6 @@ func (c *converter) checkAndProcessAllOfAnyOfCommon(ref string, items openapi3.S
 					mergedType.Fields = append(mergedType.Fields, field)
 				}
 			}
-			mergedType.PossibleTypes = append(mergedType.PossibleTypes, fullType.PossibleTypes...)
-			mergedType.Interfaces = append(mergedType.Interfaces, fullType.Interfaces...)
 		} else if fullType.Kind == introspection.ENUM {
 			if _, ok := c.knownEnums[fullType.Name]; ok {
 				continue
@@ -126,23 +142,10 @@ func (c *converter) checkAndProcessAllOfAnyOfCommon(ref string, items openapi3.S
 				c.fullTypes = append(c.fullTypes, fullType)
 			}
 		}
+		mergedType.PossibleTypes = append(mergedType.PossibleTypes, fullType.PossibleTypes...)
+		mergedType.Interfaces = append(mergedType.Interfaces, fullType.Interfaces...)
 	}
-
-	sort.Slice(mergedType.Fields, func(i, j int) bool {
-		return mergedType.Fields[i].Name < mergedType.Fields[j].Name
-	})
-	sort.Slice(mergedType.InputFields, func(i, j int) bool {
-		return mergedType.InputFields[i].Name < mergedType.InputFields[j].Name
-	})
-	sort.Slice(mergedType.EnumValues, func(i, j int) bool {
-		return mergedType.EnumValues[i].Name < mergedType.EnumValues[j].Name
-	})
-
-	c.fullTypes = append(c.fullTypes, mergedType)
-	sort.Slice(c.fullTypes, func(i, j int) bool {
-		return c.fullTypes[i].Name < c.fullTypes[j].Name
-	})
-	c.knownFullTypes[mergedType.Name] = &knownFullTypeDetails{}
+	c.mergedTypePostProcessing(mergedType)
 	return nil
 }
 
