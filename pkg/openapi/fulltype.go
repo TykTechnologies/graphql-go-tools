@@ -40,10 +40,9 @@ func (c *converter) checkAndProcessOneOfKeyword(schema *openapi3.SchemaRef) erro
 		unionName := MakeTypeNameFromPathName(c.currentPathName)
 		if _, ok := c.knownUnions[unionName]; ok {
 			// Already have the union definition.
-			// TODO: Do we need to add more types to this UNION?
 			return nil
 		}
-		unionType := &introspection.FullType{
+		unionType := introspection.FullType{
 			Kind:          introspection.UNION,
 			Name:          unionName,
 			PossibleTypes: []introspection.TypeRef{},
@@ -62,7 +61,8 @@ func (c *converter) checkAndProcessOneOfKeyword(schema *openapi3.SchemaRef) erro
 				Name: &fullTypeName,
 			})
 		}
-		c.fullTypes = append(c.fullTypes, *unionType)
+		c.knownUnions[unionName] = unionType
+		c.fullTypes = append(c.fullTypes, unionType)
 	}
 	return nil
 }
