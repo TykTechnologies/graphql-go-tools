@@ -47,18 +47,28 @@ func (c *converter) processInputObject(schema *openapi3.SchemaRef) error {
 }
 
 func (c *converter) makeInputObjectFromAllOfAnyOfCommon(items openapi3.SchemaRefs) (string, error) {
+	// Create a new converter here to process AllOf and AnyOf keywords and merge the types.
+	// Then we move the merged type to the root converter.
 	cc := newConverter(c.openapi)
 	for i, item := range items {
 		if item.Ref == "" {
+			// Generate a name for the unnamed type. We just need the fields.
 			item.Ref = fmt.Sprintf("unnamed-type-item-%d", i)
 		}
 		if err := cc.processSchema(item); err != nil {
 			return "", err
 		}
 	}
+
+	typeName := MakeInputTypeName(MakeTypeNameFromPathName(c.currentPathName))
+	if _, ok := c.knownFullTypes[typeName]; ok {
+		// Already created, passing it.
+		return typeName, nil
+	}
+
 	mergedType := introspection.FullType{
 		Kind: introspection.INPUTOBJECT,
-		Name: MakeInputTypeName(MakeTypeNameFromPathName(c.currentPathName)),
+		Name: typeName,
 	}
 	knownFields := make(map[string]struct{})
 	knownInputFields := make(map[string]struct{})

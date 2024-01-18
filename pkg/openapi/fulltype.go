@@ -91,9 +91,12 @@ func (c *converter) checkAndProcessAllOfAnyOfCommon(ref string, items openapi3.S
 		return nil
 	}
 
+	// Create a new converter here to process AllOf and AnyOf keywords and merge the types.
+	// Then we move the merged type to the root converter.
 	cc := newConverter(c.openapi)
 	for i, item := range items {
 		if item.Ref == "" {
+			// Generate a name for the unnamed type. We just need the fields.
 			item.Ref = fmt.Sprintf("unnamed-type-item-%d", i)
 		}
 		if err = cc.processSchema(item); err != nil {
