@@ -133,7 +133,11 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 					}
 				}
 
-				typeName = strcase.ToCamel(typeName)
+				// Don't convert the type name to CamelCase if it is a predefined
+				// scalar such as JSON.
+				if _, ok := preDefinedScalarTypes[typeName]; !ok {
+					typeName = strcase.ToCamel(typeName)
+				}
 				typeRef, err := getTypeRef("object")
 				if err != nil {
 					return nil, err
