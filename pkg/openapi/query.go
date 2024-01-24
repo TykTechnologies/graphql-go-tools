@@ -62,7 +62,11 @@ func (c *converter) importQueryType() (*introspection.FullType, error) {
 					kind = "object"
 				}
 
-				typeName = strcase.ToCamel(typeName)
+				// Don't convert the type name to CamelCase if it is a predefined
+				// scalar such as JSON.
+				if _, ok := preDefinedScalarTypes[typeName]; !ok {
+					typeName = strcase.ToCamel(typeName)
+				}
 				typeRef, err := getTypeRef(kind)
 				if err != nil {
 					return nil, err
