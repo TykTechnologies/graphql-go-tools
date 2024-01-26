@@ -346,7 +346,21 @@ func (l *Loader) mergeResult(res *result, items []int) error {
 		return l.renderErrorsFailedToFetch(res)
 	}
 	if res.authorizationRejected {
-		return l.renderAuthorizationRejectedErrors(res)
+		err := l.renderAuthorizationRejectedErrors(res)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		before := l.data.DebugPrintNode(l.dataRoot)
+		for _, item := range items {
+			l.data.Nodes = append(l.data.Nodes, astjson.Node{
+				Kind: astjson.NodeKindNullSkipError,
+			})
+			ref := len(l.data.Nodes) - 1
+			l.data.MergeNodesWithPath(item, ref, res.postProcessing.MergePath)
+		}
+		after := l.data.DebugPrintNode(l.dataRoot)
+		_, _ = before, after
+		return nil
 	}
 	if res.fetchSkipped {
 		return nil
@@ -514,9 +528,6 @@ func (l *Loader) renderErrorsFailedToFetch(res *result) error {
 }
 
 func (l *Loader) renderAuthorizationRejectedErrors(res *result) error {
-	if len(l.path) != 0 {
-		return nil
-	}
 	path := l.renderPath()
 	for i := range res.authorizationRejectedReasons {
 		l.ctx.appendSubgraphError(errors.Wrap(res.err, fmt.Sprintf("Authorization rejected for subgraph '%s' at path '%s'. Reason: %s", res.subgraphName, path, res.authorizationRejectedReasons[i])))
@@ -557,7 +568,7 @@ func (l *Loader) renderAuthorizationRejectedErrors(res *result) error {
 	return nil
 }
 
-func (l *Loader) isFetchAuthorized(info *FetchInfo, res *result) (authorized bool, err error) {
+func (l *Loader) isFetchAuthorized(input []byte, info *FetchInfo, res *result) (authorized bool, err error) {
 	if info == nil {
 		return true, nil
 	}
@@ -569,7 +580,7 @@ func (l *Loader) isFetchAuthorized(info *FetchInfo, res *result) (authorized boo
 		if !info.RootFields[i].HasAuthorizationRule {
 			continue
 		}
-		reject, err := l.ctx.authorizer.Authorize(l.ctx, info.DataSourceID, info.RootFields[i])
+		reject, err := l.ctx.authorizer.AuthorizePreFetch(l.ctx, info.DataSourceID, input, info.RootFields[i])
 		if err != nil {
 			return false, errors.WithStack(err)
 		}
@@ -604,14 +615,15 @@ func (l *Loader) loadSingleFetch(ctx context.Context, fetch *SingleFetch, items 
 	if err != nil {
 		return l.renderErrorsInvalidInput(res.out)
 	}
-	authorized, err := l.isFetchAuthorized(fetch.Info, res)
+	fetchInput := preparedInput.Bytes()
+	authorized, err := l.isFetchAuthorized(fetchInput, fetch.Info, res)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 	if !authorized {
 		return nil
 	}
-	res.err = l.executeSourceLoad(ctx, fetch.DataSource, preparedInput.Bytes(), res.out, fetch.Trace)
+	res.err = l.executeSourceLoad(ctx, fetch.DataSource, fetchInput, res.out, fetch.Trace)
 	return nil
 }
 
@@ -683,14 +695,15 @@ func (l *Loader) loadEntityFetch(ctx context.Context, fetch *EntityFetch, items 
 	if err != nil {
 		return errors.WithStack(err)
 	}
-	authorized, err := l.isFetchAuthorized(fetch.Info, res)
+	fetchInput := preparedInput.Bytes()
+	authorized, err := l.isFetchAuthorized(fetchInput, fetch.Info, res)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 	if !authorized {
 		return nil
 	}
-	res.err = l.executeSourceLoad(ctx, fetch.DataSource, preparedInput.Bytes(), res.out, fetch.Trace)
+	res.err = l.executeSourceLoad(ctx, fetch.DataSource, fetchInput, res.out, fetch.Trace)
 	return nil
 }
 
@@ -803,14 +816,15 @@ WithNextItem:
 	if err != nil {
 		return errors.WithStack(err)
 	}
-	authorized, err := l.isFetchAuthorized(fetch.Info, res)
+	fetchInput := preparedInput.Bytes()
+	authorized, err := l.isFetchAuthorized(fetchInput, fetch.Info, res)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 	if !authorized {
 		return nil
 	}
-	res.err = l.executeSourceLoad(ctx, fetch.DataSource, preparedInput.Bytes(), res.out, fetch.Trace)
+	res.err = l.executeSourceLoad(ctx, fetch.DataSource, fetchInput, res.out, fetch.Trace)
 	return nil
 }
 
