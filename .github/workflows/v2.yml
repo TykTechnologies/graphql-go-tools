@@ -15,7 +15,7 @@ on:
 jobs:
   test:
     name: Build and test (go ${{ matrix.go }} / ${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}-latest
     strategy:
       matrix:
         go: [ '1.19', '1.21' ]
@@ -60,7 +60,7 @@ jobs:
   ci:
     name: CI Success
     if: ${{ always() }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     needs: [test, lint]
     steps:
       - run: exit 1
