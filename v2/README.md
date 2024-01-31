@@ -15,7 +15,7 @@ Check out the [Demo](/examples/federation).
 
 ## Overview
 
-This repository implements low level building blocks to write graphql services in Go.
+This repository provides low-level building blocks for writing GraphQL services in Go, including: proxies, caches, server/client implementations, WAF, and more.
 
 With this library you could build tools like:
 - proxies
@@ -26,7 +26,7 @@ With this library you could build tools like:
 
 Currently implemented:
 
-- GraphQL AST as of https://graphql.github.io/graphql-spec/June2018
+- Implementation of the latest GraphQL AST specifications from https://graphql.github.io/graphql-spec/June2018
 - Token lexing
 - AST parsing: parse bytes/string into AST
 - AST printing: print an AST to an io.Writer
@@ -63,7 +63,7 @@ Currently implemented:
 
 ## Go version Info
 
-This repos uses go modules so make sure to use the latest version of Go.
+This repository uses Go modules so make sure to use the latest version of Go.
 
 ## Docs
 
@@ -87,7 +87,7 @@ Other than that, tests definitely help understanding this library.
 Most hot path operations have 0 allocations.
 You should expect this library to exceed all alternatives in terms of performance.
 I've compared my implementation vs. others but why trust my numbers?
-Feel free to add comparisons via PR.
+Contributions via PRs should include performance comparisons.
 
 ## Benchmarks
 
@@ -134,7 +134,7 @@ CPU and Memory consumption for lexing, parsing as well as most other operations 
 
 ## Contributions
 
-Feel free to file an issue in case of bugs.
+If you encounter any bugs, feel free to file an issue for further assistance. We are open to enhancing the repository based on your feedback.
 We're open to your ideas to enhance the repository.
 
 You are open to contribute via PR's.
