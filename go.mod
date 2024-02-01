@@ -8,6 +8,7 @@ require (
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/Shopify/sarama v1.29.1
+	github.com/andybalholm/brotli v1.1.0
 	github.com/asyncapi/parser-go v0.4.2
 	github.com/buger/jsonparser v1.1.1
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
