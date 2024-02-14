@@ -159,21 +159,9 @@ type WebsocketBeforeStartHook interface {
 
 type ExecutionOptionsV2 func(postProcessor *postprocess.Processor, resolveContext *resolve.Context)
 
-func WithBeforeFetchHook(hook resolve.BeforeFetchHook) ExecutionOptionsV2 {
-	return func(postProcessor *postprocess.Processor, resolveContext *resolve.Context) {
-		resolveContext.SetBeforeFetchHook(hook)
-	}
-}
-
 func WithUpstreamHeaders(header http.Header) ExecutionOptionsV2 {
 	return func(postProcessor *postprocess.Processor, resolveContext *resolve.Context) {
 		postProcessor.AddPostProcessor(postprocess.NewProcessInjectHeader(header))
-	}
-}
-
-func WithAfterFetchHook(hook resolve.AfterFetchHook) ExecutionOptionsV2 {
-	return func(postProcessor *postprocess.Processor, resolveContext *resolve.Context) {
-		resolveContext.SetAfterFetchHook(hook)
 	}
 }
 
