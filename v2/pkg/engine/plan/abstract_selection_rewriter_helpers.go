@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/exp/slices"
 
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/ast"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
 )
 
 func (r *fieldSelectionRewriter) datasourceHasEntitiesWithName(typeNames []string) (entityNames []string, ok bool) {

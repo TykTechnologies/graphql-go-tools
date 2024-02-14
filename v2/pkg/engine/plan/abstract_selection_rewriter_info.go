@@ -3,7 +3,7 @@ package plan
 import (
 	"golang.org/x/exp/slices"
 
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/ast"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
 )
 
 type selectionSetInfo struct {
