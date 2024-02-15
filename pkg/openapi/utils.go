@@ -302,15 +302,12 @@ func isStatusCodeRange(statusCode string) bool {
 // sanitizeResponses cleans up responses. If a response range is defined using an
 // explicit code, the explicit code definition takes precedence over the range definition for that code.
 func sanitizeResponses(responses openapi3.Responses) (openapi3.Responses, error) {
-	/*
-			OpenAPI specification:
-
-			To define a range of response codes, you may use the following range definitions:
-			1XX, 2XX, 3XX, 4XX, and 5XX.
-
-			If a response range is defined using an explicit code, the explicit code definition
-		    takes precedence over the range definition for that code.
-	*/
+	// OpenAPI specification:
+	//
+	// To define a range of response codes, you may use the following range definitions:
+	// 1XX, 2XX, 3XX, 4XX, and 5XX.
+	// If a response range is defined using an explicit code, the explicit code definition
+	//takes precedence over the range definition for that code.
 
 	result := make(openapi3.Responses)
 	occupiedStatusCodeRange := make(map[string]struct{})
