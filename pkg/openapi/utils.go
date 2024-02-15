@@ -216,12 +216,12 @@ func getJSONSchemaFromResponseRef(response *openapi3.ResponseRef) *openapi3.Sche
 	return schema
 }
 
-func getJSONSchema(status int, operation *openapi3.Operation) *openapi3.SchemaRef {
-	response := getResponseFromOperation(status, operation)
-	if response == nil {
-		return nil
+func findSchemaRef(responses openapi3.Responses) (int, *openapi3.SchemaRef, error) {
+	statusCode, responseRef, err := getValidResponse(responses)
+	if err != nil {
+		return 0, nil, err
 	}
-	return getJSONSchemaFromResponseRef(response)
+	return statusCode, getJSONSchemaFromResponseRef(responseRef), nil
 }
 
 func getJSONSchemaFromRequestBody(operation *openapi3.Operation) *openapi3.SchemaRef {

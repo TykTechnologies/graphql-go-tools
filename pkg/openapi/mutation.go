@@ -104,11 +104,10 @@ func (c *converter) importMutationType() (*introspection.FullType, error) {
 				continue
 			}
 
-			statusCode, responseRef, err := getValidResponse(operation.Responses)
+			statusCode, schema, err := findSchemaRef(operation.Responses)
 			if err != nil {
 				return nil, err
 			}
-			schema := getJSONSchemaFromResponseRef(responseRef)
 
 			var typeName string
 			if schema == nil {

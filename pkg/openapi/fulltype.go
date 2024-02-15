@@ -207,11 +207,10 @@ func (c *converter) importFullTypes() ([]introspection.FullType, error) {
 				continue
 			}
 
-			_, responseRef, err := getValidResponse(operation.Responses)
+			_, schema, err := findSchemaRef(operation.Responses)
 			if err != nil {
 				return nil, err
 			}
-			schema := getJSONSchemaFromResponseRef(responseRef)
 			if schema == nil {
 				continue
 			}

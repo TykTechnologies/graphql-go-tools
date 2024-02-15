@@ -26,11 +26,10 @@ func (c *converter) importQueryType() (*introspection.FullType, error) {
 				continue
 			}
 
-			statusCode, responseRef, err := getValidResponse(operation.Responses)
+			statusCode, schema, err := findSchemaRef(operation.Responses)
 			if err != nil {
 				return nil, err
 			}
-			schema := getJSONSchemaFromResponseRef(responseRef)
 
 			var (
 				kind     string
