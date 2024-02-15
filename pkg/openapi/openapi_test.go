@@ -34,7 +34,6 @@ func testFixtureFile(t *testing.T, version, name string) {
 
 	graphqlDoc, err := os.ReadFile(fmt.Sprintf("./fixtures/%s/%s.graphql", version, name))
 	require.NoError(t, err)
-	fmt.Println(w.String())
 	require.Equal(t, string(graphqlDoc), w.String())
 }
 
@@ -169,5 +168,9 @@ func TestOpenAPI_v3_0_0(t *testing.T) {
 
 	t.Run("status-code-precedence.yaml", func(t *testing.T) {
 		testFixtureFile(t, "v3.0.0", "status-code-precedence.yaml")
+	})
+
+	t.Run("status-code-valid-responses.yaml", func(t *testing.T) {
+		testFixtureFile(t, "v3.0.0", "status-code-valid-responses.yaml")
 	})
 }

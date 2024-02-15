@@ -1,16 +1,21 @@
 package openapi
 
 import (
+	"errors"
 	"fmt"
+	"sort"
+	"strconv"
+	"strings"
+
 	"github.com/TykTechnologies/graphql-go-tools/pkg/introspection"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/lexer/literal"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/iancoleman/strcase"
-	"strconv"
-	"strings"
 )
 
 const JsonScalarType = "JSON"
+
+var errNoValidResponse = errors.New("no valid response found")
 
 var preDefinedScalarTypes = map[string]string{
 	JsonScalarType: "The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).",
@@ -352,4 +357,42 @@ func sanitizeResponses(responses openapi3.Responses) (openapi3.Responses, error)
 	}
 
 	return result, nil
+}
+
+// getValidResponse returns the first valid response from the given responses map.
+// It iterates over the responses map and checks if the status code of each response is a valid status.
+//
+// OpenAPI-to-GraphQL translator mimics IBM/openapi-to-graphql tool. This tool accepts HTTP code 200-299 or 2XX
+// as valid responses. Other status codes are simply ignored. Currently, we follow the same convention.
+func getValidResponse(responses openapi3.Responses) (int, *openapi3.ResponseRef, error) {
+	responses, err := sanitizeResponses(responses)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	var validStatusCodes []int
+	validResponseRefs := make(map[int]*openapi3.ResponseRef)
+	for stringStatusCode, responseRef := range responses {
+		statusCode, err := convertStatusCode(stringStatusCode)
+		if err != nil {
+			return 0, nil, err
+		}
+
+		if isValidResponse(statusCode) {
+			validStatusCodes = append(validStatusCodes, statusCode)
+			validResponseRefs[statusCode] = responseRef
+		}
+	}
+
+	if len(validStatusCodes) == 0 {
+		return 0, nil, errNoValidResponse
+	}
+
+	// If the OpenAPI document contains multiple possible successful response object
+	// (HTTP code 200-299 or 2XX). Only one can be chosen.
+	// Select first response object with successful status code (200-299).
+	// The response object with the HTTP code 200 will be selected
+	sort.Ints(validStatusCodes)
+	validStatusCode := validStatusCodes[0]
+	return validStatusCode, validResponseRefs[validStatusCode], nil
 }

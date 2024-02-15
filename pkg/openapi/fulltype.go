@@ -207,29 +207,17 @@ func (c *converter) importFullTypes() ([]introspection.FullType, error) {
 				continue
 			}
 
-			responses, err := sanitizeResponses(operation.Responses)
+			_, responseRef, err := getValidResponse(operation.Responses)
 			if err != nil {
-				return nil, fmt.Errorf("error while sanitizing responses for %s: %w", pathName, err)
+				return nil, err
 			}
-
-			for statusCodeStr := range responses {
-				status, err := convertStatusCode(statusCodeStr)
-				if err != nil {
-					return nil, err
-				}
-				if !isValidResponse(status) {
-					continue
-				}
-
-				schema := getJSONSchema(status, operation)
-				if schema == nil {
-					continue
-				}
-
-				err = c.processSchema(schema)
-				if err != nil {
-					return nil, err
-				}
+			schema := getJSONSchemaFromResponseRef(responseRef)
+			if schema == nil {
+				continue
+			}
+			err = c.processSchema(schema)
+			if err != nil {
+				return nil, err
 			}
 		}
 	}
