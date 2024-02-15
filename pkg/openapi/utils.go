@@ -284,3 +284,72 @@ func getResponseFromOperation(status int, operation *openapi3.Operation) *openap
 	}
 	return operation.Responses[statusCodeRange]
 }
+
+// isStatusCodeRange checks if the given statusCode is a valid status code range.
+func isStatusCodeRange(statusCode string) bool {
+	// The spec advises to use ranges as '2XX' but the OpenAPI parser accepts
+	// '2xx' as a valid status code range.
+	statusCode = strings.ToUpper(statusCode)
+	_, has := statusCodeRanges[statusCode]
+	return has
+}
+
+// sanitizeResponses cleans up responses. If a response range is defined using an
+// explicit code, the explicit code definition takes precedence over the range definition for that code.
+func sanitizeResponses(responses openapi3.Responses) (openapi3.Responses, error) {
+	/*
+			OpenAPI specification:
+
+			To define a range of response codes, you may use the following range definitions:
+			1XX, 2XX, 3XX, 4XX, and 5XX.
+
+			If a response range is defined using an explicit code, the explicit code definition
+		    takes precedence over the range definition for that code.
+	*/
+
+	result := make(openapi3.Responses)
+	occupiedStatusCodeRange := make(map[string]struct{})
+
+	// First pass, select the explicit code definitions.
+	for stringStatusCode, response := range responses {
+		// 'default' is not a valid response, ignore it.
+		if stringStatusCode == "default" {
+			continue
+		}
+
+		if isStatusCodeRange(stringStatusCode) {
+			// 2XX, 3XX, etc.
+			continue
+		}
+
+		result[stringStatusCode] = response
+
+		// Calculate the occupied status code range.
+		statusCode, err := strconv.Atoi(stringStatusCode)
+		if err != nil {
+			return nil, err
+		}
+		statusCodeRange, err := statusCodeToRange(statusCode)
+		if err != nil {
+			return nil, err
+		}
+		occupiedStatusCodeRange[statusCodeRange] = struct{}{}
+	}
+
+	// Use the status code ranges if not occupied.
+	for stringStatusCode, response := range responses {
+		// 'default' is not a valid response, ignore it.
+		if stringStatusCode == "default" {
+			continue
+		}
+
+		if !isStatusCodeRange(stringStatusCode) {
+			continue
+		}
+		if _, ok := occupiedStatusCodeRange[stringStatusCode]; !ok {
+			result[stringStatusCode] = response
+		}
+	}
+
+	return result, nil
+}

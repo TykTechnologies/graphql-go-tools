@@ -24,10 +24,13 @@ func (c *converter) importQueryType() (*introspection.FullType, error) {
 			if operation == nil {
 				continue
 			}
-			for statusCodeStr := range operation.Responses {
-				if statusCodeStr == "default" {
-					continue
-				}
+
+			responses, err := sanitizeResponses(operation.Responses)
+			if err != nil {
+				return nil, fmt.Errorf("error while sanitizing responses for %s: %w", pathName, err)
+			}
+
+			for statusCodeStr := range responses {
 				status, err := convertStatusCode(statusCodeStr)
 				if err != nil {
 					return nil, err
