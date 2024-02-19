@@ -225,6 +225,11 @@ func (c *SubscriptionClient) generateHandlerIDHash(ctx *resolve.Context, options
 			}
 		}
 	}
+	if options.Body.Extensions != nil {
+		if _, err := xxh.Write(options.Body.Extensions); err != nil {
+			return 0, err
+		}
+	}
 	return xxh.Sum64(), nil
 }
 
@@ -253,6 +258,13 @@ func (c *SubscriptionClient) newWSConnectionHandler(reqCtx context.Context, opti
 	connectionInitMessage, err := c.getConnectionInitMessage(reqCtx, options.URL, options.Header)
 	if err != nil {
 		return nil, err
+	}
+
+	if options.Body.Extensions != nil {
+		connectionInitMessage, err = jsonparser.Set(connectionInitMessage, options.Body.Extensions, "payload", "extensions")
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// init + ack

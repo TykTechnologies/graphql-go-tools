@@ -8,6 +8,8 @@ import (
 	"io"
 	"sync"
 
+	"github.com/buger/jsonparser"
+
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/pool"
 )
@@ -79,7 +81,7 @@ func (r *Resolver) ResolveGraphQLResponse(ctx *Context, response *GraphQLRespons
 	return t.resolvable.Resolve(ctx.ctx, response.Data, writer)
 }
 
-func (r *Resolver) ResolveGraphQLSubscription(ctx *Context, subscription *GraphQLSubscription, writer FlushWriter) error {
+func (r *Resolver) ResolveGraphQLSubscription(ctx *Context, subscription *GraphQLSubscription, writer FlushWriter) (err error) {
 
 	if subscription.Trigger.Source == nil {
 		msg := []byte(`{"errors":[{"message":"no data source found"}]}`)
@@ -94,6 +96,10 @@ func (r *Resolver) ResolveGraphQLSubscription(ctx *Context, subscription *GraphQ
 	rendered := buf.Bytes()
 	subscriptionInput := make([]byte, len(rendered))
 	copy(subscriptionInput, rendered)
+
+	if ctx.Extensions != nil {
+		subscriptionInput, err = jsonparser.Set(subscriptionInput, ctx.Extensions, "body", "extensions")
+	}
 
 	c, cancel := context.WithCancel(ctx.Context())
 	defer cancel()
