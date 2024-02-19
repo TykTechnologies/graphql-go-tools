@@ -16,9 +16,9 @@ import (
 	"github.com/buger/jsonparser"
 	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
-	"github.com/wundergraph/graphql-go-tools/v2/pkg/ast"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/astjson"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/pool"
 )
