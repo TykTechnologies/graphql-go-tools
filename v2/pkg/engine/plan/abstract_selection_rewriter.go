@@ -2,6 +2,7 @@ package plan
 
 import (
 	"errors"
+	"slices"
 	"sort"
 
 	"golang.org/x/exp/slices"

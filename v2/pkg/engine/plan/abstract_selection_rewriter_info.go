@@ -1,7 +1,7 @@
 package plan
 
 import (
-	"golang.org/x/exp/slices"
+	"slices"
 
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
 )

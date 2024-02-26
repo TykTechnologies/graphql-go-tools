@@ -10,11 +10,10 @@ import (
 	"net/http/httptrace"
 	"runtime"
 	"runtime/debug"
+	"slices"
 	"strings"
 	"sync"
 	"time"
-
-	"golang.org/x/exp/slices"
 
 	"github.com/buger/jsonparser"
 	"github.com/pkg/errors"

@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"slices"
 	"sort"
 
 	"golang.org/x/exp/slices"
