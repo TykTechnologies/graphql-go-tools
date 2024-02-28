@@ -17,7 +17,6 @@ import (
 type Resolver struct {
 	ctx                      context.Context
 	enableSingleFlightLoader bool
-	sf                       *Group
 	toolPool                 sync.Pool
 }
 
@@ -27,11 +26,9 @@ type tools struct {
 }
 
 // New returns a new Resolver, ctx.Done() is used to cancel all active subscriptions & streams
-func New(ctx context.Context, enableSingleFlightLoader bool) *Resolver {
+func New(ctx context.Context) *Resolver {
 	return &Resolver{
-		ctx:                      ctx,
-		enableSingleFlightLoader: enableSingleFlightLoader,
-		sf:                       &Group{},
+		ctx: ctx,
 		toolPool: sync.Pool{
 			New: func() interface{} {
 				return &tools{
@@ -45,7 +42,6 @@ func New(ctx context.Context, enableSingleFlightLoader bool) *Resolver {
 
 func (r *Resolver) getTools() *tools {
 	t := r.toolPool.Get().(*tools)
-	t.loader.sf = r.sf
 	t.loader.enableSingleFlight = r.enableSingleFlightLoader
 	return t
 }

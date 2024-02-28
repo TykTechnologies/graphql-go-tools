@@ -224,7 +224,7 @@ func NewExecutionEngineV2(ctx context.Context, logger abstractlogger.Logger, eng
 		logger:             logger,
 		config:             engineConfig,
 		planner:            plan.NewPlanner(ctx, engineConfig.plannerConfig),
-		resolver:           resolve.New(ctx, engineConfig.dataLoaderConfig.EnableSingleFlightLoader),
+		resolver:           resolve.New(ctx),
 		executionPlanCache: executionPlanCache,
 	}
 
