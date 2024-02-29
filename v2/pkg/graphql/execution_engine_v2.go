@@ -221,10 +221,12 @@ func NewExecutionEngineV2(ctx context.Context, logger abstractlogger.Logger, eng
 	}
 
 	executionEngine := &ExecutionEngineV2{
-		logger:             logger,
-		config:             engineConfig,
-		planner:            plan.NewPlanner(ctx, engineConfig.plannerConfig),
-		resolver:           resolve.New(ctx),
+		logger:  logger,
+		config:  engineConfig,
+		planner: plan.NewPlanner(ctx, engineConfig.plannerConfig),
+		resolver: resolve.New(ctx, resolve.ResolverOptions{
+			MaxConcurrency: 1024,
+		}),
 		executionPlanCache: executionPlanCache,
 	}
 
