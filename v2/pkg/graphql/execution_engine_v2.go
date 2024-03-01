@@ -31,6 +31,10 @@ type EngineResultWriter struct {
 	flushCallback func(data []byte)
 }
 
+func (e *EngineResultWriter) Complete() {
+
+}
+
 func NewEngineResultWriter() EngineResultWriter {
 	return EngineResultWriter{
 		buf: &bytes.Buffer{},
@@ -288,13 +292,13 @@ func (e *ExecutionEngineV2) Plan(postProcessor *postprocess.Processor, operation
 	return cachedPlan, nil
 }
 
-func (e *ExecutionEngineV2) Resolve(resolveContext *resolve.Context, planResult plan.Plan, writer resolve.FlushWriter) error {
+func (e *ExecutionEngineV2) Resolve(resolveContext *resolve.Context, planResult plan.Plan, writer resolve.SubscriptionResponseWriter) error {
 	var err error
 	switch p := planResult.(type) {
 	case *plan.SynchronousResponsePlan:
 		err = e.resolver.ResolveGraphQLResponse(resolveContext, p.Response, nil, writer)
 	case *plan.SubscriptionResponsePlan:
-		err = e.resolver.ResolveGraphQLSubscription(resolveContext, p.Response, writer)
+		err = e.resolver.AsyncResolveGraphQLSubscription(resolveContext, p.Response, writer, resolve.SubscriptionIdentifier{})
 	default:
 		return errors.New("execution of operation is not possible")
 	}
@@ -305,7 +309,7 @@ func (e *ExecutionEngineV2) Resolve(resolveContext *resolve.Context, planResult 
 func (e *ExecutionEngineV2) Teardown() {
 }
 
-func (e *ExecutionEngineV2) Execute(ctx context.Context, operation *Request, writer resolve.FlushWriter, options ...ExecutionOptionsV2) error {
+func (e *ExecutionEngineV2) Execute(ctx context.Context, operation *Request, writer resolve.SubscriptionResponseWriter, options ...ExecutionOptionsV2) error {
 	return e.customExecutionEngineExecutor.Execute(ctx, operation, writer, options...)
 }
 
