@@ -21,7 +21,8 @@ import (
 )
 
 var (
-	ErrResolverClosed = errors.New("resolver closed")
+	ErrResolverClosed                  = errors.New("resolver closed")
+	ErrSubscriptionUpdaterNotCloseable = errors.New("subscription updater is not closeable")
 )
 
 type Reporter interface {
@@ -569,6 +570,10 @@ func (s *subscriptionUpdater) Done() {
 	s.done = true
 }
 
+func (s *subscriptionUpdater) Close() {
+	close(s.ch)
+}
+
 type subscriptionEvent struct {
 	triggerID       uint64
 	id              SubscriptionIdentifier
@@ -600,4 +605,19 @@ const (
 type SubscriptionUpdater interface {
 	Update(data []byte)
 	Done()
+}
+
+type CloseableSubscriptionUpdater interface {
+	SubscriptionUpdater
+	Close()
+}
+
+func AsCloseableSubscriptionUpdater(updater SubscriptionUpdater) (CloseableSubscriptionUpdater, bool) {
+	if updater == nil {
+		return nil, false
+	}
+	if closeable, ok := updater.(CloseableSubscriptionUpdater); ok {
+		return closeable, true
+	}
+	return nil, false
 }
