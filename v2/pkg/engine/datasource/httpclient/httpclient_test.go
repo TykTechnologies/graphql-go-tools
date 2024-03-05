@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"github.com/tidwall/sjson"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/andybalholm/brotli"
 	"github.com/stretchr/testify/assert"
+	"github.com/tidwall/sjson"
 
 	"github.com/TykTechnologies/graphql-go-tools/v2/internal/pkg/quotes"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/lexer/literal"

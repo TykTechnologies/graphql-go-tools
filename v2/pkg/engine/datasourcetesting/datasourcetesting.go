@@ -20,11 +20,28 @@ import (
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/operationreport"
 )
 
-type CheckFunc func(t *testing.T, op ast.Document, actualPlan plan.Plan)
+type testOptions struct {
+	postProcessors []postprocess.PostProcessor
+}
 
-func RunTest(definition, operation, operationName string, expectedPlan plan.Plan, config plan.Configuration, extraChecks ...CheckFunc) func(t *testing.T) {
+func WithPostProcessors(postProcessors ...postprocess.PostProcessor) func(*testOptions) {
+	return func(o *testOptions) {
+		o.postProcessors = postProcessors
+	}
+}
+
+func WithMultiFetchPostProcessor() func(*testOptions) {
+	return WithPostProcessors(&postprocess.CreateMultiFetchTypes{})
+}
+
+func RunTest(definition, operation, operationName string, expectedPlan plan.Plan, config plan.Configuration, options ...func(*testOptions)) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
+
+		opts := &testOptions{}
+		for _, o := range options {
+			o(opts)
+		}
 
 		def := unsafeparser.ParseGraphqlDocumentString(definition)
 		op := unsafeparser.ParseGraphqlDocumentString(operation)
@@ -53,16 +70,21 @@ func RunTest(definition, operation, operationName string, expectedPlan plan.Plan
 			t.Fatal(report.Error())
 		}
 
+		if opts.postProcessors != nil {
+			for _, pp := range opts.postProcessors {
+				actualPlan = pp.Process(actualPlan)
+			}
+		}
+
 		actualBytes, _ := json.MarshalIndent(actualPlan, "", "  ")
 		expectedBytes, _ := json.MarshalIndent(expectedPlan, "", "  ")
 
 		if string(expectedBytes) != string(actualBytes) {
+			// os.WriteFile("actual_plan.json", actualBytes, 0644)
+			// os.WriteFile("expected_plan.json", expectedBytes, 0644)
+
 			assert.Equal(t, expectedPlan, actualPlan)
 			t.Error(cmp.Diff(string(expectedBytes), string(actualBytes)))
-		}
-
-		for _, extraCheck := range extraChecks {
-			extraCheck(t, op, actualPlan)
 		}
 	}
 }
