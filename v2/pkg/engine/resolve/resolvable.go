@@ -9,7 +9,8 @@ import (
 
 	"github.com/cespare/xxhash/v2"
 	"github.com/tidwall/gjson"
-	"github.com/wundergraph/graphql-go-tools/v2/internal/pkg/unsafebytes"
+
+	"github.com/TykTechnologies/graphql-go-tools/v2/internal/pkg/unsafebytes"
 
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/astjson"
