@@ -32,7 +32,7 @@ type Subscription {
 `
 )
 
-type runTestOnTestDefinitionOptions func(planConfig *plan.Configuration, extraChecks *[]datasourcetesting.CheckFunc)
+type runTestOnTestDefinitionOptions func(planConfig *plan.Configuration, extraChecks []datasourcetesting.CheckFunc)
 
 func runTestOnTestDefinition(operation, operationName string, expectedPlan plan.Plan, options ...runTestOnTestDefinitionOptions) func(t *testing.T) {
 	extraChecks := make([]datasourcetesting.CheckFunc, 0)
@@ -67,14 +67,14 @@ func runTestOnTestDefinition(operation, operationName string, expectedPlan plan.
 	}
 
 	for _, opt := range options {
-		opt(&config, &extraChecks)
+		opt(&config, extraChecks)
 	}
 
-	return datasourcetesting.RunTest(testDefinition, operation, operationName, expectedPlan, config, extraChecks...)
+	return datasourcetesting.RunTest(testDefinition, operation, operationName, expectedPlan, config, datasourcetesting.WithCheckFuncs(extraChecks...))
 }
 
 func testWithFactory(factory *Factory) runTestOnTestDefinitionOptions {
-	return func(planConfig *plan.Configuration, extraChecks *[]datasourcetesting.CheckFunc) {
+	return func(planConfig *plan.Configuration, extraChecks []datasourcetesting.CheckFunc) {
 		for _, ds := range planConfig.DataSources {
 			ds.Factory = factory
 		}

@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/TykTechnologies/graphql-go-tools/v2/internal/pkg/unsafeparser"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/astnormalization"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/astprinter"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/asttransform"
@@ -20,8 +21,11 @@ import (
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/operationreport"
 )
 
+type CheckFunc func(t *testing.T, op ast.Document, actualPlan plan.Plan)
+
 type testOptions struct {
 	postProcessors []postprocess.PostProcessor
+	checkFuncs     []CheckFunc
 }
 
 func WithPostProcessors(postProcessors ...postprocess.PostProcessor) func(*testOptions) {
@@ -32,6 +36,12 @@ func WithPostProcessors(postProcessors ...postprocess.PostProcessor) func(*testO
 
 func WithMultiFetchPostProcessor() func(*testOptions) {
 	return WithPostProcessors(&postprocess.CreateMultiFetchTypes{})
+}
+
+func WithCheckFuncs(checkFuncs ...CheckFunc) func(*testOptions) {
+	return func(o *testOptions) {
+		o.checkFuncs = checkFuncs
+	}
 }
 
 func RunTest(definition, operation, operationName string, expectedPlan plan.Plan, config plan.Configuration, options ...func(*testOptions)) func(t *testing.T) {
@@ -68,6 +78,12 @@ func RunTest(definition, operation, operationName string, expectedPlan plan.Plan
 				t.Fatal(err)
 			}
 			t.Fatal(report.Error())
+		}
+
+		if opts.checkFuncs != nil {
+			for _, checkFunc := range opts.checkFuncs {
+				checkFunc(t, op, actualPlan)
+			}
 		}
 
 		if opts.postProcessors != nil {
