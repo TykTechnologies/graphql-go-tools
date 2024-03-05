@@ -11,12 +11,12 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/TykTechnologies/graphql-go-tools/v2/internal/pkg/unsafeparser"
-	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/astnormalization"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/astprinter"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/asttransform"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/astvalidation"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/plan"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/postprocess"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/operationreport"
 )
 
