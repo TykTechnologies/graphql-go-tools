@@ -149,6 +149,7 @@ func TestFastHttpJsonDataSourcePlanning(t *testing.T) {
 			Response: &resolve.GraphQLResponse{
 				Data: &resolve.Object{
 					Fetch: &resolve.SingleFetch{
+						FetchID: 0,
 						FetchConfiguration: resolve.FetchConfiguration{
 							Input:      `{"method":"GET","url":"https://example.com/friend"}`,
 							DataSource: &Source{},
@@ -162,6 +163,7 @@ func TestFastHttpJsonDataSourcePlanning(t *testing.T) {
 							Value: &resolve.Object{
 								Nullable: true,
 								Fetch: &resolve.SingleFetch{
+									FetchID: 1,
 									FetchConfiguration: resolve.FetchConfiguration{
 										Input:      `{"method":"GET","url":"https://example.com/friend/$$0$$/pet"}`,
 										DataSource: &Source{},
@@ -218,6 +220,12 @@ func TestFastHttpJsonDataSourcePlanning(t *testing.T) {
 							FieldNames: []string{"friend"},
 						},
 					},
+					ChildNodes: []plan.TypeField{
+						{
+							TypeName:   "Friend",
+							FieldNames: []string{"name"},
+						},
+					},
 					Custom: ConfigJSON(Configuration{
 						Fetch: FetchConfiguration{
 							URL:    "https://example.com/friend",
@@ -231,6 +239,12 @@ func TestFastHttpJsonDataSourcePlanning(t *testing.T) {
 						{
 							TypeName:   "Friend",
 							FieldNames: []string{"pet"},
+						},
+					},
+					ChildNodes: []plan.TypeField{
+						{
+							TypeName:   "Pet",
+							FieldNames: []string{"id", "name"},
 						},
 					},
 					Custom: ConfigJSON(Configuration{

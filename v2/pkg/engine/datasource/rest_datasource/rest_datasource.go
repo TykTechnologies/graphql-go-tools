@@ -26,8 +26,7 @@ type Planner struct {
 }
 
 func (p *Planner) UpstreamSchema(dataSourceConfig plan.DataSourceConfiguration) *ast.Document {
-	//TODO implement me
-	panic("implement me")
+	return nil
 }
 
 const (
