@@ -18,11 +18,13 @@ import (
 )
 
 type Planner struct {
-	client              *http.Client
-	v                   *plan.Visitor
-	config              Configuration
-	rootField           int
-	operationDefinition int
+	client                  *http.Client
+	v                       *plan.Visitor
+	config                  Configuration
+	datasourceConfiguration plan.DataSourceConfiguration
+	dataSourcePlannerConfig plan.DataSourcePlannerConfiguration
+	rootField               int
+	operationDefinition     int
 }
 
 func (p *Planner) UpstreamSchema(dataSourceConfig plan.DataSourceConfiguration) *ast.Document {
@@ -88,15 +90,34 @@ type QueryConfiguration struct {
 	rawMessage json.RawMessage
 }
 
-func (p *Planner) Register(visitor *plan.Visitor, configuration plan.DataSourceConfiguration, _ plan.DataSourcePlannerConfiguration) error {
+func (p *Planner) Register(visitor *plan.Visitor, configuration plan.DataSourceConfiguration, plannerConfig plan.DataSourcePlannerConfiguration) error {
 	p.v = visitor
+	p.datasourceConfiguration = configuration
+	p.dataSourcePlannerConfig = plannerConfig
 	visitor.Walker.RegisterEnterFieldVisitor(p)
 	visitor.Walker.RegisterEnterOperationVisitor(p)
 	return json.Unmarshal(configuration.Custom, &p.config)
 }
 
 func (p *Planner) EnterField(ref int) {
+	if !p.allowField(ref) {
+		return
+	}
 	p.rootField = ref
+}
+
+func (p *Planner) allowField(ref int) bool {
+	fieldAliasOrName := p.v.Operation.FieldAliasOrNameString(ref)
+
+	// In addition, we skip field if its path are equal to planner parent path
+	// This is required to correctly plan on datasource which has corresponding child/root node,
+	// but we don't need to add it to the query as we are in the nested request
+	currentPath := fmt.Sprintf("%s.%s", p.v.Walker.Path.DotDelimitedString(), fieldAliasOrName)
+	if p.dataSourcePlannerConfig.ParentPath != "query" && p.dataSourcePlannerConfig.ParentPath == currentPath {
+		return false
+	}
+	enclosingTypeName := p.v.Walker.EnclosingTypeDefinition.NameString(p.v.Definition)
+	return p.datasourceConfiguration.RootNodes.HasNode(enclosingTypeName, fieldAliasOrName)
 }
 
 func (p *Planner) configureInput() []byte {
