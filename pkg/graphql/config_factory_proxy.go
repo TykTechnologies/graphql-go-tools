@@ -1,6 +1,7 @@
 package graphql
 
 import (
+	"github.com/TykTechnologies/graphql-go-tools/pkg/customdirective"
 	"net/http"
 	"time"
 
@@ -13,9 +14,16 @@ type proxyEngineConfigFactoryOptions struct {
 	httpClient                *http.Client
 	streamingClient           *http.Client
 	subscriptionClientFactory graphqlDataSource.GraphQLSubscriptionClientFactory
+	customDirectives          map[string]customdirective.CustomDirective
 }
 
 type ProxyEngineConfigFactoryOption func(options *proxyEngineConfigFactoryOptions)
+
+func WithProxyCustomDirectives(customDirectives map[string]customdirective.CustomDirective) ProxyEngineConfigFactoryOption {
+	return func(options *proxyEngineConfigFactoryOptions) {
+		options.customDirectives = customDirectives
+	}
+}
 
 func WithProxyHttpClient(client *http.Client) ProxyEngineConfigFactoryOption {
 	return func(options *proxyEngineConfigFactoryOptions) {
@@ -51,6 +59,7 @@ type ProxyEngineConfigFactory struct {
 	proxyUpstreamConfig       ProxyUpstreamConfig
 	batchFactory              resolve.DataSourceBatchFactory
 	subscriptionClientFactory graphqlDataSource.GraphQLSubscriptionClientFactory
+	customDirectives          map[string]customdirective.CustomDirective
 }
 
 func NewProxyEngineConfigFactory(schema *Schema, proxyUpstreamConfig ProxyUpstreamConfig, batchFactory resolve.DataSourceBatchFactory, opts ...ProxyEngineConfigFactoryOption) *ProxyEngineConfigFactory {
@@ -79,6 +88,7 @@ func NewProxyEngineConfigFactory(schema *Schema, proxyUpstreamConfig ProxyUpstre
 		proxyUpstreamConfig:       proxyUpstreamConfig,
 		batchFactory:              batchFactory,
 		subscriptionClientFactory: options.subscriptionClientFactory,
+		customDirectives:          options.customDirectives,
 	}
 }
 
@@ -97,6 +107,8 @@ func (p *ProxyEngineConfigFactory) EngineV2Configuration() (EngineV2Configuratio
 
 	conf := NewEngineV2Configuration(p.schema)
 
+	conf.SetCustomDirectives(p.customDirectives)
+
 	rawDoc, report := astparser.ParseGraphqlDocumentBytes(p.schema.rawInput)
 	if report.HasErrors() {
 		return EngineV2Configuration{}, report
@@ -108,6 +120,7 @@ func (p *ProxyEngineConfigFactory) EngineV2Configuration() (EngineV2Configuratio
 		p.httpClient,
 		WithDataSourceV2GeneratorSubscriptionConfiguration(p.streamingClient, p.proxyUpstreamConfig.SubscriptionType),
 		WithDataSourceV2GeneratorSubscriptionClientFactory(p.subscriptionClientFactory),
+		WithDataSourceV2GeneratorCustomDirectives(p.customDirectives),
 	)
 	if err != nil {
 		return EngineV2Configuration{}, err

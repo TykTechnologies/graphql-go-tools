@@ -8,9 +8,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/buger/jsonparser"
-	"github.com/tidwall/sjson"
-
 	"github.com/TykTechnologies/graphql-go-tools/internal/pkg/unsafebytes"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/ast"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/astnormalization"
@@ -18,12 +15,15 @@ import (
 	"github.com/TykTechnologies/graphql-go-tools/pkg/astprinter"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/asttransform"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/astvalidation"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/customdirective"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/engine/datasource/httpclient"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/engine/plan"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/engine/resolve"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/federation"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/lexer/literal"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/operationreport"
+	"github.com/buger/jsonparser"
+	"github.com/tidwall/sjson"
 )
 
 const removeNullVariablesDirectiveName = "removeNullVariables"
@@ -60,7 +60,8 @@ type Planner struct {
 	customScalarFieldRef    int
 	unnulVariables          bool
 
-	parentTypeNodes []ast.Node
+	parentTypeNodes  []ast.Node
+	customDirectives map[string]customdirective.CustomDirective
 }
 
 func (p *Planner) parentNodeIsAbstract() bool {
@@ -90,6 +91,11 @@ func (p *Planner) EnterDirective(ref int) {
 
 func (p *Planner) addDirectiveToNode(directiveRef int, node ast.Node) {
 	directiveName := p.visitor.Operation.DirectiveNameString(directiveRef)
+	if _, ok := p.customDirectives[directiveName]; ok {
+		// Custom directive
+		return
+	}
+
 	operationType := ast.OperationTypeQuery
 	if !p.isNested {
 		operationType = p.visitor.Operation.OperationDefinitions[p.visitor.Walker.Ancestors[0].Ref].OperationType
@@ -1308,6 +1314,7 @@ type Factory struct {
 	StreamingClient            *http.Client
 	OnWsConnectionInitCallback *OnWsConnectionInitCallback
 	SubscriptionClient         *SubscriptionClient
+	CustomDirectives           map[string]customdirective.CustomDirective
 }
 
 func (f *Factory) Planner(ctx context.Context) plan.DataSourcePlanner {
@@ -1325,6 +1332,7 @@ func (f *Factory) Planner(ctx context.Context) plan.DataSourcePlanner {
 		batchFactory:       f.BatchFactory,
 		fetchClient:        f.HTTPClient,
 		subscriptionClient: f.SubscriptionClient,
+		customDirectives:   f.CustomDirectives,
 	}
 }
 
