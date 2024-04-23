@@ -6,10 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/astparser"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/asttransform"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/datasource/httpclient"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/plan"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/resolve"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/lexer/literal"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/operationreport"
 	"github.com/buger/jsonparser"
 	"io"
 	"net/http"
@@ -28,7 +31,30 @@ type Planner struct {
 }
 
 func (p *Planner) UpstreamSchema(dataSourceConfig plan.DataSourceConfiguration) *ast.Document {
-	return nil
+	var config Configuration
+
+	err := json.Unmarshal(dataSourceConfig.Custom, &config)
+	if err != nil {
+		panic(err)
+	}
+	if config.UpstreamSchema == "" {
+		return nil
+	}
+	definition := ast.NewSmallDocument()
+	definitionParser := astparser.NewParser()
+	report := &operationreport.Report{}
+
+	definition.Input.ResetInputString(config.UpstreamSchema)
+	definitionParser.Parse(definition, report)
+	if report.HasErrors() {
+		panic(report)
+	}
+
+	if err := asttransform.MergeDefinitionWithBaseSchema(definition); err != nil {
+		panic(fmt.Errorf("unable to merge upstream schema with base schema: %v", err))
+	}
+
+	return definition
 }
 
 const (
@@ -62,8 +88,9 @@ func (f *Factory) Planner(ctx context.Context) plan.DataSourcePlanner {
 }
 
 type Configuration struct {
-	Fetch        FetchConfiguration
-	Subscription SubscriptionConfiguration
+	UpstreamSchema string
+	Fetch          FetchConfiguration
+	Subscription   SubscriptionConfiguration
 }
 
 func ConfigJSON(config Configuration) json.RawMessage {
