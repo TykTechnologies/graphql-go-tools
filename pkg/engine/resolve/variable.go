@@ -4,10 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/buger/jsonparser"
 	"io"
 	"strconv"
-
-	"github.com/buger/jsonparser"
 
 	"github.com/TykTechnologies/graphql-go-tools/pkg/ast"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/graphqljsonschema"
@@ -636,7 +635,7 @@ func extractStringWithQuotes(rootValueType JsonRootType, data []byte) ([]byte, j
 		}
 	}
 	if desiredType == jsonparser.String {
-		return data[1 : len(data)-1], desiredType
+		//return data[1 : len(data)-1], desiredType
 	}
 	return data, desiredType
 }
