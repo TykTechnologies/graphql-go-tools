@@ -70,7 +70,8 @@ func (d *ProcessDataSource) traverseSingleFetch(fetch *resolve.SingleFetch) {
 }
 
 func (d *ProcessDataSource) resolveInputTemplate(variables resolve.Variables, input string, template *resolve.InputTemplate) {
-
+	input = strings.ReplaceAll(input, "\"$", "$")
+	input = strings.ReplaceAll(input, "$\"", "$")
 	if input == "" {
 		return
 	}

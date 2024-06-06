@@ -125,6 +125,8 @@ func NewPlainVariableRendererWithValidationFromTypeRef(operation, definition *as
 		jsonSchema = graphqljsonschema.FromTypeRef(operation, definition, variableTypeRef)
 	}
 
+	fmt.Println(">>> NewPlainVariableRendererWithValidationFromTypeRef >>", variablePath, jsonSchema.Kind())
+
 	validator, err := graphqljsonschema.NewValidatorFromSchema(jsonSchema)
 	if err != nil {
 		return nil, err
@@ -166,7 +168,7 @@ func (p *PlainVariableRenderer) RenderVariable(ctx context.Context, data []byte,
 		}
 	}
 
-	data, _ = extractStringWithQuotes(p.rootValueType, data)
+	//data, _ = extractStringWithQuotes(p.rootValueType, data)
 
 	_, err := out.Write(data)
 	return err
