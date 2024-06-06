@@ -1,6 +1,8 @@
 package postprocess
 
 import (
+	"fmt"
+	"github.com/buger/jsonparser"
 	"strconv"
 	"strings"
 
@@ -70,8 +72,6 @@ func (d *ProcessDataSource) traverseSingleFetch(fetch *resolve.SingleFetch) {
 }
 
 func (d *ProcessDataSource) resolveInputTemplate(variables resolve.Variables, input string, template *resolve.InputTemplate) {
-	input = strings.ReplaceAll(input, "\"$", "$")
-	input = strings.ReplaceAll(input, "$\"", "$")
 	if input == "" {
 		return
 	}
@@ -85,6 +85,27 @@ func (d *ProcessDataSource) resolveInputTemplate(variables resolve.Variables, in
 	}
 
 	segments := strings.Split(input, "$$")
+
+	{
+		isVariable := false
+		for _, seg := range segments {
+			switch {
+			case isVariable:
+				i, _ := strconv.Atoi(seg)
+				variableTemplateSegment := (variables)[i].TemplateSegment()
+				if variableTemplateSegment.Renderer.GetRootValueType().Value != jsonparser.String {
+					replacement := fmt.Sprintf("$$%s$$", seg)
+					oldVariable := fmt.Sprintf("\"%s\"", replacement)
+					input = strings.Replace(input, oldVariable, replacement, 1)
+				}
+				isVariable = false
+			default:
+				isVariable = true
+			}
+		}
+	}
+
+	segments = strings.Split(input, "$$")
 
 	isVariable := false
 	for _, seg := range segments {
