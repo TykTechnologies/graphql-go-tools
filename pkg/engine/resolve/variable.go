@@ -652,7 +652,7 @@ func extractStringWithQuotes(rootValueType JsonRootType, data []byte) ([]byte, j
 	}
 
 	if desiredType == jsonparser.String {
-		// Strip double quotes if data is a valid JSON string.
+		// The JSON standard requires double quotes. We strip double quotes if data is a valid JSON string.
 		// See TT-12222 for more info.
 		if data[0] == doubleQuoteCharacter && data[len(data)-1] == doubleQuoteCharacter {
 			return data[1 : len(data)-1], desiredType

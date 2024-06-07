@@ -72,10 +72,11 @@ func (d *ProcessDataSource) traverseSingleFetch(fetch *resolve.SingleFetch) {
 	fetch.SetTemplateOutputToNullOnVariableNull = false
 }
 
-// correctGraphQLVariableTypes removes double quotes from the variable definition if the variable is not a string.
+// correctGraphQLVariableTypes removes double quotes from the variable definition if the variable type is not a string.
 // This function is only intended for variables in a GraphQL request body.
 func correctGraphQLVariableTypes(variables resolve.Variables, input string) string {
 	// See TT-12313 for details.
+	// The input should be a valid JSON. So it is normal to use double quotes for string values (variable markers).
 	_, _, _, err := jsonparser.Get([]byte(input), "body", "variables")
 	if errors.Is(err, jsonparser.KeyPathNotFoundError) {
 		// No variables, return the input as-is.
