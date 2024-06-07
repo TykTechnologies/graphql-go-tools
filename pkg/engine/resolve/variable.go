@@ -13,6 +13,8 @@ import (
 	"github.com/buger/jsonparser"
 )
 
+var doubleQuoteCharacter byte = 34
+
 type VariableKind int
 
 const (
@@ -637,8 +639,6 @@ func (v *Variables) AddVariable(variable Variable) (name string, exists bool) {
 type VariableSchema struct {
 }
 
-var doubleQuote byte = 34
-
 func extractStringWithQuotes(rootValueType JsonRootType, data []byte) ([]byte, jsonparser.ValueType) {
 	desiredType := jsonparser.Unknown
 	switch rootValueType.Kind {
@@ -652,7 +652,9 @@ func extractStringWithQuotes(rootValueType JsonRootType, data []byte) ([]byte, j
 	}
 
 	if desiredType == jsonparser.String {
-		if data[0] == doubleQuote && data[len(data)-1] == doubleQuote {
+		// Strip double quotes if data is a valid JSON string.
+		// See TT-12222 for more info.
+		if data[0] == doubleQuoteCharacter && data[len(data)-1] == doubleQuoteCharacter {
 			return data[1 : len(data)-1], desiredType
 		}
 	}
