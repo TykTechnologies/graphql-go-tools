@@ -104,10 +104,7 @@ func (c *CustomExecutionEngineV2Executor) putExecutionCtx(ctx *internalExecution
 }
 
 func (c *CustomExecutionEngineV2Executor) Execute(ctx context.Context, operation *Request, writer resolve.FlushWriter, options ...ExecutionOptionsV2) error {
-	defer func() {
-		parsedQuery := &operation.document
-		parsedQuery.Recycle()
-	}()
+	defer operation.document.Recycle() // Recycle the ast.Document that has been used to parse the query.
 
 	if !c.ExecutionStages.AllRequiredStagesProvided() {
 		return ErrRequiredStagesMissing
