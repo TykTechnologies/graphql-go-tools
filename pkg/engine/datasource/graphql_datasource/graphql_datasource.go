@@ -663,9 +663,11 @@ func (p *Planner) updateRepresentationsVariable(fieldConfig *plan.FieldConfigura
 	}
 
 	// "variables\":{\"representations\":[{\"upc\":\$$0$$\,\"__typename\":\"Product\"}]}}
-	parser := astparser.NewParser()
 	doc := ast.NewDocument()
+	defer doc.Recycle()
 	doc.Input.ResetInputString(p.config.Federation.ServiceSDL)
+
+	parser := astparser.NewParser()
 	report := &operationreport.Report{}
 	parser.Parse(doc, report)
 	if report.HasErrors() {
@@ -1061,7 +1063,11 @@ func (p *Planner) printOperation() []byte {
 
 	// create empty operation and definition documents
 	operation := ast.NewDocument()
+	defer operation.Recycle()
+
 	definition := ast.NewDocument()
+	defer operation.Recycle()
+
 	report := &operationreport.Report{}
 	operationParser := astparser.NewParser()
 	definitionParser := astparser.NewParser()
