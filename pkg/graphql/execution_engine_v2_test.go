@@ -10,8 +10,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -2930,25 +2928,4 @@ func BenchmarkExecutionEngineV2_Execute_AstDocumentPool(b *testing.B) {
 		operation.isNormalized = false
 		operation.isParsed = false
 	}
-}
-
-func TestMain(m *testing.M) {
-	printMemUsage := func(out io.Writer) {
-		bToMb := func(b uint64) uint64 {
-			return b / 1024 / 1024
-		}
-		var m runtime.MemStats
-		runtime.ReadMemStats(&m)
-
-		// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-		fmt.Fprintf(out, "Alloc = %v MiB", bToMb(m.Alloc))
-		fmt.Fprintf(out, "\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
-		fmt.Fprintf(out, "\tSys = %v MiB", bToMb(m.Sys))
-		fmt.Fprintf(out, "\tNumGC = %v\n", m.NumGC)
-	}
-
-	printMemUsage(os.Stderr)
-	exitCode := m.Run()
-	printMemUsage(os.Stderr)
-	os.Exit(exitCode)
 }
