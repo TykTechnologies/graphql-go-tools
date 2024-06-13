@@ -106,10 +106,6 @@ func (r *Request) Print(writer io.Writer) (n int, err error) {
 	return writer.Write(r.document.Input.RawBytes)
 }
 
-func (r *Request) IsDocumentRecyclable() bool {
-	return r.isDocumentRecyclable
-}
-
 // Cleanup releases the resources that have been allocated during the query execution.
 // Please note that a Request instance is not reusable.
 func (r *Request) Cleanup() {
