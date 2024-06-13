@@ -10,6 +10,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -2357,7 +2359,7 @@ func TestExecutionEngineV2_GetCachedPlan(t *testing.T) {
 		}
 
 		report := operationreport.Report{}
-		cachedPlan := engine.getCachedPlan(firstInternalExecCtx.postProcessor, &gqlRequest.document, &schema.document, gqlRequest.OperationName, &report)
+		cachedPlan := engine.getCachedPlan(firstInternalExecCtx.postProcessor, &gqlRequest, &schema.document, gqlRequest.OperationName, &report)
 		_, oldestCachedPlan, _ := engine.executionPlanCache.GetOldest()
 		assert.False(t, report.HasErrors())
 		assert.Equal(t, 1, engine.executionPlanCache.Len())
@@ -2368,7 +2370,7 @@ func TestExecutionEngineV2_GetCachedPlan(t *testing.T) {
 			http.CanonicalHeaderKey("Authorization"): []string{"123abc"},
 		}
 
-		cachedPlan = engine.getCachedPlan(secondInternalExecCtx.postProcessor, &gqlRequest.document, &schema.document, gqlRequest.OperationName, &report)
+		cachedPlan = engine.getCachedPlan(secondInternalExecCtx.postProcessor, &gqlRequest, &schema.document, gqlRequest.OperationName, &report)
 		_, oldestCachedPlan, _ = engine.executionPlanCache.GetOldest()
 		assert.False(t, report.HasErrors())
 		assert.Equal(t, 1, engine.executionPlanCache.Len())
@@ -2385,7 +2387,7 @@ func TestExecutionEngineV2_GetCachedPlan(t *testing.T) {
 		}
 
 		report := operationreport.Report{}
-		cachedPlan := engine.getCachedPlan(firstInternalExecCtx.postProcessor, &gqlRequest.document, &schema.document, gqlRequest.OperationName, &report)
+		cachedPlan := engine.getCachedPlan(firstInternalExecCtx.postProcessor, &gqlRequest, &schema.document, gqlRequest.OperationName, &report)
 		_, oldestCachedPlan, _ := engine.executionPlanCache.GetOldest()
 		assert.False(t, report.HasErrors())
 		assert.Equal(t, 1, engine.executionPlanCache.Len())
@@ -2396,7 +2398,7 @@ func TestExecutionEngineV2_GetCachedPlan(t *testing.T) {
 			http.CanonicalHeaderKey("Authorization"): []string{"xyz098"},
 		}
 
-		cachedPlan = engine.getCachedPlan(secondInternalExecCtx.postProcessor, &differentGqlRequest.document, &schema.document, differentGqlRequest.OperationName, &report)
+		cachedPlan = engine.getCachedPlan(secondInternalExecCtx.postProcessor, &differentGqlRequest, &schema.document, differentGqlRequest.OperationName, &report)
 		_, oldestCachedPlan, _ = engine.executionPlanCache.GetOldest()
 		assert.False(t, report.HasErrors())
 		assert.Equal(t, 2, engine.executionPlanCache.Len())
@@ -2928,4 +2930,25 @@ func BenchmarkExecutionEngineV2_Execute_AstDocumentPool(b *testing.B) {
 		operation.isNormalized = false
 		operation.isParsed = false
 	}
+}
+
+func TestMain(m *testing.M) {
+	printMemUsage := func(out io.Writer) {
+		bToMb := func(b uint64) uint64 {
+			return b / 1024 / 1024
+		}
+		var m runtime.MemStats
+		runtime.ReadMemStats(&m)
+
+		// For info on each, see: https://golang.org/pkg/runtime/#MemStats
+		fmt.Fprintf(out, "Alloc = %v MiB", bToMb(m.Alloc))
+		fmt.Fprintf(out, "\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
+		fmt.Fprintf(out, "\tSys = %v MiB", bToMb(m.Sys))
+		fmt.Fprintf(out, "\tNumGC = %v\n", m.NumGC)
+	}
+
+	printMemUsage(os.Stderr)
+	exitCode := m.Run()
+	printMemUsage(os.Stderr)
+	os.Exit(exitCode)
 }

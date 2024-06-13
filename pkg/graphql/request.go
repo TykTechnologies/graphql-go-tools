@@ -37,10 +37,11 @@ type Request struct {
 	Variables     json.RawMessage `json:"variables,omitempty"`
 	Query         string          `json:"query"`
 
-	document     ast.Document
-	isParsed     bool
-	isNormalized bool
-	request      resolve.Request
+	document             ast.Document
+	isDocumentRecyclable bool
+	isParsed             bool
+	isNormalized         bool
+	request              resolve.Request
 
 	validForSchema map[uint64]ValidationResult
 }
@@ -96,13 +97,17 @@ func (r *Request) CalculateComplexity(complexityCalculator ComplexityCalculator,
 	return complexityCalculator.Calculate(&r.document, &schema.document)
 }
 
-func (r Request) Print(writer io.Writer) (n int, err error) {
+func (r *Request) Print(writer io.Writer) (n int, err error) {
 	report := r.parseQueryOnce()
 	if report.HasErrors() {
 		return 0, report
 	}
 
 	return writer.Write(r.document.Input.RawBytes)
+}
+
+func (r *Request) IsDocumentRecyclable() bool {
+	return r.isDocumentRecyclable
 }
 
 func (r *Request) IsNormalized() bool {
