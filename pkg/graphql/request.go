@@ -110,6 +110,15 @@ func (r *Request) IsDocumentRecyclable() bool {
 	return r.isDocumentRecyclable
 }
 
+// Cleanup releases the resources that have been allocated during the query execution.
+// Please note that a Request instance is not reusable.
+func (r *Request) Cleanup() {
+	if !r.isDocumentRecyclable {
+		return
+	}
+	r.document.Recycle()
+}
+
 func (r *Request) IsNormalized() bool {
 	return r.isNormalized
 }

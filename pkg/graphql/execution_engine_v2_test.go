@@ -2924,8 +2924,10 @@ func BenchmarkExecutionEngineV2_Execute_AstDocumentPool(b *testing.B) {
 		_ = engine.Execute(execCtx, &operation, &resultWriter)
 		execCtxCancel()
 
+		operation.Cleanup()
 		// Force the engine to parse and normalize the query again
-		operation.isNormalized = false
 		operation.isParsed = false
+		operation.isNormalized = false
+		operation.isDocumentRecyclable = false
 	}
 }
