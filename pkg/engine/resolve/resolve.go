@@ -14,14 +14,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/buger/jsonparser"
-	"github.com/cespare/xxhash/v2"
-	"github.com/tidwall/gjson"
-
 	"github.com/TykTechnologies/graphql-go-tools/internal/pkg/unsafebytes"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/customdirective"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/fastbuffer"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/lexer/literal"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/pool"
+	"github.com/buger/jsonparser"
+	"github.com/cespare/xxhash/v2"
+	"github.com/tidwall/gjson"
 )
 
 var (
@@ -1016,6 +1016,15 @@ func (r *Resolver) resolveString(ctx *Context, str *String, data []byte, stringB
 	)
 
 	value, valueType, _, err = jsonparser.Get(data, str.Path...)
+	// Start - TT-11737 - [PoC] custom Tyk directive @uppercase
+	for _, dir := range str.CustomDirectives {
+		value, err = dir.Execute(value)
+		if err != nil {
+			return err
+		}
+	}
+	// End - TT-11737
+
 	if err != nil || valueType != jsonparser.String {
 		if err == nil && str.UnescapeResponseJson {
 			switch valueType {
@@ -1561,6 +1570,7 @@ type String struct {
 	Export               *FieldExport `json:"export,omitempty"`
 	UnescapeResponseJson bool         `json:"unescape_response_json,omitempty"`
 	IsTypeName           bool         `json:"is_type_name,omitempty"`
+	CustomDirectives     []customdirective.CustomDirective
 }
 
 func (_ *String) NodeKind() NodeKind {
