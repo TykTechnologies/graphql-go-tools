@@ -4,6 +4,32 @@ import (
 	"testing"
 )
 
+func BenchmarkImplementingTypesAreSupersets(b *testing.B) {
+	b.ResetTimer()   // Reset the benchmark timer before starting the loop
+	b.ReportAllocs() // Report memory allocations
+
+	for i := 0; i < b.N; i++ {
+		runDefinitionValidation(b, `
+				interface IDType {
+				  id: ID!
+				}
+				
+				interface SoftDelete implements IDType {
+				  id: ID!
+				  deleted: Boolean!
+				}
+				
+				type Record implements SoftDelete & IDType {
+				  id: ID!
+				  deleted: Boolean!
+				  data: String!
+				}
+			`, Valid, ImplementingTypesAreSupersets(),
+		)
+	}
+
+}
+
 func TestImplementingTypesAreSupersets(t *testing.T) {
 	t.Run("Definition", func(t *testing.T) {
 		t.Run("all implementing types are supersets of their interfaces", func(t *testing.T) {
