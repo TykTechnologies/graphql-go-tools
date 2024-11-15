@@ -13,6 +13,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/eclipse/paho.mqtt.golang v1.2.0
 	github.com/evanphx/json-patch/v5 v5.1.0
+	github.com/getkin/kin-openapi v0.124.0
 	github.com/go-test/deep v1.0.8
 	github.com/gobwas/ws v1.0.4
 	github.com/golang/mock v1.6.0
@@ -59,6 +60,8 @@ require (
 	github.com/eapache/go-xerial-snappy v0.0.0-20230731223053-c322873962e3 // indirect
 	github.com/eapache/queue v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
+	github.com/go-openapi/jsonpointer v0.20.2 // indirect
+	github.com/go-openapi/swag v0.22.8 // indirect
 	github.com/gobwas/httphead v0.0.0-20180130184737-2c6c146eadee // indirect
 	github.com/gobwas/pool v0.2.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
@@ -72,30 +75,34 @@ require (
 	github.com/huandu/xstrings v1.2.1 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/invopop/yaml v0.2.0 // indirect
 	github.com/jcmturner/aescts/v2 v2.0.0 // indirect
 	github.com/jcmturner/dnsutils/v2 v2.0.0 // indirect
 	github.com/jcmturner/gofork v1.7.6 // indirect
 	github.com/jcmturner/gokrb5/v8 v8.4.4 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
+	github.com/josharian/intern v1.0.0 // indirect
 	github.com/klauspost/compress v1.16.7 // indirect
 	github.com/lib/pq v1.10.6 // indirect
 	github.com/logrusorgru/aurora/v3 v3.0.0 // indirect
 	github.com/magiconair/properties v1.8.0 // indirect
+	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/mitchellh/copystructure v1.0.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.0 // indirect
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635 // indirect
+	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.2 // indirect
 	github.com/opencontainers/runc v1.1.5 // indirect
 	github.com/pelletier/go-toml v1.6.0 // indirect
+	github.com/perimeterx/marshmallow v1.1.5 // indirect
 	github.com/pierrec/lz4/v4 v4.1.18 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
-	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/spf13/afero v1.1.2 // indirect
