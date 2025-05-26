@@ -303,9 +303,7 @@ func (s *Schema) addParentInterfaceFields(objectRef int, fieldName string, field
 // typeFieldExists checks if a type field combo exists in the arguments
 func (s *Schema) typeFieldExists(typeName, fieldName string, fieldArguments *[]TypeFieldArguments) bool {
 	for _, arg := range *fieldArguments {
-		if arg.TypeName == typeName && arg.FieldName == fieldName {
-			return true
-		}
+		return arg.TypeName == typeName && arg.FieldName == fieldName
 	}
 	return false
 }
