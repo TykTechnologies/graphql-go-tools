@@ -2,6 +2,7 @@ package graphql
 
 import (
 	"bytes"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/ast"
 	"io"
 	"testing"
 
@@ -448,6 +449,21 @@ func TestSchema_GetAllFieldArguments(t *testing.T) {
 				ArgumentNames: []string{"lvl", "number"},
 			},
 			{
+				TypeName:      "ArgType",
+				FieldName:     "id",
+				ArgumentNames: []string{"identifierField"},
+			},
+			{
+				TypeName:      "ArgType",
+				FieldName:     "name",
+				ArgumentNames: []string{"identifier"},
+			},
+			{
+				TypeName:      "ArgInterface",
+				FieldName:     "name",
+				ArgumentNames: []string{"identifier"},
+			},
+			{
 				TypeName:      "SingleArgLevel1",
 				FieldName:     "singleArgLevel2",
 				ArgumentNames: []string{"lvl"},
@@ -472,7 +488,9 @@ func TestSchema_GetAllFieldArguments(t *testing.T) {
 	})
 
 	t.Run("should get all field arguments excluding skipped fields by skip field funcs", func(t *testing.T) {
-		fieldArguments := schema.GetAllFieldArguments(NewSkipReservedNamesFunc())
+		fieldArguments := schema.GetAllFieldArguments(NewSkipReservedNamesFunc(), func(typeName, fieldName string, definition ast.Document) bool {
+			return typeName == "ArgType" || typeName == "ArgInterface"
+		})
 		expectedFieldArguments := []TypeFieldArguments{
 			{
 				TypeName:      "Query",
@@ -654,6 +672,15 @@ extend type Query {
 
 interface IDType {
 	id: ID!
+}
+
+interface ArgInterface {
+	name(identifier: string): String
+}
+
+type ArgType implements ArgInterface {
+	id(identifierField: string): String
+	name(identifier: string): String
 }
 
 type WithChildren implements IDType { 
