@@ -1,4 +1,6 @@
 version: "2"
+issues:
+  new: true
 linters:
   default: none
   enable:
