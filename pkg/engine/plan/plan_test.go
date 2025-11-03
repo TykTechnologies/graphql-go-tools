@@ -510,8 +510,9 @@ func TestPlanner_Plan(t *testing.T) {
 										Fields: []*resolve.Field{
 									{
 										Name: []byte("info"),
-										Value: &resolve.Scalar{
-											Path: []string{"info"},
+										Value: &resolve.String{
+											Path:                 []string{"info"},
+											UnescapeResponseJson: false,
 										},
 									},
 										},
