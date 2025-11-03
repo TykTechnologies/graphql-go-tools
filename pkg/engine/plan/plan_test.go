@@ -340,6 +340,46 @@ func TestPlanner_Plan(t *testing.T) {
 		))
 	})
 
+	t.Run("custom scalar long", func(t *testing.T) {
+		schema := `
+			scalar Long
+			
+			schema {
+				query: Query
+			}
+			
+			type Query {
+				getLong(id: Long!): Long!
+			}
+		`
+
+		t.Run("Long scalar field", test(
+			schema, `
+			{
+				getLong(id: 9223372036854775807)
+			}
+		`, "",
+			&SynchronousResponsePlan{
+				FlushInterval: 0,
+				Response: &resolve.GraphQLResponse{
+					Data: &resolve.Object{
+						Fields: []*resolve.Field{
+							{
+								Name: []byte("getLong"),
+								Value: &resolve.Scalar{
+									Path: []string{"getLong"},
+								},
+							},
+						},
+					},
+				},
+			},
+			Configuration{
+				DisableResolveFieldPositions: true,
+			},
+		))
+	})
+
 	t.Run("unescape response json", func(t *testing.T) {
 		schema := `
 			scalar JSON
@@ -468,13 +508,12 @@ func TestPlanner_Plan(t *testing.T) {
 									Value: &resolve.Object{
 										Path: []string{"hero"},
 										Fields: []*resolve.Field{
-											{
-												Name: []byte("info"),
-												Value: &resolve.String{
-													Path:                 []string{"info"},
-													UnescapeResponseJson: false,
-												},
-											},
+									{
+										Name: []byte("info"),
+										Value: &resolve.Scalar{
+											Path: []string{"info"},
+										},
+									},
 										},
 									},
 								},
