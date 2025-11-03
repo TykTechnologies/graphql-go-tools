@@ -127,7 +127,7 @@ func (k *kafkaCluster) startKafka(t *testing.T, port int) *dockertest.Resource {
 	portID := getPortID(port)
 	resource, err := k.pool.RunWithOptions(&dockertest.RunOptions{
 		Name:       fmt.Sprintf("kafka-tyk-graphql-%d", port),
-		Repository: "bitnami/kafka",
+		Repository: "bitnamilegacy/kafka",
 		Tag:        "3.6.0",
 		NetworkID:  k.network.ID,
 		Hostname:   hostname,
