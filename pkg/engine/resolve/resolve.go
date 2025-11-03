@@ -1651,7 +1651,7 @@ type Scalar struct {
 	Export   *FieldExport `json:"export,omitempty"`
 }
 
-func (_ *Scalar) NodeKind() NodeKind {
+func (*Scalar) NodeKind() NodeKind {
 	return NodeKindScalar
 }
 

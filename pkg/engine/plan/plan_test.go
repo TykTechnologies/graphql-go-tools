@@ -508,13 +508,13 @@ func TestPlanner_Plan(t *testing.T) {
 									Value: &resolve.Object{
 										Path: []string{"hero"},
 										Fields: []*resolve.Field{
-									{
-										Name: []byte("info"),
-										Value: &resolve.String{
-											Path:                 []string{"info"},
-											UnescapeResponseJson: false,
-										},
-									},
+											{
+												Name: []byte("info"),
+												Value: &resolve.String{
+													Path:                 []string{"info"},
+													UnescapeResponseJson: false,
+												},
+											},
 										},
 									},
 								},
