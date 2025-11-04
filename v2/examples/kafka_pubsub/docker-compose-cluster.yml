@@ -2,7 +2,7 @@ version: "2"
 
 services:
   zookeeper:
-    image: docker.io/bitnami/zookeeper:3.8
+    image: docker.io/bitnamilegacy/zookeeper:3.8
     ports:
       - "2181:2181"
     volumes:
@@ -10,7 +10,7 @@ services:
     environment:
       - ALLOW_ANONYMOUS_LOGIN=yes
   kafka-0:
-    image: docker.io/bitnami/kafka:3.1
+    image: docker.io/bitnamilegacy/kafka:3.1
     ports:
       - "9082"
       - "9092:9092"
@@ -29,7 +29,7 @@ services:
     depends_on:
       - zookeeper
   kafka-1:
-    image: docker.io/bitnami/kafka:3.1
+    image: docker.io/bitnamilegacy/kafka:3.1
     ports:
       - "9082"
       - "9093:9092"
@@ -48,7 +48,7 @@ services:
     depends_on:
       - zookeeper
   kafka-2:
-    image: docker.io/bitnami/kafka:3.1
+    image: docker.io/bitnamilegacy/kafka:3.1
     ports:
       - "9082"
       - "9094:9092"
@@ -68,7 +68,7 @@ services:
       - zookeeper
 
   kafka-3:
-    image: docker.io/bitnami/kafka:3.1
+    image: docker.io/bitnamilegacy/kafka:3.1
     ports:
       - "9082"
       - "9095:9092"

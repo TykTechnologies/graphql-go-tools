@@ -778,12 +778,20 @@ func (v *Visitor) resolveFieldValue(fieldRef, typeRef int, nullable bool, path [
 					Nullable: nullable,
 					Export:   fieldExport,
 				}
-			default:
+			case "JSON":
+				// JSON scalar always uses String node, with optional unescape
 				return &resolve.String{
 					Path:                 path,
 					Nullable:             nullable,
 					Export:               fieldExport,
 					UnescapeResponseJson: unescapeResponseJson,
+				}
+			default:
+				// Custom scalar - use Scalar node to pass through values as-is
+				return &resolve.Scalar{
+					Path:     path,
+					Nullable: nullable,
+					Export:   fieldExport,
 				}
 			}
 		case ast.NodeKindEnumTypeDefinition:

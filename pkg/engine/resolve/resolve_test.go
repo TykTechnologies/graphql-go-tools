@@ -207,6 +207,44 @@ func TestResolver_ResolveNode(t *testing.T) {
 			},
 		}, Context{ctx: context.Background()}, `{"n":12345,"ns_small":"12346","ns_big":"1152921504606846976"}`
 	}))
+	t.Run("Custom Scalar (Long) with number value", testFn(false, false, func(t *testing.T, ctrl *gomock.Controller) (node Node, ctx Context, expectedOutput string) {
+		return &Object{
+			Fetch: &SingleFetch{
+				BufferId:   0,
+				DataSource: FakeDataSource(`{"getLongFromString": 9223372036854775807}`),
+			},
+			Fields: []*Field{
+				{
+					BufferID:  0,
+					HasBuffer: true,
+					Name:      []byte("getLongFromString"),
+					Value: &Scalar{
+						Path:     []string{"getLongFromString"},
+						Nullable: false,
+					},
+				},
+			},
+		}, Context{ctx: context.Background()}, `{"getLongFromString":9223372036854775807}`
+	}))
+	t.Run("Custom Scalar (Long) with string value", testFn(false, false, func(t *testing.T, ctrl *gomock.Controller) (node Node, ctx Context, expectedOutput string) {
+		return &Object{
+			Fetch: &SingleFetch{
+				BufferId:   0,
+				DataSource: FakeDataSource(`{"getLongFromString": "9223372036854775807"}`),
+			},
+			Fields: []*Field{
+				{
+					BufferID:  0,
+					HasBuffer: true,
+					Name:      []byte("getLongFromString"),
+					Value: &Scalar{
+						Path:     []string{"getLongFromString"},
+						Nullable: false,
+					},
+				},
+			},
+		}, Context{ctx: context.Background()}, `{"getLongFromString":"9223372036854775807"}`
+	}))
 	t.Run("object with null field", testFn(false, false, func(t *testing.T, ctrl *gomock.Controller) (node Node, ctx Context, expectedOutput string) {
 		return &Object{
 			Fields: []*Field{

@@ -97,6 +97,7 @@ const (
 	NodeKindInteger
 	NodeKindFloat
 	NodeKindBigInt
+	NodeKindScalar
 	NodeKindCustom
 
 	FetchKindSingle FetchKind = iota + 1
@@ -431,6 +432,8 @@ func (r *Resolver) resolveNode(ctx *Context, node Node, data []byte, bufPair *Bu
 		return r.resolveFloat(ctx, n, data, bufPair)
 	case *BigInt:
 		return r.resolveBigInt(ctx, n, data, bufPair)
+	case *Scalar:
+		return r.resolveScalar(ctx, n, data, bufPair)
 	case *EmptyObject:
 		r.resolveEmptyObject(bufPair.Data)
 		return
@@ -991,6 +994,27 @@ func (r *Resolver) resolveCustom(ctx *Context, customValue *CustomNode, data []b
 		return fmt.Errorf("failed to resolve value type %s for path %s via custom resolver", dataType, string(ctx.path()))
 	}
 	customBuf.Data.WriteBytes(resolvedValue)
+	return nil
+}
+
+func (r *Resolver) resolveScalar(ctx *Context, scalarValue *Scalar, data []byte, scalarBuf *BufPair) error {
+	value, valueType, _, err := jsonparser.Get(data, scalarValue.Path...)
+	switch {
+	case err != nil, valueType == jsonparser.Null:
+		if !scalarValue.Nullable {
+			return errNonNullableFieldValueIsNull
+		}
+		r.resolveNull(scalarBuf.Data)
+		return nil
+	case valueType == jsonparser.String:
+		scalarBuf.Data.WriteBytes(quote)
+		scalarBuf.Data.WriteBytes(value)
+		scalarBuf.Data.WriteBytes(quote)
+	default:
+		// For custom scalars, pass through numbers, booleans, objects, and arrays as-is
+		scalarBuf.Data.WriteBytes(value)
+	}
+	r.exportField(ctx, scalarValue.Export, value)
 	return nil
 }
 
@@ -1619,6 +1643,16 @@ type BigInt struct {
 
 func (BigInt) NodeKind() NodeKind {
 	return NodeKindBigInt
+}
+
+type Scalar struct {
+	Path     []string
+	Nullable bool
+	Export   *FieldExport `json:"export,omitempty"`
+}
+
+func (*Scalar) NodeKind() NodeKind {
+	return NodeKindScalar
 }
 
 type Array struct {
