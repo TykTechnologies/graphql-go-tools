@@ -149,6 +149,19 @@ func (e *ExecutorEngine) startSubscription(ctx context.Context, id string, execu
 
 	defer e.bufferPool.Put(buf)
 
+	// ExecutorV2 (graphql-go-tools v2) drives subscriptions through the
+	// async resolver: the Execute call returns immediately after enqueuing
+	// the subscription, and the resolver event loop pushes upstream `next`
+	// frames into the writer asynchronously. The legacy poll loop below
+	// repeatedly calls Execute on a timer, which would (a) start a fresh
+	// subscription on every tick and (b) tear down the writer's flush
+	// callback in between ticks, silently dropping any update that arrives
+	// during the gap. Use a dedicated push-driven path for V2 instead.
+	if _, ok := executor.(*ExecutorV2); ok {
+		e.startSubscriptionV2(ctx, id, executor, buf, eventHandler)
+		return
+	}
+
 	if err := e.executeSubscription(ctx, buf, id, executor, eventHandler); err != nil {
 		e.logger.Error("subscription.Handle.startSubscription(): error executing subscription, terminating",
 			abstractlogger.Error(err),
@@ -171,6 +184,73 @@ func (e *ExecutorEngine) startSubscription(ctx context.Context, id string, execu
 		}
 	}
 
+}
+
+// startSubscriptionV2 is the push-driven subscription loop for the v2 engine.
+// Execute() returns immediately because the v2 resolver hands the subscription
+// off to its async event loop; from then on, every upstream frame arrives via
+// the writer's flush callback. We keep the callback active for the lifetime of
+// the subscription (until the request context is cancelled or the writer
+// signals completion) and let the resolver drive event delivery.
+func (e *ExecutorEngine) startSubscriptionV2(ctx context.Context, id string, executor Executor, buf *graphql.EngineResultWriter, eventHandler EventHandler) {
+	done := make(chan struct{})
+	var doneOnce sync.Once
+	signalDone := func() {
+		doneOnce.Do(func() { close(done) })
+	}
+
+	buf.SetFlushCallback(func(data []byte) {
+		e.logger.Debug("subscription.Handle.startSubscriptionV2()",
+			abstractlogger.ByteString("execution_result", data),
+		)
+		eventHandler.Emit(EventTypeOnSubscriptionData, id, data, nil)
+	})
+	defer buf.SetFlushCallback(nil)
+
+	completionWriter := &subscriptionCompletionWriter{
+		EngineResultWriter: buf,
+		onComplete:         signalDone,
+	}
+
+	if err := executor.Execute(completionWriter); err != nil {
+		e.logger.Error("subscription.Handle.startSubscriptionV2()",
+			abstractlogger.Error(err),
+		)
+		eventHandler.Emit(EventTypeOnError, id, nil, err)
+		return
+	}
+
+	// Some Execute paths can synchronously fill the buffer without going
+	// through Flush (e.g. when the planner produces an immediate validation
+	// error). Surface any pending bytes as a single data frame.
+	if buf.Len() > 0 {
+		data := buf.Bytes()
+		eventHandler.Emit(EventTypeOnSubscriptionData, id, data, nil)
+	}
+
+	select {
+	case <-ctx.Done():
+	case <-done:
+		// The resolver signalled completion (upstream closed the
+		// subscription). Mirror the signal at the framing layer so the
+		// websocket protocol can send a `complete` frame to the client.
+		eventHandler.Emit(EventTypeOnSubscriptionCompleted, id, nil, nil)
+	}
+}
+
+// subscriptionCompletionWriter wraps an EngineResultWriter and signals when
+// the resolver indicates the subscription has finished (Complete()) so the
+// outer goroutine can return without waiting for the request context to be
+// cancelled. Writes and Flushes are delegated unchanged.
+type subscriptionCompletionWriter struct {
+	*graphql.EngineResultWriter
+	onComplete func()
+}
+
+func (w *subscriptionCompletionWriter) Complete() {
+	if w.onComplete != nil {
+		w.onComplete()
+	}
 }
 
 func (e *ExecutorEngine) executeSubscription(ctx context.Context, buf *graphql.EngineResultWriter, id string, executor Executor, eventHandler EventHandler) error {

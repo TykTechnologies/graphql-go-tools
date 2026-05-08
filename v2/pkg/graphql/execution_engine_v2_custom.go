@@ -103,6 +103,23 @@ func (c *CustomExecutionEngineV2Executor) putExecutionCtx(ctx *internalExecution
 	c.internalExecutionContextPool.Put(ctx)
 }
 
+// putExecutionCtxAfterAsyncSubscription releases the wrapper back to the pool
+// without calling Free() on the in-flight resolve.Context that has been handed
+// off to the asynchronous subscription resolver loop. The resolver retains a
+// reference to that context for the lifetime of the subscription; freeing it
+// here would race with the resolver goroutine and corrupt live subscription
+// state (see TestCustomExecutionEngineV2Executor_AsyncSubscription_NoUseAfterFree).
+//
+// To keep the pooled wrapper safe for reuse we swap its resolveContext pointer
+// for a fresh one so that the next caller does not inherit stale per-request
+// fields (Variables, Stats, RenameTypeNames, ...). The original context is now
+// owned exclusively by the resolver and will be GC'd when the subscription
+// terminates.
+func (c *CustomExecutionEngineV2Executor) putExecutionCtxAfterAsyncSubscription(ctx *internalExecutionContext) {
+	ctx.resolveContext = resolve.NewContext(context.Background())
+	c.internalExecutionContextPool.Put(ctx)
+}
+
 func (c *CustomExecutionEngineV2Executor) Execute(ctx context.Context, operation *Request, writer resolve.SubscriptionResponseWriter, options ...ExecutionOptionsV2) error {
 	if !c.ExecutionStages.AllRequiredStagesProvided() {
 		return ErrRequiredStagesMissing
@@ -130,7 +147,20 @@ func (c *CustomExecutionEngineV2Executor) Execute(ctx context.Context, operation
 	}
 
 	execContext := c.getExecutionCtx()
-	defer c.putExecutionCtx(execContext)
+	// asyncSubscription is set when planResult is a *plan.SubscriptionResponsePlan
+	// because the only resolver path for that plan kind (see ExecutionEngineV2.Resolve)
+	// is AsyncResolveGraphQLSubscription, which hands the resolve.Context off to a
+	// background goroutine. In that case the deferred release MUST NOT Free() the
+	// context — that would race with the resolver loop's xcontext.Detach call and
+	// crash subscriptions. See putExecutionCtxAfterAsyncSubscription for details.
+	var asyncSubscription bool
+	defer func() {
+		if asyncSubscription {
+			c.putExecutionCtxAfterAsyncSubscription(execContext)
+			return
+		}
+		c.putExecutionCtx(execContext)
+	}()
 	execContext.prepare(ctx, operation.Variables, operation.request)
 	c.ExecutionStages.RequiredStages.ResolverStage.Setup(ctx, execContext.postProcessor, execContext.resolveContext, operation, options...)
 
@@ -140,6 +170,10 @@ func (c *CustomExecutionEngineV2Executor) Execute(ctx context.Context, operation
 		return err
 	} else if report.HasErrors() {
 		return report
+	}
+
+	if _, ok := planResult.(*plan.SubscriptionResponsePlan); ok {
+		asyncSubscription = true
 	}
 
 	err = c.ExecutionStages.RequiredStages.ResolverStage.Resolve(execContext.resolveContext, planResult, writer)
