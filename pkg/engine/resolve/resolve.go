@@ -105,6 +105,10 @@ const (
 	FetchKindBatch
 )
 
+type contextKey string
+
+const HeaderModifierContextKey contextKey = "graphqlHeaderModifier"
+
 type HookContext struct {
 	CurrentPath []byte
 }

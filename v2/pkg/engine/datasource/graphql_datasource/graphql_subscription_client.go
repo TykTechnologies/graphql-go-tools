@@ -14,6 +14,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/jensneuse/abstractlogger"
 
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/postprocess"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/resolve"
 )
 
@@ -111,6 +112,16 @@ func NewGraphQLSubscriptionClient(httpClient, streamingClient *http.Client, engi
 // If connection protocol is SSE, a new connection is always created
 // If no connection exists, the client initiates a new one
 func (c *SubscriptionClient) Subscribe(reqCtx *resolve.Context, options GraphQLSubscriptionOptions, updater resolve.SubscriptionUpdater) error {
+	// Dynamically apply the header modifier to the options BEFORE any connection or hashing logic.
+	// This ensures that dynamic headers are included in options.Header,
+	// resulting in a unique hash for different users, while allowing the same user to multiplex.
+	if modifier, ok := reqCtx.Context().Value(resolve.HeaderModifierContextKey).(postprocess.HeaderModifier); ok {
+		if options.Header == nil {
+			options.Header = make(http.Header)
+		}
+		modifier(options.Header)
+	}
+
 	if options.UseSSE {
 		return c.subscribeSSE(reqCtx, options, updater)
 	}
