@@ -174,22 +174,22 @@ func TestWithHeaderModifier(t *testing.T) {
 		}
 	}
 
-	t.Run("should add modify header postprocess", func(t *testing.T) {
+	t.Run("should set header modifier on resolve context", func(t *testing.T) {
 		processor := &postprocess.Processor{}
-		require.Equal(t, 0, processor.Count())
+		resolveContext := &resolve.Context{}
 
 		optionFunc := WithHeaderModifier(headerModifier)
-		optionFunc(processor, nil)
-		assert.Equal(t, 1, processor.Count())
+		optionFunc(processor, resolveContext)
+		assert.NotNil(t, resolveContext.HeaderModifier)
 	})
 
-	t.Run("should not touch post processor if no modifier is provided", func(t *testing.T) {
+	t.Run("should not touch resolve context if no modifier is provided", func(t *testing.T) {
 		processor := &postprocess.Processor{}
-		require.Equal(t, 0, processor.Count())
+		resolveContext := &resolve.Context{}
 
 		optionFunc := WithHeaderModifier(nil)
-		optionFunc(processor, nil)
-		assert.Equal(t, 0, processor.Count())
+		optionFunc(processor, resolveContext)
+		assert.Nil(t, resolveContext.HeaderModifier)
 	})
 }
 

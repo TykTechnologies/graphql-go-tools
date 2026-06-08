@@ -18,6 +18,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/datasource/httpclient"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/astjson"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/pool"
 )
@@ -1004,6 +1005,14 @@ func (l *Loader) executeSourceLoad(ctx context.Context, source DataSource, input
 	if l.info != nil && l.info.OperationType == ast.OperationTypeMutation {
 		ctx = context.WithValue(ctx, disallowSingleFlightContextKey{}, true)
 	}
+
+	if l.ctx.HeaderModifier != nil {
+		input = httpclient.ApplyHeaderModifier(input, l.ctx.HeaderModifier)
+	}
+	if len(l.ctx.UpstreamHeaders) > 0 {
+		input = httpclient.MergeInputHeader(input, l.ctx.UpstreamHeaders)
+	}
+
 	err = source.Load(ctx, input, out)
 	if l.traceOptions.Enable {
 		stats := GetSingleFlightStats(ctx)

@@ -17,8 +17,8 @@ import (
 	"github.com/buger/jsonparser"
 	"github.com/cespare/xxhash/v2"
 	"github.com/tidwall/gjson"
-
 	"github.com/TykTechnologies/graphql-go-tools/internal/pkg/unsafebytes"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/engine/datasource/httpclient"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/fastbuffer"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/lexer/literal"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/pool"
@@ -135,6 +135,8 @@ type Context struct {
 	afterFetchHook   AfterFetchHook
 	position         Position
 	RenameTypeNames  []RenameTypeName
+	UpstreamHeaders  http.Header
+	HeaderModifier   func(http.Header)
 }
 
 type Request struct {
@@ -580,6 +582,12 @@ func (r *Resolver) ResolveGraphQLSubscription(ctx *Context, subscription *GraphQ
 	copy(subscriptionInput, rendered)
 	r.freeBufPair(buf)
 
+	if ctx.HeaderModifier != nil {
+		subscriptionInput = httpclient.ApplyHeaderModifier(subscriptionInput, ctx.HeaderModifier)
+	}
+	if len(ctx.UpstreamHeaders) > 0 {
+		subscriptionInput = httpclient.MergeInputHeader(subscriptionInput, ctx.UpstreamHeaders)
+	}
 	c, cancel := context.WithCancel(ctx.Context())
 	defer cancel()
 	resolverDone := r.ctx.Done()
@@ -1434,6 +1442,24 @@ func (r *Resolver) resolveParallelFetch(ctx *Context, fetch *ParallelFetch, data
 
 func (r *Resolver) prepareSingleFetch(ctx *Context, fetch *SingleFetch, data []byte, set *resultSet, preparedInput *fastbuffer.FastBuffer) (err error) {
 	err = fetch.InputTemplate.Render(ctx, data, preparedInput)
+	if err != nil {
+		return err
+	}
+	
+	inputBytes := preparedInput.Bytes()
+	if ctx.HeaderModifier != nil {
+		inputBytes = httpclient.ApplyHeaderModifier(inputBytes, ctx.HeaderModifier)
+	}
+	if len(ctx.UpstreamHeaders) > 0 {
+		inputBytes = httpclient.MergeInputHeader(inputBytes, ctx.UpstreamHeaders)
+	}
+	if len(inputBytes) > 0 && (len(inputBytes) != preparedInput.Len() || &inputBytes[0] != &preparedInput.Bytes()[0]) {
+		preparedInput.Reset()
+		preparedInput.WriteBytes(inputBytes)
+	} else if len(inputBytes) == 0 && preparedInput.Len() > 0 {
+		preparedInput.Reset()
+	}
+
 	buf := r.getBufPair()
 	set.buffers[fetch.BufferId] = buf
 	return

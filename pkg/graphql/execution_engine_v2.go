@@ -167,7 +167,9 @@ func WithBeforeFetchHook(hook resolve.BeforeFetchHook) ExecutionOptionsV2 {
 
 func WithUpstreamHeaders(header http.Header) ExecutionOptionsV2 {
 	return func(postProcessor *postprocess.Processor, resolveContext *resolve.Context) {
-		postProcessor.AddPostProcessor(postprocess.NewProcessInjectHeader(header))
+		if resolveContext != nil {
+			resolveContext.UpstreamHeaders = header
+		}
 	}
 }
 
@@ -206,10 +208,10 @@ func WithAdditionalHttpHeaders(headers http.Header, excludeByKeys ...string) Exe
 
 func WithHeaderModifier(modifier postprocess.HeaderModifier) ExecutionOptionsV2 {
 	return func(postProcessor *postprocess.Processor, resolveContext *resolve.Context) {
-		if modifier == nil {
+		if modifier == nil || resolveContext == nil {
 			return
 		}
-		postProcessor.AddPostProcessor(postprocess.NewProcessModifyHeader(modifier))
+		resolveContext.HeaderModifier = modifier
 	}
 }
 
