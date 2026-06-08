@@ -18,6 +18,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
+
+	"github.com/TykTechnologies/graphql-go-tools/pkg/engine/resolve"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/postprocess"
 )
 
 func logger() ll.Logger {
@@ -291,4 +294,78 @@ func TestWebsocketSubscriptionClientWithServerDisconnect(t *testing.T) {
 		defer client.handlersMu.Unlock()
 		return len(client.handlers) == 0
 	}, time.Second, time.Millisecond, "client handlers not 0")
+}
+
+func TestSubscriptionClientDynamicHeadersIsolation(t *testing.T) {
+	var (
+		mu              sync.Mutex
+		receivedHeaders []string
+		connectionCount int
+	)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		receivedHeaders = append(receivedHeaders, r.Header.Get("Authorization"))
+		connectionCount++
+		mu.Unlock()
+
+		c, err := nhooyrwebsocket.Accept(w, r, &nhooyrwebsocket.AcceptOptions{
+			Subprotocols: []string{"graphql-ws"},
+		})
+		if err != nil {
+			return
+		}
+		defer c.Close(nhooyrwebsocket.StatusInternalError, "closing")
+
+		ackMsg := `{"type":"connection_ack"}`
+		_ = c.Write(context.Background(), nhooyrwebsocket.MessageText, []byte(ackMsg))
+
+		// Keep connection alive to simulate an active subscription
+		ctx := context.Background()
+		for {
+			_, _, err := c.Read(ctx)
+			if err != nil {
+				break
+			}
+		}
+	}))
+	defer server.Close()
+
+	wsURL := "ws" + server.URL[4:]
+
+	client := NewGraphQLSubscriptionClient(http.DefaultClient, http.DefaultClient, context.Background())
+
+	userTokens := []string{"user-1-token", "user-2-token"}
+
+	options := GraphQLSubscriptionOptions{
+		URL:  wsURL,
+		Body: GraphQLBody{Query: `{"query":"subscription { messageAdded { id text } }"}`},
+	}
+
+	for _, token := range userTokens {
+		modifier := func(header http.Header) {
+			header.Set("Authorization", token)
+		}
+
+		ctx := context.WithValue(context.Background(), resolve.HeaderModifierContextKey, postprocess.HeaderModifier(modifier))
+		next := make(chan []byte)
+		err := client.Subscribe(ctx, options, next)
+		require.NoError(t, err)
+
+		time.Sleep(50 * time.Millisecond) // Wait for connection to establish
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	// Without the fix, connectionCount would be 1 because the second request
+	// would reuse the first connection due to identical static hashes.
+	// With the fix, connectionCount should be 2.
+	tokenLen := len(userTokens)
+	assert.Equal(t, tokenLen, connectionCount, "Expected two separate WebSocket connections to be established")
+	assert.Len(t, receivedHeaders, tokenLen)
+
+	for _, token := range userTokens {
+		assert.Contains(t, receivedHeaders, token)
+	}
 }
