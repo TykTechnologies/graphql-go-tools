@@ -25,10 +25,6 @@ var (
 	ErrSubscriptionUpdaterNotCloseable = errors.New("subscription updater is not closeable")
 )
 
-type contextKey string
-
-const HeaderModifierContextKey contextKey = "graphqlHeaderModifier"
-
 type Reporter interface {
 	SubscriptionUpdateSent()
 }

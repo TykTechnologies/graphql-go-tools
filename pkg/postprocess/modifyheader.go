@@ -1,6 +1,7 @@
 package postprocess
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -8,6 +9,21 @@ import (
 
 	"github.com/TykTechnologies/graphql-go-tools/pkg/engine/plan"
 )
+
+type contextKey string
+
+const headerModifierContextKey contextKey = "graphqlHeaderModifier"
+
+func SetHeaderModifier(ctx context.Context, modifier HeaderModifier) context.Context {
+	return context.WithValue(ctx, headerModifierContextKey, modifier)
+}
+
+func GetHeaderModifier(ctx context.Context) HeaderModifier {
+	if modifier, ok := ctx.Value(headerModifierContextKey).(HeaderModifier); ok {
+		return modifier
+	}
+	return nil
+}
 
 type HeaderModifier func(header http.Header)
 

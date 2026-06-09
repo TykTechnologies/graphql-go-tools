@@ -19,7 +19,6 @@ import (
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 
-	"github.com/TykTechnologies/graphql-go-tools/pkg/engine/resolve"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/postprocess"
 )
 
@@ -347,7 +346,7 @@ func TestSubscriptionClientDynamicHeadersIsolation(t *testing.T) {
 			header.Set("Authorization", token)
 		}
 
-		ctx := context.WithValue(context.Background(), resolve.HeaderModifierContextKey, postprocess.HeaderModifier(modifier))
+		ctx := postprocess.SetHeaderModifier(context.Background(), modifier)
 		next := make(chan []byte)
 		err := client.Subscribe(ctx, options, next)
 		require.NoError(t, err)

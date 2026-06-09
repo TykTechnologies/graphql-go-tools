@@ -106,7 +106,7 @@ func (e *ExecutorV2) Execute(writer resolve.SubscriptionResponseWriter) error {
 	})
 
 	if e.headerModifier != nil {
-		execCtx = context.WithValue(execCtx, resolve.HeaderModifierContextKey, e.headerModifier)
+		execCtx = postprocess.SetHeaderModifier(execCtx, e.headerModifier)
 	}
 
 	return e.engine.Execute(execCtx, e.operation, writer, options...)

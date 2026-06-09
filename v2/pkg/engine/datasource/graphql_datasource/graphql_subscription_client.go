@@ -115,7 +115,7 @@ func (c *SubscriptionClient) Subscribe(reqCtx *resolve.Context, options GraphQLS
 	// Dynamically apply the header modifier to the options BEFORE any connection or hashing logic.
 	// This ensures that dynamic headers are included in options.Header,
 	// resulting in a unique hash for different users, while allowing the same user to multiplex.
-	if modifier, ok := reqCtx.Context().Value(resolve.HeaderModifierContextKey).(postprocess.HeaderModifier); ok {
+	if modifier := postprocess.GetHeaderModifier(reqCtx.Context()); modifier != nil {
 		if options.Header == nil {
 			options.Header = make(http.Header)
 		}

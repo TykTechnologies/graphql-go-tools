@@ -13,7 +13,6 @@ import (
 	nhooyrwebsocket "github.com/coder/websocket"
 	"github.com/jensneuse/abstractlogger"
 
-	"github.com/TykTechnologies/graphql-go-tools/pkg/engine/resolve"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/postprocess"
 )
 
@@ -114,7 +113,7 @@ func (c *SubscriptionClient) Subscribe(reqCtx context.Context, options GraphQLSu
 	// Dynamically apply the header modifier to the options BEFORE any connection or hashing logic.
 	// This ensures that dynamic headers are included in options.Header,
 	// resulting in a unique hash for different users, while allowing the same user to multiplex.
-	if modifier, ok := reqCtx.Value(resolve.HeaderModifierContextKey).(postprocess.HeaderModifier); ok {
+	if modifier := postprocess.GetHeaderModifier(reqCtx); modifier != nil {
 		if options.Header == nil {
 			options.Header = make(http.Header)
 		}
