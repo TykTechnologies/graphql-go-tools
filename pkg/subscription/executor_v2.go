@@ -23,6 +23,18 @@ func WithExecutorV2HeaderModifier(headerModifier postprocess.HeaderModifier) Exe
 	}
 }
 
+type mergedContext struct {
+	context.Context
+	valueCtx context.Context
+}
+
+func (m *mergedContext) Value(key interface{}) interface{} {
+	if val := m.valueCtx.Value(key); val != nil {
+		return val
+	}
+	return m.Context.Value(key)
+}
+
 // ExecutorV2Pool - provides reusable executors
 type ExecutorV2Pool struct {
 	engine               *graphql.ExecutionEngineV2
@@ -87,11 +99,17 @@ func (e *ExecutorV2) Execute(writer resolve.FlushWriter) error {
 		options = append(options, graphql.WithAdditionalHttpHeaders(ctx.Request.Header))
 	}
 
+	// Merge the subscription context with the original request context
+	execCtx := context.Context(&mergedContext{
+		Context:  e.context,
+		valueCtx: e.reqCtx,
+	})
+
 	if e.headerModifier != nil {
-		options = append(options, graphql.WithHeaderModifier(e.headerModifier))
+		execCtx = postprocess.SetHeaderModifier(execCtx, e.headerModifier)
 	}
 
-	return e.engine.Execute(e.context, e.operation, writer, options...)
+	return e.engine.Execute(execCtx, e.operation, writer, options...)
 }
 
 func (e *ExecutorV2) OperationType() ast.OperationType {
