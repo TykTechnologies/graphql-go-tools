@@ -23,18 +23,6 @@ func WithExecutorV2HeaderModifier(headerModifier postprocess.HeaderModifier) Exe
 	}
 }
 
-type mergedContext struct {
-	context.Context
-	valueCtx context.Context
-}
-
-func (m *mergedContext) Value(key interface{}) interface{} {
-	if val := m.valueCtx.Value(key); val != nil {
-		return val
-	}
-	return m.Context.Value(key)
-}
-
 // ExecutorV2Pool - provides reusable executors
 type ExecutorV2Pool struct {
 	engine               *graphql.ExecutionEngineV2
@@ -84,8 +72,15 @@ func (e *ExecutorV2Pool) Put(executor Executor) error {
 	return nil
 }
 
+// subscriptionWriterEngine abstracts *graphql.ExecutionEngineV2 so the executor's
+// context handling can be exercised in tests with a stub engine.
+type subscriptionWriterEngine interface {
+	Execute(ctx context.Context, operation *graphql.Request, writer resolve.SubscriptionResponseWriter, options ...graphql.ExecutionOptionsV2) error
+	GetWebsocketBeforeStartHook() graphql.WebsocketBeforeStartHook
+}
+
 type ExecutorV2 struct {
-	engine         *graphql.ExecutionEngineV2
+	engine         subscriptionWriterEngine
 	operation      *graphql.Request
 	context        context.Context
 	reqCtx         context.Context
@@ -99,12 +94,7 @@ func (e *ExecutorV2) Execute(writer resolve.SubscriptionResponseWriter) error {
 		options = append(options, graphql.WithAdditionalHttpHeaders(ctx.Request.Header))
 	}
 
-	// Merge the subscription context with the original request context
-	execCtx := context.Context(&mergedContext{
-		Context:  e.context,
-		valueCtx: e.reqCtx,
-	})
-
+	execCtx := e.context
 	if e.headerModifier != nil {
 		execCtx = postprocess.SetHeaderModifier(execCtx, e.headerModifier)
 	}
