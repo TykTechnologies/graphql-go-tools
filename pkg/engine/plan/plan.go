@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/customdirective"
 	"reflect"
 	"regexp"
 	"strings"
@@ -37,6 +38,7 @@ type Configuration struct {
 	// In production, this should be set to false so that error messages are easier to understand
 	DisableResolveFieldPositions bool
 	CustomResolveMap             map[string]resolve.CustomResolve
+	CustomDirectives             map[string]customdirective.CustomDirective
 }
 
 type DirectiveConfigurations []DirectiveConfiguration
@@ -247,6 +249,7 @@ func NewPlanner(ctx context.Context, config Configuration) *Planner {
 		Walker:                       &planningWalker,
 		fieldConfigs:                 map[int]*FieldConfiguration{},
 		disableResolveFieldPositions: config.DisableResolveFieldPositions,
+		CustomDirectives:             config.CustomDirectives,
 	}
 
 	p := &Planner{
@@ -384,6 +387,7 @@ type Visitor struct {
 	exportedVariables            map[string]struct{}
 	skipIncludeFields            map[int]skipIncludeField
 	disableResolveFieldPositions bool
+	CustomDirectives             map[string]customdirective.CustomDirective
 }
 
 type skipIncludeField struct {
@@ -748,11 +752,23 @@ func (v *Visitor) resolveFieldValue(fieldRef, typeRef int, nullable bool, path [
 			fieldExport := v.resolveFieldExport(fieldRef)
 			switch typeName {
 			case "String":
+
+				// Start TT-11737 - [PoC] custom Tyk directive @uppercase
+				var customDirectives []customdirective.CustomDirective
+				for _, ref := range v.Operation.Fields[fieldRef].Directives.Refs {
+					directiveName := v.Operation.Input.ByteSliceString(v.Operation.Directives[ref].Name)
+					if customDirective, ok := v.CustomDirectives[directiveName]; ok {
+						customDirectives = append(customDirectives, customDirective)
+					}
+				}
+				// End
+
 				return &resolve.String{
 					Path:                 path,
 					Nullable:             nullable,
 					Export:               fieldExport,
 					UnescapeResponseJson: unescapeResponseJson,
+					CustomDirectives:     customDirectives,
 				}
 			case "Boolean":
 				return &resolve.Boolean{

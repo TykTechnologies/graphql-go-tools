@@ -2,6 +2,7 @@ package graphql
 
 import (
 	"errors"
+	"github.com/TykTechnologies/graphql-go-tools/pkg/customdirective"
 	"net/http"
 
 	"github.com/TykTechnologies/graphql-go-tools/pkg/ast"
@@ -19,6 +20,7 @@ type EngineV2Configuration struct {
 	plannerConfig            plan.Configuration
 	websocketBeforeStartHook WebsocketBeforeStartHook
 	dataLoaderConfig         dataLoaderConfig
+	customDirectives         map[string]customdirective.CustomDirective
 }
 
 func NewEngineV2Configuration(schema *Schema) EngineV2Configuration {
@@ -39,6 +41,14 @@ func NewEngineV2Configuration(schema *Schema) EngineV2Configuration {
 type dataLoaderConfig struct {
 	EnableSingleFlightLoader bool
 	EnableDataLoader         bool
+}
+
+func (e *EngineV2Configuration) SetCustomDirectives(customDirectives map[string]customdirective.CustomDirective) {
+	e.plannerConfig.CustomDirectives = customDirectives
+}
+
+func (e *EngineV2Configuration) CustomDirectives() map[string]customdirective.CustomDirective {
+	return e.plannerConfig.CustomDirectives
 }
 
 func (e *EngineV2Configuration) SetCustomResolveMap(customResolveMap map[string]resolve.CustomResolve) {
@@ -86,9 +96,16 @@ type dataSourceV2GeneratorOptions struct {
 	streamingClient           *http.Client
 	subscriptionType          SubscriptionType
 	subscriptionClientFactory graphqlDataSource.GraphQLSubscriptionClientFactory
+	customDirectives          map[string]customdirective.CustomDirective
 }
 
 type DataSourceV2GeneratorOption func(options *dataSourceV2GeneratorOptions)
+
+func WithDataSourceV2GeneratorCustomDirectives(customDirectives map[string]customdirective.CustomDirective) DataSourceV2GeneratorOption {
+	return func(options *dataSourceV2GeneratorOptions) {
+		options.customDirectives = customDirectives
+	}
+}
 
 func WithDataSourceV2GeneratorSubscriptionConfiguration(streamingClient *http.Client, subscriptionType SubscriptionType) DataSourceV2GeneratorOption {
 	return func(options *dataSourceV2GeneratorOptions) {
@@ -129,9 +146,10 @@ func (d *graphqlDataSourceV2Generator) Generate(config graphqlDataSource.Configu
 	}
 
 	factory := &graphqlDataSource.Factory{
-		HTTPClient:      httpClient,
-		StreamingClient: definedOptions.streamingClient,
-		BatchFactory:    batchFactory,
+		HTTPClient:       httpClient,
+		StreamingClient:  definedOptions.streamingClient,
+		BatchFactory:     batchFactory,
+		CustomDirectives: definedOptions.customDirectives,
 	}
 
 	subscriptionClient, err := d.generateSubscriptionClient(httpClient, definedOptions)
