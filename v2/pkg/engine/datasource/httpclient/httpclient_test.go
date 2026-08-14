@@ -77,6 +77,70 @@ func TestHttpClient(t *testing.T) {
 	assert.Equal(t, `{"body":{"variables":{"foo":{"bar":$$0$$}}}}`, string(in))
 }
 
+func TestApplyHeaderModifier(t *testing.T) {
+	setAuth := func(value string) func(http.Header) {
+		return func(header http.Header) { header.Set("Authorization", value) }
+	}
+
+	t.Run("nil modifier returns input unchanged", func(t *testing.T) {
+		in := []byte(`{"method":"GET","header":{"Authorization":["old"]}}`)
+		out := ApplyHeaderModifier(in, nil)
+		assert.Equal(t, string(in), string(out))
+	})
+
+	t.Run("no existing header key is a no-op", func(t *testing.T) {
+		in := []byte(`{"method":"GET"}`)
+		out := ApplyHeaderModifier(in, setAuth("new"))
+		assert.Equal(t, `{"method":"GET"}`, string(out))
+	})
+
+	t.Run("non-object header value is a no-op", func(t *testing.T) {
+		in := []byte(`{"method":"GET","header":[1,2,3]}`)
+		out := ApplyHeaderModifier(in, setAuth("new"))
+		assert.Equal(t, `{"method":"GET","header":[1,2,3]}`, string(out))
+	})
+
+	t.Run("existing header object is rewritten by the modifier", func(t *testing.T) {
+		in := []byte(`{"method":"GET","header":{"Authorization":["old"]}}`)
+		out := ApplyHeaderModifier(in, setAuth("new"))
+		assert.Equal(t, `{"method":"GET","header":{"Authorization":["new"]}}`, string(out))
+	})
+
+	t.Run("modifier can add a key alongside existing ones", func(t *testing.T) {
+		in := []byte(`{"header":{"Authorization":["old"]}}`)
+		out := ApplyHeaderModifier(in, func(header http.Header) {
+			header.Set("X-Trace", "abc")
+		})
+		assert.Equal(t, `{"header":{"Authorization":["old"],"X-Trace":["abc"]}}`, string(out))
+	})
+}
+
+func TestMergeInputHeader(t *testing.T) {
+	t.Run("empty upstream headers is a no-op", func(t *testing.T) {
+		in := []byte(`{"method":"GET"}`)
+		assert.Equal(t, `{"method":"GET"}`, string(MergeInputHeader(in, nil)))
+		assert.Equal(t, `{"method":"GET"}`, string(MergeInputHeader(in, http.Header{})))
+	})
+
+	t.Run("no existing header key creates one", func(t *testing.T) {
+		in := []byte(`{"method":"GET"}`)
+		out := MergeInputHeader(in, http.Header{"Authorization": []string{"secret"}})
+		assert.Equal(t, `{"header":{"Authorization":["secret"]},"method":"GET"}`, string(out))
+	})
+
+	t.Run("matching keys are overwritten, other keys are preserved", func(t *testing.T) {
+		in := []byte(`{"header":{"Authorization":["old"],"X-Client":["alpha"]}}`)
+		out := MergeInputHeader(in, http.Header{"Authorization": []string{"new"}})
+		assert.Equal(t, `{"header":{"Authorization":["new"],"X-Client":["alpha"]}}`, string(out))
+	})
+
+	t.Run("non-object existing header value is replaced entirely", func(t *testing.T) {
+		in := []byte(`{"header":[1,2,3]}`)
+		out := MergeInputHeader(in, http.Header{"Authorization": []string{"secret"}})
+		assert.Equal(t, `{"header":{"Authorization":["secret"]}}`, string(out))
+	})
+}
+
 func TestHttpClientDo(t *testing.T) {
 
 	runTest := func(ctx context.Context, input []byte, expectedOutput string) func(t *testing.T) {

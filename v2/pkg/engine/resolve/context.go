@@ -23,6 +23,9 @@ type Context struct {
 	authorizer Authorizer
 
 	subgraphErrors error
+
+	UpstreamHeaders http.Header
+	HeaderModifier  func(http.Header)
 }
 
 type AuthorizationDeny struct {

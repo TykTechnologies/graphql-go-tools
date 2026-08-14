@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 
 	"github.com/buger/jsonparser"
 	bytetemplate "github.com/jensneuse/byte-template"
@@ -156,6 +157,48 @@ func SetInputHeader(input, headers []byte) []byte {
 	}
 	out, _ := sjson.SetRawBytes(input, HEADER, wrapQuotesIfString(headers))
 	return out
+}
+
+func ApplyHeaderModifier(input []byte, modifier func(http.Header)) []byte {
+	if modifier == nil {
+		return input
+	}
+	headerBytes, dataType, _, err := jsonparser.Get(input, HEADER)
+	if err != nil || dataType != jsonparser.Object {
+		return input
+	}
+	var h http.Header
+	if err := json.Unmarshal(headerBytes, &h); err != nil {
+		return input
+	}
+	modifier(h)
+	modifiedHeaderBytes, err := json.Marshal(h)
+	if err != nil {
+		return input
+	}
+	return SetInputHeader(input, modifiedHeaderBytes)
+}
+
+func MergeInputHeader(input []byte, upstreamHeaders http.Header) []byte {
+	if len(upstreamHeaders) == 0 {
+		return input
+	}
+	headerBytes, dataType, _, err := jsonparser.Get(input, HEADER)
+	var h http.Header
+	if err == nil && dataType == jsonparser.Object {
+		_ = json.Unmarshal(headerBytes, &h)
+	}
+	if h == nil {
+		h = make(http.Header)
+	}
+	for k, v := range upstreamHeaders {
+		h[k] = v
+	}
+	modifiedHeaderBytes, err := json.Marshal(h)
+	if err != nil {
+		return input
+	}
+	return SetInputHeader(input, modifiedHeaderBytes)
 }
 
 func SetInputQueryParams(input, queryParams []byte) []byte {

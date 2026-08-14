@@ -17,6 +17,7 @@ import (
 
 	"github.com/TykTechnologies/graphql-go-tools/v2/internal/pkg/xcontext"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/datasource/httpclient"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/pool"
 )
 
@@ -529,6 +530,12 @@ func (r *Resolver) subscriptionInput(ctx *Context, subscription *GraphQLSubscrip
 		if err != nil {
 			return nil, err
 		}
+	}
+	if ctx.HeaderModifier != nil {
+		input = httpclient.ApplyHeaderModifier(input, ctx.HeaderModifier)
+	}
+	if len(ctx.UpstreamHeaders) > 0 {
+		input = httpclient.MergeInputHeader(input, ctx.UpstreamHeaders)
 	}
 	return input, nil
 }

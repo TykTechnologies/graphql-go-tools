@@ -23,12 +23,20 @@ type roundTripperTestCase struct {
 	expectedBody     string
 	sendStatusCode   int
 	sendResponseBody string
+	// capturedHeaders, if non-nil, receives a clone of req.Header for every
+	// request handled by this round tripper, in call order. Test-only
+	// instrumentation for tests asserting on per-request header behavior.
+	capturedHeaders *[]http.Header
 }
 
 func createTestRoundTripper(t *testing.T, testCase roundTripperTestCase) testRoundTripper {
 	return func(req *http.Request) *http.Response {
 		assert.Equal(t, testCase.expectedHost, req.URL.Host)
 		assert.Equal(t, testCase.expectedPath, req.URL.Path)
+
+		if testCase.capturedHeaders != nil {
+			*testCase.capturedHeaders = append(*testCase.capturedHeaders, req.Header.Clone())
+		}
 
 		if len(testCase.expectedBody) > 0 {
 			var receivedBodyBytes []byte
