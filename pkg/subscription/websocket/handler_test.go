@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -22,6 +23,15 @@ import (
 	"github.com/TykTechnologies/graphql-go-tools/pkg/testing/subscriptiontesting"
 )
 
+func TestWithContext(t *testing.T) {
+	ctx := context.WithValue(context.Background(), struct{}{}, "request")
+	options := HandleOptions{}
+
+	WithContext(ctx)(&options)
+
+	assert.Equal(t, ctx, options.Context)
+}
+
 func TestHandleWithOptions(t *testing.T) {
 	t.Run("should handle protocol graphql-ws", func(t *testing.T) {
 		chatServer := httptest.NewServer(subscriptiontesting.ChatGraphQLEndpointHandler())
@@ -30,7 +40,7 @@ func TestHandleWithOptions(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		executorPoolV2 := setupExecutorPoolV2(t, ctx, chatServer.URL, nil)
+		executorPoolV2 := setupExecutorPoolV2(t, ctx, chatServer.URL, nil, httpclient.DefaultNetHttpClient)
 		serverConn, _ := net.Pipe()
 		testClient := NewTestClient(false)
 
@@ -105,7 +115,7 @@ func TestHandleWithOptions(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		executorPoolV2 := setupExecutorPoolV2(t, ctx, chatServer.URL, nil)
+		executorPoolV2 := setupExecutorPoolV2(t, ctx, chatServer.URL, nil, httpclient.DefaultNetHttpClient)
 		serverConn, _ := net.Pipe()
 		testClient := NewTestClient(false)
 
@@ -180,7 +190,7 @@ func TestHandleWithOptions(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		executorPoolV2 := setupExecutorPoolV2(t, ctx, chatServer.URL, &FailingOnBeforeStartHook{})
+		executorPoolV2 := setupExecutorPoolV2(t, ctx, chatServer.URL, &FailingOnBeforeStartHook{}, httpclient.DefaultNetHttpClient)
 		serverConn, _ := net.Pipe()
 		testClient := NewTestClient(false)
 
@@ -220,6 +230,142 @@ func TestHandleWithOptions(t *testing.T) {
 	})
 }
 
+type ctxCaptureKey struct{}
+
+// contextCapturingRoundTripper records the context.Context attached to the last outbound
+// request it forwards, so a test can assert what a caller-supplied context actually reached
+// the real upstream HTTP call.
+type contextCapturingRoundTripper struct {
+	next http.RoundTripper
+
+	mu   sync.Mutex
+	last context.Context
+}
+
+func (c *contextCapturingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	c.mu.Lock()
+	c.last = req.Context()
+	c.mu.Unlock()
+	return c.next.RoundTrip(req)
+}
+
+func (c *contextCapturingRoundTripper) lastContext() context.Context {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.last
+}
+
+func TestHandleWithOptions_ContextValuePropagatesToUpstreamRequest(t *testing.T) {
+	chatServer := httptest.NewServer(subscriptiontesting.ChatGraphQLEndpointHandler())
+	defer chatServer.Close()
+
+	poolCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	capturingTransport := &contextCapturingRoundTripper{next: http.DefaultTransport}
+	capturingClient := &http.Client{Transport: capturingTransport}
+
+	executorPoolV2 := setupExecutorPoolV2(t, poolCtx, chatServer.URL, nil, capturingClient)
+	serverConn, _ := net.Pipe()
+	testClient := NewTestClient(false)
+
+	handleCtx := context.WithValue(context.Background(), ctxCaptureKey{}, "expected-value")
+
+	done := make(chan bool)
+	errChan := make(chan error)
+	go Handle(
+		done,
+		errChan,
+		serverConn,
+		executorPoolV2,
+		WithContext(handleCtx),
+		WithCustomClient(testClient),
+		WithCustomSubscriptionUpdateInterval(50*time.Millisecond),
+		WithCustomKeepAliveInterval(3600*time.Second),
+	)
+
+	require.Eventually(t, func() bool {
+		<-done
+		return true
+	}, 1*time.Second, 2*time.Millisecond)
+
+	testClient.writeMessageFromClient([]byte(`{"type":"connection_init"}`))
+	assert.Eventually(t, func() bool {
+		expectedMessage := []byte(`{"type":"connection_ack"}`)
+		actualMessage := testClient.readMessageToClient()
+		assert.Equal(t, expectedMessage, actualMessage)
+		return true
+	}, 1*time.Second, 2*time.Millisecond, "never satisfied on connection_init")
+
+	testClient.writeMessageFromClient([]byte(`{"id":"1","type":"subscribe","payload":{"query":"{ room(name:\"#my_room\") { name } }"}}`))
+	assert.Eventually(t, func() bool {
+		expectedMessage := []byte(`{"id":"1","type":"next","payload":{"data":{"room":{"name":"#my_room"}}}}`)
+		actualMessage := testClient.readMessageToClient()
+		assert.Equal(t, expectedMessage, actualMessage)
+		expectedMessage = []byte(`{"id":"1","type":"complete"}`)
+		actualMessage = testClient.readMessageToClient()
+		assert.Equal(t, expectedMessage, actualMessage)
+		return true
+	}, 2*time.Second, 2*time.Millisecond, "never satisfied on room query")
+
+	capturedCtx := capturingTransport.lastContext()
+	require.NotNil(t, capturedCtx, "expected the upstream request to have been made with a non-nil context")
+	assert.Equal(t, "expected-value", capturedCtx.Value(ctxCaptureKey{}),
+		"expected the context value set via WithContext to propagate to the outbound upstream request")
+}
+
+func TestHandleWithOptions_CanceledContextAbortsOperation(t *testing.T) {
+	chatServer := httptest.NewServer(subscriptiontesting.ChatGraphQLEndpointHandler())
+	defer chatServer.Close()
+
+	poolCtx, cancelPool := context.WithCancel(context.Background())
+	defer cancelPool()
+
+	executorPoolV2 := setupExecutorPoolV2(t, poolCtx, chatServer.URL, nil, httpclient.DefaultNetHttpClient)
+	serverConn, _ := net.Pipe()
+	testClient := NewTestClient(false)
+
+	handleCtx, cancelHandle := context.WithCancel(context.Background())
+	cancelHandle() // canceled before Handle even starts
+
+	done := make(chan bool)
+	errChan := make(chan error)
+	go Handle(
+		done,
+		errChan,
+		serverConn,
+		executorPoolV2,
+		WithContext(handleCtx),
+		WithCustomClient(testClient),
+		WithCustomSubscriptionUpdateInterval(50*time.Millisecond),
+		WithCustomKeepAliveInterval(3600*time.Second),
+	)
+
+	require.Eventually(t, func() bool {
+		<-done
+		return true
+	}, 1*time.Second, 2*time.Millisecond)
+
+	testClient.writeMessageFromClient([]byte(`{"type":"connection_init"}`))
+	assert.Eventually(t, func() bool {
+		expectedMessage := []byte(`{"type":"connection_ack"}`)
+		actualMessage := testClient.readMessageToClient()
+		assert.Equal(t, expectedMessage, actualMessage)
+		return true
+	}, 1*time.Second, 2*time.Millisecond, "never satisfied on connection_init")
+
+	// A context that's already canceled before Handle even starts is Done() from the very first
+	// check onwards, so the connection is torn down right after handling connection_init - the
+	// subscribe message below is written but never processed, and no further response ever arrives.
+	testClient.writeMessageFromClient([]byte(`{"id":"1","type":"subscribe","payload":{"query":"{ room(name:\"#my_room\") { name } }"}}`))
+	select {
+	case actualMessage := <-testClient.messageToClient:
+		t.Fatalf("expected no further response once the context was already canceled before Handle started, got %s", actualMessage)
+	case <-time.After(300 * time.Millisecond):
+		// expected: the canceled context tore down the connection before the query could be processed.
+	}
+}
+
 func TestWithProtocolFromRequestHeaders(t *testing.T) {
 	runTest := func(headerKey string, headerValue string, expectedProtocol Protocol) func(t *testing.T) {
 		return func(t *testing.T) {
@@ -247,7 +393,7 @@ func TestWithProtocolFromRequestHeaders(t *testing.T) {
 	})
 }
 
-func setupExecutorPoolV2(t *testing.T, ctx context.Context, chatServerURL string, onBeforeStartHook graphql.WebsocketBeforeStartHook) *subscription.ExecutorV2Pool {
+func setupExecutorPoolV2(t *testing.T, ctx context.Context, chatServerURL string, onBeforeStartHook graphql.WebsocketBeforeStartHook, httpClient *http.Client) *subscription.ExecutorV2Pool {
 	chatSchemaBytes, err := subscriptiontesting.LoadSchemaFromExamplesDirectoryWithinPkg()
 	require.NoError(t, err)
 
@@ -268,7 +414,7 @@ func setupExecutorPoolV2(t *testing.T, ctx context.Context, chatServerURL string
 				{TypeName: "Message", FieldNames: []string{"text", "createdBy"}},
 			},
 			Factory: &graphql_datasource.Factory{
-				HTTPClient: httpclient.DefaultNetHttpClient,
+				HTTPClient: httpClient,
 			},
 			Custom: graphql_datasource.ConfigJson(graphql_datasource.Configuration{
 				Fetch: graphql_datasource.FetchConfiguration{
