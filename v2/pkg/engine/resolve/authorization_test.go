@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"sync/atomic"
 	"testing"
 
@@ -55,6 +56,99 @@ func TestAuthorization(t *testing.T) {
 			func(t *testing.T) {
 				assert.Equal(t, int64(2), authorizer.(*testAuthorizer).preFetchCalls.Load())
 				assert.Equal(t, int64(4), authorizer.(*testAuthorizer).objectFieldCalls.Load())
+			}
+	}))
+	t.Run("authorizer receives request-finalized headers", testFnWithPostEvaluation(func(t *testing.T, ctrl *gomock.Controller) (node *GraphQLResponse, ctx Context, expectedOutput string, postEvaluation func(t *testing.T)) {
+		var checked atomic.Int64
+		authorizer := createTestAuthorizer(func(_ *Context, _ string, input json.RawMessage, _ GraphCoordinate) (*AuthorizationDeny, error) {
+			var descriptor struct {
+				Header http.Header `json:"header"`
+			}
+			if err := json.Unmarshal(input, &descriptor); err != nil {
+				t.Errorf("json.Unmarshal(authorizer input %s): %v", input, err)
+				return nil, nil
+			}
+			if got := descriptor.Header.Get("Authorization"); got != "Bearer current" {
+				t.Errorf("AuthorizePreFetch input Authorization = %q, want %q", got, "Bearer current")
+			}
+			checked.Add(1)
+			return nil, nil
+		}, func(_ *Context, _ string, _ json.RawMessage, _ GraphCoordinate) (*AuthorizationDeny, error) {
+			return nil, nil
+		})
+
+		userService := NewMockDataSource(ctrl)
+		userService.EXPECT().
+			Load(gomock.Any(), gomock.Any(), gomock.AssignableToTypeOf(&bytes.Buffer{})).
+			DoAndReturn(func(ctx context.Context, input []byte, w *bytes.Buffer) (err error) {
+				pair := NewBufPair()
+				pair.Data.WriteString(`{"me":{"id":"1234","username":"Me","__typename": "User"}}`)
+				return writeGraphqlResponse(pair, w, false)
+			}).AnyTimes()
+
+		res := &GraphQLResponse{
+			Data: &Object{
+				Fetch: &SingleFetch{
+					InputTemplate: InputTemplate{
+						Segments: []TemplateSegment{
+							{
+								Data:        []byte(`{"method":"POST","url":"http://localhost:4001","header":{"Authorization":["placeholder"]},"body":{"query":"{me {id username}}"}}`),
+								SegmentType: StaticSegmentType,
+							},
+						},
+					},
+					FetchConfiguration: FetchConfiguration{
+						DataSource: userService,
+						PostProcessing: PostProcessingConfiguration{
+							SelectResponseDataPath: []string{"data"},
+						},
+					},
+					Info: &FetchInfo{
+						DataSourceID: "users",
+						RootFields: []GraphCoordinate{
+							{
+								TypeName:             "Query",
+								FieldName:            "me",
+								HasAuthorizationRule: true,
+							},
+						},
+					},
+				},
+				Fields: []*Field{
+					{
+						Name: []byte("me"),
+						Value: &Object{
+							Path:     []string{"me"},
+							Nullable: true,
+							Fields: []*Field{
+								{
+									Name:  []byte("id"),
+									Value: &String{Path: []string{"id"}},
+								},
+								{
+									Name:  []byte("username"),
+									Value: &String{Path: []string{"username"}},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		ctx = Context{
+			ctx:        context.Background(),
+			authorizer: authorizer,
+			HeaderModifier: func(header http.Header) {
+				header.Set("Authorization", "Bearer current")
+			},
+		}
+		return res, ctx,
+			`{"data":{"me":{"id":"1234","username":"Me"}}}`,
+			func(t *testing.T) {
+				if got := checked.Load(); got != 1 {
+					t.Errorf("AuthorizePreFetch finalized-header checks = %d, want 1", got)
+				}
 			}
 	}))
 	t.Run("validate authorizer args", testFnWithPostEvaluation(func(t *testing.T, ctrl *gomock.Controller) (node *GraphQLResponse, ctx Context, expectedOutput string, postEvaluation func(t *testing.T)) {

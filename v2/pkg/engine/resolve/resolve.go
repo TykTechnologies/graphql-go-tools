@@ -531,13 +531,7 @@ func (r *Resolver) subscriptionInput(ctx *Context, subscription *GraphQLSubscrip
 			return nil, err
 		}
 	}
-	if ctx.HeaderModifier != nil {
-		input = httpclient.ApplyHeaderModifier(input, ctx.HeaderModifier)
-	}
-	if len(ctx.UpstreamHeaders) > 0 {
-		input = httpclient.MergeInputHeader(input, ctx.UpstreamHeaders)
-	}
-	return input, nil
+	return httpclient.FinalizeInputHeaders(input, ctx.HeaderModifier, ctx.UpstreamHeaders)
 }
 
 type subscriptionUpdater struct {

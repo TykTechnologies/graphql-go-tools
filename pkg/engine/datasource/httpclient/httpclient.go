@@ -160,45 +160,74 @@ func SetInputHeader(input, headers []byte) []byte {
 }
 
 func ApplyHeaderModifier(input []byte, modifier func(http.Header)) []byte {
-	if modifier == nil {
-		return input
-	}
-	headerBytes, dataType, _, err := jsonparser.Get(input, HEADER)
-	if err != nil || dataType != jsonparser.Object {
-		return input
-	}
-	var h http.Header
-	if err := json.Unmarshal(headerBytes, &h); err != nil {
-		return input
-	}
-	modifier(h)
-	modifiedHeaderBytes, err := json.Marshal(h)
+	modified, err := FinalizeInputHeaders(input, modifier, nil)
 	if err != nil {
 		return input
 	}
-	return SetInputHeader(input, modifiedHeaderBytes)
+	return modified
 }
 
 func MergeInputHeader(input []byte, upstreamHeaders http.Header) []byte {
-	if len(upstreamHeaders) == 0 {
-		return input
-	}
-	headerBytes, dataType, _, err := jsonparser.Get(input, HEADER)
-	var h http.Header
-	if err == nil && dataType == jsonparser.Object {
-		_ = json.Unmarshal(headerBytes, &h)
-	}
-	if h == nil {
-		h = make(http.Header)
-	}
-	for k, v := range upstreamHeaders {
-		h[k] = v
-	}
-	modifiedHeaderBytes, err := json.Marshal(h)
+	modified, err := FinalizeInputHeaders(input, nil, upstreamHeaders)
 	if err != nil {
 		return input
 	}
-	return SetInputHeader(input, modifiedHeaderBytes)
+	return modified
+}
+
+func FinalizeInputHeaders(input []byte, modifier func(http.Header), upstreamHeaders http.Header) ([]byte, error) {
+	if modifier == nil && len(upstreamHeaders) == 0 {
+		return input, nil
+	}
+
+	header, err := inputHeader(input)
+	if err != nil {
+		return nil, err
+	}
+	if modifier != nil {
+		modifier(header)
+	}
+	for key, values := range upstreamHeaders {
+		header[http.CanonicalHeaderKey(key)] = append([]string(nil), values...)
+	}
+	headerBytes, err := json.Marshal(header)
+	if err != nil {
+		return nil, fmt.Errorf("marshal datasource input header: %w", err)
+	}
+	modified, err := sjson.SetRawBytes(input, HEADER, headerBytes)
+	if err != nil {
+		return nil, fmt.Errorf("set datasource input header: %w", err)
+	}
+	return modified, nil
+}
+
+func inputHeader(input []byte) (http.Header, error) {
+	headerBytes, dataType, _, err := jsonparser.Get(input, HEADER)
+	if err != nil || dataType == jsonparser.Null {
+		return make(http.Header), nil
+	}
+	if dataType != jsonparser.Object {
+		return nil, fmt.Errorf("datasource input header must be an object, got %s", dataType)
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(headerBytes, &raw); err != nil {
+		return nil, fmt.Errorf("unmarshal datasource input header: %w", err)
+	}
+	header := make(http.Header, len(raw))
+	for key, value := range raw {
+		var values []string
+		if err := json.Unmarshal(value, &values); err != nil {
+			var scalar string
+			if scalarErr := json.Unmarshal(value, &scalar); scalarErr != nil {
+				return nil, fmt.Errorf("unmarshal datasource input header %q: %w", key, err)
+			}
+			values = []string{scalar}
+		}
+		canonicalKey := http.CanonicalHeaderKey(key)
+		header[canonicalKey] = append(header[canonicalKey], values...)
+	}
+	return header, nil
 }
 
 func SetInputQueryParams(input, queryParams []byte) []byte {

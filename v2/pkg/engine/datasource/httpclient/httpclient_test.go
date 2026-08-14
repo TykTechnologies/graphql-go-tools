@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,7 +12,9 @@ import (
 	"testing"
 
 	"github.com/andybalholm/brotli"
+	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/tidwall/sjson"
 
 	"github.com/TykTechnologies/graphql-go-tools/v2/internal/pkg/quotes"
@@ -88,10 +91,10 @@ func TestApplyHeaderModifier(t *testing.T) {
 		assert.Equal(t, string(in), string(out))
 	})
 
-	t.Run("no existing header key is a no-op", func(t *testing.T) {
+	t.Run("no existing header key creates one", func(t *testing.T) {
 		in := []byte(`{"method":"GET"}`)
 		out := ApplyHeaderModifier(in, setAuth("new"))
-		assert.Equal(t, `{"method":"GET"}`, string(out))
+		assert.Equal(t, `{"header":{"Authorization":["new"]},"method":"GET"}`, string(out))
 	})
 
 	t.Run("non-object header value is a no-op", func(t *testing.T) {
@@ -134,11 +137,124 @@ func TestMergeInputHeader(t *testing.T) {
 		assert.Equal(t, `{"header":{"Authorization":["new"],"X-Client":["alpha"]}}`, string(out))
 	})
 
-	t.Run("non-object existing header value is replaced entirely", func(t *testing.T) {
+	t.Run("non-object existing header value is left untouched", func(t *testing.T) {
 		in := []byte(`{"header":[1,2,3]}`)
 		out := MergeInputHeader(in, http.Header{"Authorization": []string{"secret"}})
-		assert.Equal(t, `{"header":{"Authorization":["secret"]}}`, string(out))
+		assert.Equal(t, `{"header":[1,2,3]}`, string(out))
 	})
+}
+
+// TestFinalizeInputHeaders covers FinalizeInputHeaders directly - behavior that
+// ApplyHeaderModifier/MergeInputHeader can't exercise on their own since each
+// only ever passes one of modifier/upstreamHeaders (never both), and both
+// wrappers swallow the error return instead of surfacing it.
+func TestFinalizeInputHeaders(t *testing.T) {
+	t.Run("nil modifier and empty upstream headers returns input unchanged", func(t *testing.T) {
+		in := []byte(`{"method":"GET","header":{"Authorization":["old"]}}`)
+
+		out, err := FinalizeInputHeaders(in, nil, nil)
+		require.NoError(t, err)
+		assert.Equal(t, string(in), string(out))
+
+		out, err = FinalizeInputHeaders(in, nil, http.Header{})
+		require.NoError(t, err)
+		assert.Equal(t, string(in), string(out))
+	})
+
+	t.Run("modifier normalizes scalar and mixed-case values", func(t *testing.T) {
+		in := []byte(`{"header":{"authorization":"first","Authorization":["second","third"]}}`)
+		out, err := FinalizeInputHeaders(in, func(header http.Header) {
+			header.Add("AUTHORIZATION", "current")
+		}, nil)
+		require.NoError(t, err)
+
+		var decoded struct {
+			Header http.Header `json:"header"`
+		}
+		require.NoError(t, json.Unmarshal(out, &decoded))
+		assert.ElementsMatch(t, []string{"first", "second", "third", "current"}, decoded.Header.Values("Authorization"))
+	})
+
+	t.Run("upstream headers take final precedence over the modifier, other modifier keys survive", func(t *testing.T) {
+		in := []byte(`{"header":{}}`)
+		out, err := FinalizeInputHeaders(in, func(header http.Header) {
+			header.Set("Authorization", "from-modifier")
+			header.Set("X-Trace", "abc")
+		}, http.Header{"Authorization": {"from-upstream"}})
+		require.NoError(t, err)
+
+		var decoded struct {
+			Header http.Header `json:"header"`
+		}
+		require.NoError(t, json.Unmarshal(out, &decoded))
+		assert.Equal(t, []string{"from-upstream"}, decoded.Header.Values("Authorization"),
+			"upstream headers must take final precedence over whatever the modifier set")
+		assert.Equal(t, []string{"abc"}, decoded.Header.Values("X-Trace"),
+			"keys the modifier set that upstream headers don't mention must survive")
+	})
+
+	t.Run("malformed header value returns an error", func(t *testing.T) {
+		_, err := FinalizeInputHeaders([]byte(`{"header":{"Authorization":42}}`), func(http.Header) {}, nil)
+		assert.Error(t, err)
+	})
+}
+
+// TestApplyHeaderModifierCreatesMissingHeader guards against the case where a
+// datasource's input has no "header" key at all yet - ApplyHeaderModifier must
+// still be able to add one, not silently no-op.
+func TestApplyHeaderModifierCreatesMissingHeader(t *testing.T) {
+	in := []byte(`{"method":"GET"}`)
+	out := ApplyHeaderModifier(in, func(header http.Header) {
+		header.Set("Authorization", "new")
+	})
+
+	headerBytes, dataType, _, err := jsonparser.Get(out, HEADER)
+	require.NoError(t, err, "ApplyHeaderModifier must create a \"header\" key when none exists yet, got %s", out)
+	require.Equal(t, jsonparser.Object, dataType)
+
+	var decoded struct {
+		Header http.Header `json:"header"`
+	}
+	require.NoError(t, json.Unmarshal(headerBytes, &decoded.Header))
+	assert.Equal(t, []string{"new"}, decoded.Header.Values("Authorization"))
+}
+
+// TestApplyHeaderModifierAppliesDespiteScalarHeaderValue guards against a
+// datasource input whose "header" object mixes scalar and array-shaped values -
+// a realistic shape for hand-built or third-party datasource configs. The
+// modifier must still be applied to the other keys, rather than the whole
+// operation being silently abandoned because one value didn't parse as
+// []string.
+func TestApplyHeaderModifierAppliesDespiteScalarHeaderValue(t *testing.T) {
+	in := []byte(`{"header":{"Authorization":"first"}}`)
+	out := ApplyHeaderModifier(in, func(header http.Header) {
+		header.Set("X-Trace", "abc")
+	})
+	assert.Contains(t, string(out), `"X-Trace"`,
+		"a scalar-valued existing header entry must not silently prevent the modifier from being applied, got %s", out)
+}
+
+// TestApplyHeaderModifierCanonicalizesHeaderKeyCasing guards against header
+// keys surviving as raw, non-canonical JSON object keys - e.g. "authorization"
+// and "Authorization" must be treated as the same header, not two independent
+// entries.
+func TestApplyHeaderModifierCanonicalizesHeaderKeyCasing(t *testing.T) {
+	in := []byte(`{"header":{"authorization":["legacy"]}}`)
+	out := ApplyHeaderModifier(in, func(header http.Header) {
+		header.Add("Authorization", "current")
+	})
+
+	headerBytes, _, _, err := jsonparser.Get(out, HEADER)
+	require.NoError(t, err)
+	var raw map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(headerBytes, &raw))
+
+	_, hasLowercase := raw["authorization"]
+	assert.False(t, hasLowercase, `header keys must be canonicalized; found a raw "authorization" key in %s`, out)
+
+	var values []string
+	require.NoError(t, json.Unmarshal(raw["Authorization"], &values))
+	assert.Equal(t, []string{"legacy", "current"}, values)
 }
 
 func TestHttpClientDo(t *testing.T) {

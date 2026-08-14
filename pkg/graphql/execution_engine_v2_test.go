@@ -193,6 +193,20 @@ func TestWithHeaderModifier(t *testing.T) {
 	})
 }
 
+// TestWithUpstreamHeadersCopiesInput guards against WithUpstreamHeaders holding
+// onto the caller's http.Header by reference. If a caller mutates or reuses
+// that map after Execute returns (or while a request is still in flight),
+// resolveContext.UpstreamHeaders must not be affected.
+func TestWithUpstreamHeadersCopiesInput(t *testing.T) {
+	headers := http.Header{"Authorization": {"Bearer original"}}
+	resolveContext := &resolve.Context{}
+
+	WithUpstreamHeaders(headers)(nil, resolveContext)
+	headers.Set("Authorization", "Bearer mutated")
+
+	assert.Equal(t, "Bearer original", resolveContext.UpstreamHeaders.Get("Authorization"))
+}
+
 type ExecutionEngineV2TestCase struct {
 	schema                            *Schema
 	operation                         func(t *testing.T) Request
@@ -2402,6 +2416,86 @@ func TestExecutionEngineV2_GetCachedPlan(t *testing.T) {
 		assert.Equal(t, 2, engine.executionPlanCache.Len())
 		assert.NotEqual(t, cachedPlan, oldestCachedPlan.(*plan.SubscriptionResponsePlan))
 	})
+}
+
+// TestExecutionEngineV2_GetCachedPlan_DifferentOperationNameSameDocument guards
+// against the plan cache key being derived only from the printed document text.
+// A single document can contain multiple named operations; selecting a
+// different one via OperationName must not be served a plan cached for a
+// different operation just because the underlying document text is identical.
+func TestExecutionEngineV2_GetCachedPlan_DifferentOperationNameSameDocument(t *testing.T) {
+	schema, err := NewSchemaFromString(testSubscriptionDefinition)
+	require.NoError(t, err)
+
+	combinedQuery := testSubscriptionLastRegisteredUserOperation + "\n" + testSubscriptionLiveUserCountOperation
+
+	lastRegisteredUserRequest := Request{
+		OperationName: "LastRegisteredUser",
+		Variables:     nil,
+		Query:         combinedQuery,
+	}
+	validationResult, err := lastRegisteredUserRequest.ValidateForSchema(schema)
+	require.NoError(t, err)
+	require.True(t, validationResult.Valid)
+	normalizationResult, err := lastRegisteredUserRequest.Normalize(schema)
+	require.NoError(t, err)
+	require.True(t, normalizationResult.Successful)
+
+	liveUserCountRequest := Request{
+		OperationName: "LiveUserCount",
+		Variables:     nil,
+		Query:         combinedQuery,
+	}
+	validationResult, err = liveUserCountRequest.ValidateForSchema(schema)
+	require.NoError(t, err)
+	require.True(t, validationResult.Valid)
+	normalizationResult, err = liveUserCountRequest.Normalize(schema)
+	require.NoError(t, err)
+	require.True(t, normalizationResult.Successful)
+
+	engineConfig := NewEngineV2Configuration(schema)
+	engineConfig.SetDataSources([]plan.DataSourceConfiguration{
+		{
+			RootNodes: []plan.TypeField{
+				{
+					TypeName:   "Subscription",
+					FieldNames: []string{"lastRegisteredUser", "liveUserCount"},
+				},
+			},
+			ChildNodes: []plan.TypeField{
+				{
+					TypeName:   "User",
+					FieldNames: []string{"id", "username", "email"},
+				},
+			},
+			Factory: &graphql_datasource.Factory{},
+			Custom: graphql_datasource.ConfigJson(graphql_datasource.Configuration{
+				Subscription: graphql_datasource.SubscriptionConfiguration{
+					URL: "http://localhost:8080",
+				},
+			}),
+		},
+	})
+
+	engine, err := NewExecutionEngineV2(context.Background(), abstractlogger.NoopLogger, engineConfig)
+	require.NoError(t, err)
+	require.Equal(t, 0, engine.executionPlanCache.Len())
+
+	firstExecCtx := newInternalExecutionContext()
+	report := operationreport.Report{}
+	firstPlan := engine.getCachedPlan(firstExecCtx.postProcessor, &lastRegisteredUserRequest, &schema.document, lastRegisteredUserRequest.OperationName, &report)
+	require.False(t, report.HasErrors())
+	require.Equal(t, 1, engine.executionPlanCache.Len())
+
+	secondExecCtx := newInternalExecutionContext()
+	report = operationreport.Report{}
+	secondPlan := engine.getCachedPlan(secondExecCtx.postProcessor, &liveUserCountRequest, &schema.document, liveUserCountRequest.OperationName, &report)
+	require.False(t, report.HasErrors())
+
+	assert.Equal(t, 2, engine.executionPlanCache.Len(),
+		"the plan cache key must include operationName - two requests selecting different named operations out of the same document text must not collide into one cache entry")
+	assert.NotEqual(t, firstPlan, secondPlan,
+		"a request for \"LiveUserCount\" must not be served the cached plan built for \"LastRegisteredUser\" just because the printed document text is identical")
 }
 
 func BenchmarkExecutionEngineV2(b *testing.B) {

@@ -18,8 +18,8 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
-	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/datasource/httpclient"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/astjson"
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/datasource/httpclient"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/pool"
 )
 
@@ -617,6 +617,10 @@ func (l *Loader) loadSingleFetch(ctx context.Context, fetch *SingleFetch, items 
 		return l.renderErrorsInvalidInput(res.out)
 	}
 	fetchInput := preparedInput.Bytes()
+	fetchInput, err = l.finalizeInput(fetchInput)
+	if err != nil {
+		return errors.WithStack(err)
+	}
 	authorized, err := l.isFetchAuthorized(fetchInput, fetch.Info, res)
 	if err != nil {
 		return errors.WithStack(err)
@@ -697,6 +701,10 @@ func (l *Loader) loadEntityFetch(ctx context.Context, fetch *EntityFetch, items 
 		return errors.WithStack(err)
 	}
 	fetchInput := preparedInput.Bytes()
+	fetchInput, err = l.finalizeInput(fetchInput)
+	if err != nil {
+		return errors.WithStack(err)
+	}
 	authorized, err := l.isFetchAuthorized(fetchInput, fetch.Info, res)
 	if err != nil {
 		return errors.WithStack(err)
@@ -818,6 +826,10 @@ WithNextItem:
 		return errors.WithStack(err)
 	}
 	fetchInput := preparedInput.Bytes()
+	fetchInput, err = l.finalizeInput(fetchInput)
+	if err != nil {
+		return errors.WithStack(err)
+	}
 	authorized, err := l.isFetchAuthorized(fetchInput, fetch.Info, res)
 	if err != nil {
 		return errors.WithStack(err)
@@ -892,12 +904,6 @@ func setSingleFlightStats(ctx context.Context, stats *SingleFlightStats) context
 }
 
 func (l *Loader) executeSourceLoad(ctx context.Context, source DataSource, input []byte, out *bytes.Buffer, trace *DataSourceLoadTrace) (err error) {
-	if l.ctx.Extensions != nil {
-		input, err = jsonparser.Set(input, l.ctx.Extensions, "body", "extensions")
-		if err != nil {
-			return errors.WithStack(err)
-		}
-	}
 	if l.traceOptions.Enable {
 		ctx = setSingleFlightStats(ctx, &SingleFlightStats{})
 		trace.Path = l.renderPath()
@@ -1006,13 +1012,6 @@ func (l *Loader) executeSourceLoad(ctx context.Context, source DataSource, input
 		ctx = context.WithValue(ctx, disallowSingleFlightContextKey{}, true)
 	}
 
-	if l.ctx.HeaderModifier != nil {
-		input = httpclient.ApplyHeaderModifier(input, l.ctx.HeaderModifier)
-	}
-	if len(l.ctx.UpstreamHeaders) > 0 {
-		input = httpclient.MergeInputHeader(input, l.ctx.UpstreamHeaders)
-	}
-
 	err = source.Load(ctx, input, out)
 	if l.traceOptions.Enable {
 		stats := GetSingleFlightStats(ctx)
@@ -1048,4 +1047,15 @@ func (l *Loader) executeSourceLoad(ctx context.Context, source DataSource, input
 	l.ctx.Stats.NumberOfFetches.Inc()
 	l.ctx.Stats.CombinedResponseSize.Add(int64(out.Len()))
 	return nil
+}
+
+func (l *Loader) finalizeInput(input []byte) ([]byte, error) {
+	var err error
+	if l.ctx.Extensions != nil {
+		input, err = jsonparser.Set(input, l.ctx.Extensions, "body", "extensions")
+		if err != nil {
+			return nil, err
+		}
+	}
+	return httpclient.FinalizeInputHeaders(input, l.ctx.HeaderModifier, l.ctx.UpstreamHeaders)
 }

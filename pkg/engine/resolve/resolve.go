@@ -14,14 +14,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/buger/jsonparser"
-	"github.com/cespare/xxhash/v2"
-	"github.com/tidwall/gjson"
 	"github.com/TykTechnologies/graphql-go-tools/internal/pkg/unsafebytes"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/engine/datasource/httpclient"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/fastbuffer"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/lexer/literal"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/pool"
+	"github.com/buger/jsonparser"
+	"github.com/cespare/xxhash/v2"
+	"github.com/tidwall/gjson"
 )
 
 var (
@@ -199,7 +199,7 @@ func (c *Context) clone() Context {
 	return Context{
 		ctx:             c.ctx,
 		Variables:       variables,
-		Request:         c.Request,
+		Request:         Request{Header: c.Request.Header.Clone()},
 		pathElements:    pathElements,
 		patches:         patches,
 		usedBuffers:     make([]*bytes.Buffer, 0, 48),
@@ -209,6 +209,8 @@ func (c *Context) clone() Context {
 		beforeFetchHook: c.beforeFetchHook,
 		afterFetchHook:  c.afterFetchHook,
 		position:        c.position,
+		UpstreamHeaders: c.UpstreamHeaders.Clone(),
+		HeaderModifier:  c.HeaderModifier,
 	}
 }
 
@@ -230,6 +232,8 @@ func (c *Context) Free() {
 	c.position = Position{}
 	c.dataLoader = nil
 	c.RenameTypeNames = nil
+	c.UpstreamHeaders = nil
+	c.HeaderModifier = nil
 }
 
 func (c *Context) SetBeforeFetchHook(hook BeforeFetchHook) {
@@ -582,11 +586,9 @@ func (r *Resolver) ResolveGraphQLSubscription(ctx *Context, subscription *GraphQ
 	copy(subscriptionInput, rendered)
 	r.freeBufPair(buf)
 
-	if ctx.HeaderModifier != nil {
-		subscriptionInput = httpclient.ApplyHeaderModifier(subscriptionInput, ctx.HeaderModifier)
-	}
-	if len(ctx.UpstreamHeaders) > 0 {
-		subscriptionInput = httpclient.MergeInputHeader(subscriptionInput, ctx.UpstreamHeaders)
+	subscriptionInput, err = httpclient.FinalizeInputHeaders(subscriptionInput, ctx.HeaderModifier, ctx.UpstreamHeaders)
+	if err != nil {
+		return err
 	}
 	c, cancel := context.WithCancel(ctx.Context())
 	defer cancel()
@@ -1445,24 +1447,27 @@ func (r *Resolver) prepareSingleFetch(ctx *Context, fetch *SingleFetch, data []b
 	if err != nil {
 		return err
 	}
-	
-	inputBytes := preparedInput.Bytes()
-	if ctx.HeaderModifier != nil {
-		inputBytes = httpclient.ApplyHeaderModifier(inputBytes, ctx.HeaderModifier)
-	}
-	if len(ctx.UpstreamHeaders) > 0 {
-		inputBytes = httpclient.MergeInputHeader(inputBytes, ctx.UpstreamHeaders)
-	}
-	if len(inputBytes) > 0 && (len(inputBytes) != preparedInput.Len() || &inputBytes[0] != &preparedInput.Bytes()[0]) {
-		preparedInput.Reset()
-		preparedInput.WriteBytes(inputBytes)
-	} else if len(inputBytes) == 0 && preparedInput.Len() > 0 {
-		preparedInput.Reset()
+	if err = finalizePreparedInput(ctx, preparedInput); err != nil {
+		return err
 	}
 
 	buf := r.getBufPair()
 	set.buffers[fetch.BufferId] = buf
 	return
+}
+
+func finalizePreparedInput(ctx *Context, preparedInput *fastbuffer.FastBuffer) error {
+	if ctx.HeaderModifier == nil && len(ctx.UpstreamHeaders) == 0 {
+		return nil
+	}
+
+	input, err := httpclient.FinalizeInputHeaders(preparedInput.Bytes(), ctx.HeaderModifier, ctx.UpstreamHeaders)
+	if err != nil {
+		return err
+	}
+	preparedInput.Reset()
+	preparedInput.WriteBytes(input)
+	return nil
 }
 
 func (r *Resolver) resolveBatchFetch(ctx *Context, fetch *BatchFetch, preparedInput *fastbuffer.FastBuffer, buf *BufPair) error {

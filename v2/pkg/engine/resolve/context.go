@@ -111,6 +111,7 @@ func (c *Context) clone(ctx context.Context) *Context {
 	cpy.Variables = append([]byte(nil), c.Variables...)
 	cpy.Request.Header = c.Request.Header.Clone()
 	cpy.RenameTypeNames = append([]RenameTypeName(nil), c.RenameTypeNames...)
+	cpy.UpstreamHeaders = c.UpstreamHeaders.Clone()
 	return &cpy
 }
 
@@ -124,6 +125,8 @@ func (c *Context) Free() {
 	c.Stats.Reset()
 	c.subgraphErrors = nil
 	c.authorizer = nil
+	c.UpstreamHeaders = nil
+	c.HeaderModifier = nil
 }
 
 type traceStartKey struct{}

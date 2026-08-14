@@ -1,32 +1,28 @@
 package resolve
 
 import (
-	"hash"
 	"sync"
-
-	"github.com/cespare/xxhash/v2"
 
 	"github.com/TykTechnologies/graphql-go-tools/pkg/fastbuffer"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/pool"
 )
 
+type inflightFetchKey struct {
+	fetch *SingleFetch
+	input string
+}
+
 type Fetcher struct {
 	EnableSingleFlightLoader bool
-	hash64Pool               sync.Pool
 	inflightFetchPool        sync.Pool
 	bufPairPool              sync.Pool
 	inflightFetchMu          *sync.Mutex
-	inflightFetches          map[uint64]*inflightFetch
+	inflightFetches          map[inflightFetchKey]*inflightFetch
 }
 
 func NewFetcher(enableSingleFlightLoader bool) *Fetcher {
 	return &Fetcher{
 		EnableSingleFlightLoader: enableSingleFlightLoader,
-		hash64Pool: sync.Pool{
-			New: func() interface{} {
-				return xxhash.New()
-			},
-		},
 		inflightFetchPool: sync.Pool{
 			New: func() interface{} {
 				return &inflightFetch{
@@ -43,7 +39,7 @@ func NewFetcher(enableSingleFlightLoader bool) *Fetcher {
 			},
 		},
 		inflightFetchMu: &sync.Mutex{},
-		inflightFetches: map[uint64]*inflightFetch{},
+		inflightFetches: map[inflightFetchKey]*inflightFetch{},
 	}
 }
 
@@ -70,10 +66,7 @@ func (f *Fetcher) Fetch(ctx *Context, fetch *SingleFetch, preparedInput *fastbuf
 		return
 	}
 
-	hash64 := f.getHash64()
-	_, _ = hash64.Write(preparedInput.Bytes())
-	fetchID := hash64.Sum64()
-	f.putHash64(hash64)
+	fetchID := inflightFetchKey{fetch: fetch, input: string(preparedInput.Bytes())}
 
 	f.inflightFetchMu.Lock()
 	inflight, ok := f.inflightFetches[fetchID]
@@ -184,13 +177,4 @@ func (f *Fetcher) hookCtx(ctx *Context) HookContext {
 	return HookContext{
 		CurrentPath: ctx.path(),
 	}
-}
-
-func (f *Fetcher) getHash64() hash.Hash64 {
-	return f.hash64Pool.Get().(hash.Hash64)
-}
-
-func (f *Fetcher) putHash64(h hash.Hash64) {
-	h.Reset()
-	f.hash64Pool.Put(h)
 }
