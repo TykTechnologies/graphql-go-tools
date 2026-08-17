@@ -31,9 +31,11 @@ type Loader struct {
 	path         []string
 	traceOptions RequestTraceOptions
 	info         *GraphQLResponseInfo
+	traces       *fetchTraces
 }
 
 func (l *Loader) Free() {
+	l.traces = nil
 	l.info = nil
 	l.ctx = nil
 	l.data = nil
@@ -48,7 +50,8 @@ func (l *Loader) LoadGraphQLResponseData(ctx *Context, response *GraphQLResponse
 	l.errorsRoot = resolvable.errorsRoot
 	l.traceOptions = resolvable.requestTraceOptions
 	l.ctx = ctx
-	l.info = response.Info
+	l.info = response.info()
+	l.traces = &resolvable.fetchTraces
 	return l.walkNode(response.Data, []int{resolvable.dataRoot})
 }
 
@@ -189,9 +192,9 @@ func (l *Loader) resolveAndMergeFetch(fetch Fetch, items []int) error {
 		return l.mergeResult(res, items)
 	case *SerialFetch:
 		if l.traceOptions.Enable {
-			f.Trace = &DataSourceLoadTrace{
+			l.traces.setLoad(f, &DataSourceLoadTrace{
 				Path: l.renderPath(),
-			}
+			})
 		}
 		for i := range f.Fetches {
 			err := l.resolveAndMergeFetch(f.Fetches[i], items)
@@ -201,9 +204,9 @@ func (l *Loader) resolveAndMergeFetch(fetch Fetch, items []int) error {
 		}
 	case *ParallelFetch:
 		if l.traceOptions.Enable {
-			f.Trace = &DataSourceLoadTrace{
+			l.traces.setLoad(f, &DataSourceLoadTrace{
 				Path: l.renderPath(),
-			}
+			})
 		}
 		results := make([]*result, len(f.Fetches))
 		g, ctx := errgroup.WithContext(l.ctx.ctx)
@@ -235,9 +238,9 @@ func (l *Loader) resolveAndMergeFetch(fetch Fetch, items []int) error {
 		}
 	case *ParallelListItemFetch:
 		if l.traceOptions.Enable {
-			f.Trace = &DataSourceLoadTrace{
+			l.traces.setLoad(f, &DataSourceLoadTrace{
 				Path: l.renderPath(),
-			}
+			})
 		}
 		results := make([]*result, len(items))
 		g, ctx := errgroup.WithContext(l.ctx.ctx)
@@ -293,8 +296,10 @@ func (l *Loader) loadFetch(ctx context.Context, fetch Fetch, items []int, res *r
 		return fmt.Errorf("parallel fetch must not be nested")
 	case *ParallelListItemFetch:
 		results := make([]*result, len(items))
+		var itemFetches []*SingleFetch
 		if l.traceOptions.Enable {
-			f.Traces = make([]*SingleFetch, len(items))
+			itemFetches = make([]*SingleFetch, len(items))
+			l.traces.setListItemFetches(f, itemFetches)
 		}
 		g, ctx := errgroup.WithContext(l.ctx.ctx)
 		for i := range items {
@@ -303,10 +308,10 @@ func (l *Loader) loadFetch(ctx context.Context, fetch Fetch, items []int, res *r
 				out: pool.BytesBuffer.Get(),
 			}
 			if l.traceOptions.Enable {
-				f.Traces[i] = new(SingleFetch)
-				*f.Traces[i] = *f.Fetch
+				itemFetches[i] = new(SingleFetch)
+				*itemFetches[i] = *f.Fetch
 				g.Go(func() error {
-					return l.loadFetch(ctx, f.Traces[i], items[i:i+1], results[i])
+					return l.loadFetch(ctx, itemFetches[i], items[i:i+1], results[i])
 				})
 				continue
 			}
@@ -604,12 +609,14 @@ func (l *Loader) loadSingleFetch(ctx context.Context, fetch *SingleFetch, items 
 	if err != nil {
 		return errors.WithStack(err)
 	}
+	var trace *DataSourceLoadTrace
 	if l.traceOptions.Enable {
-		fetch.Trace = &DataSourceLoadTrace{}
+		trace = &DataSourceLoadTrace{}
+		l.traces.setLoad(fetch, trace)
 		if !l.traceOptions.ExcludeRawInputData {
 			inputCopy := make([]byte, input.Len())
 			copy(inputCopy, input.Bytes())
-			fetch.Trace.RawInputData = inputCopy
+			trace.RawInputData = inputCopy
 		}
 	}
 	err = fetch.InputTemplate.Render(l.ctx, input.Bytes(), preparedInput)
@@ -628,7 +635,7 @@ func (l *Loader) loadSingleFetch(ctx context.Context, fetch *SingleFetch, items 
 	if !authorized {
 		return nil
 	}
-	res.err = l.executeSourceLoad(ctx, fetch.DataSource, fetchInput, res.out, fetch.Trace)
+	res.err = l.executeSourceLoad(ctx, fetch.DataSource, fetchInput, res.out, trace)
 	return nil
 }
 
@@ -645,12 +652,14 @@ func (l *Loader) loadEntityFetch(ctx context.Context, fetch *EntityFetch, items 
 		return errors.WithStack(err)
 	}
 
+	var trace *DataSourceLoadTrace
 	if l.traceOptions.Enable {
-		fetch.Trace = &DataSourceLoadTrace{}
+		trace = &DataSourceLoadTrace{}
+		l.traces.setLoad(fetch, trace)
 		if !l.traceOptions.ExcludeRawInputData {
 			itemDataCopy := make([]byte, itemData.Len())
 			copy(itemDataCopy, itemData.Bytes())
-			fetch.Trace.RawInputData = itemDataCopy
+			trace.RawInputData = itemDataCopy
 		}
 	}
 
@@ -667,7 +676,7 @@ func (l *Loader) loadEntityFetch(ctx context.Context, fetch *EntityFetch, items 
 			err = nil // nolint:ineffassign
 			// skip fetch on render item error
 			if l.traceOptions.Enable {
-				fetch.Trace.LoadSkipped = true
+				trace.LoadSkipped = true
 			}
 			return nil
 		}
@@ -678,7 +687,7 @@ func (l *Loader) loadEntityFetch(ctx context.Context, fetch *EntityFetch, items 
 		// skip fetch if item is null
 		res.fetchSkipped = true
 		if l.traceOptions.Enable {
-			fetch.Trace.LoadSkipped = true
+			trace.LoadSkipped = true
 		}
 		return nil
 	}
@@ -686,7 +695,7 @@ func (l *Loader) loadEntityFetch(ctx context.Context, fetch *EntityFetch, items 
 		// skip fetch if item is empty
 		res.fetchSkipped = true
 		if l.traceOptions.Enable {
-			fetch.Trace.LoadSkipped = true
+			trace.LoadSkipped = true
 		}
 		return nil
 	}
@@ -712,22 +721,24 @@ func (l *Loader) loadEntityFetch(ctx context.Context, fetch *EntityFetch, items 
 	if !authorized {
 		return nil
 	}
-	res.err = l.executeSourceLoad(ctx, fetch.DataSource, fetchInput, res.out, fetch.Trace)
+	res.err = l.executeSourceLoad(ctx, fetch.DataSource, fetchInput, res.out, trace)
 	return nil
 }
 
 func (l *Loader) loadBatchEntityFetch(ctx context.Context, fetch *BatchEntityFetch, items []int, res *result) error {
 	res.init(fetch.PostProcessing, fetch.Info)
 
+	var trace *DataSourceLoadTrace
 	if l.traceOptions.Enable {
-		fetch.Trace = &DataSourceLoadTrace{}
+		trace = &DataSourceLoadTrace{}
+		l.traces.setLoad(fetch, trace)
 		if !l.traceOptions.ExcludeRawInputData {
 			buf := &bytes.Buffer{}
 			err := l.itemsData(items, buf)
 			if err != nil {
 				return errors.WithStack(err)
 			}
-			fetch.Trace.RawInputData = buf.Bytes()
+			trace.RawInputData = buf.Bytes()
 		}
 	}
 
@@ -771,7 +782,7 @@ WithNextItem:
 					continue
 				}
 				if l.traceOptions.Enable {
-					fetch.Trace.LoadSkipped = true
+					trace.LoadSkipped = true
 				}
 				return errors.WithStack(err)
 			}
@@ -811,7 +822,7 @@ WithNextItem:
 		// all items were skipped - discard fetch
 		res.fetchSkipped = true
 		if l.traceOptions.Enable {
-			fetch.Trace.LoadSkipped = true
+			trace.LoadSkipped = true
 		}
 		return nil
 	}
@@ -837,7 +848,7 @@ WithNextItem:
 	if !authorized {
 		return nil
 	}
-	res.err = l.executeSourceLoad(ctx, fetch.DataSource, fetchInput, res.out, fetch.Trace)
+	res.err = l.executeSourceLoad(ctx, fetch.DataSource, fetchInput, res.out, trace)
 	return nil
 }
 

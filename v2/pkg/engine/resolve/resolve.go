@@ -17,7 +17,6 @@ import (
 	"go.uber.org/atomic"
 
 	"github.com/TykTechnologies/graphql-go-tools/v2/internal/pkg/xcontext"
-	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/engine/datasource/httpclient"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/pool"
 )
@@ -121,16 +120,10 @@ func (r *Resolver) putTools(t *tools) {
 }
 
 func (r *Resolver) ResolveGraphQLResponse(ctx *Context, response *GraphQLResponse, data []byte, writer io.Writer) (err error) {
-	if response.Info == nil {
-		response.Info = &GraphQLResponseInfo{
-			OperationType: ast.OperationTypeQuery,
-		}
-	}
-
 	t := r.getTools()
 	defer r.putTools(t)
 
-	err = t.resolvable.Init(ctx, data, response.Info.OperationType)
+	err = t.resolvable.Init(ctx, data, response.info().OperationType)
 	if err != nil {
 		return err
 	}

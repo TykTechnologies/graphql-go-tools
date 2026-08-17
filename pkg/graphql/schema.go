@@ -37,9 +37,18 @@ type Schema struct {
 	hash         uint64
 }
 
+// Hash returns the hash of the schema. The value is computed once, while the schema is
+// built, so that concurrent readers never write to it. See calcHash.
 func (s *Schema) Hash() (uint64, error) {
+	return s.hash, nil
+}
+
+// calcHash calculates the hash of the schema. It must only be called while the schema is
+// being built, never from a request path: a schema is shared between all requests of an
+// API, so a lazy write here is a data race between concurrent callers of Hash.
+func (s *Schema) calcHash() error {
 	if s.hash != 0 {
-		return s.hash, nil
+		return nil
 	}
 	h := pool.Hash64.Get()
 	h.Reset()
@@ -47,10 +56,10 @@ func (s *Schema) Hash() (uint64, error) {
 	printer := astprinter.Printer{}
 	err := printer.Print(&s.document, nil, h)
 	if err != nil {
-		return 0, err
+		return err
 	}
 	s.hash = h.Sum64()
-	return s.hash, nil
+	return nil
 }
 
 func NewSchemaFromReader(reader io.Reader) (*Schema, error) {
@@ -115,6 +124,7 @@ func (s *Schema) Normalize() (result NormalizationResult, err error) {
 
 	s.rawSchema = normalizedSchema.rawSchema
 	s.document = normalizedSchema.document
+	s.hash = normalizedSchema.hash
 	s.isNormalized = true
 	return NormalizationResult{Successful: true, Errors: nil}, nil
 }
@@ -454,11 +464,16 @@ func createSchema(schemaContent []byte, mergeWithBaseSchema bool) (*Schema, erro
 		rawSchema = rawSchemaBuffer.Bytes()
 	}
 
-	return &Schema{
+	schema := &Schema{
 		rawInput:  schemaContent,
 		rawSchema: rawSchema,
 		document:  document,
-	}, nil
+	}
+	if err := schema.calcHash(); err != nil {
+		return nil, err
+	}
+
+	return schema, nil
 }
 
 func SchemaIntrospection(schema *Schema) (*ExecutionResult, error) {

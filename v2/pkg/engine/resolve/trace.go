@@ -3,9 +3,74 @@ package resolve
 import (
 	"context"
 	"encoding/json"
+	"sync"
 
 	"github.com/google/uuid"
 )
+
+// fetchTraces collects the traces recorded while one request is resolved. They must not be hung off
+// the fetches themselves: a plan is shared by every concurrent request that resolves the same
+// operation, so writing to it is a data race. Parallel fetches record concurrently within a single
+// request, hence the mutex. The zero value is ready to use and all methods tolerate a nil receiver.
+type fetchTraces struct {
+	mu sync.Mutex
+	// loads holds the trace of every fetch that was loaded, keyed by the fetch it belongs to.
+	loads map[Fetch]*DataSourceLoadTrace
+	// listItemFetches holds the per-item copies a ParallelListItemFetch was resolved with.
+	listItemFetches map[*ParallelListItemFetch][]*SingleFetch
+}
+
+func (t *fetchTraces) reset() {
+	if t == nil {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.loads = nil
+	t.listItemFetches = nil
+}
+
+func (t *fetchTraces) setLoad(fetch Fetch, trace *DataSourceLoadTrace) {
+	if t == nil {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.loads == nil {
+		t.loads = make(map[Fetch]*DataSourceLoadTrace)
+	}
+	t.loads[fetch] = trace
+}
+
+func (t *fetchTraces) load(fetch Fetch) *DataSourceLoadTrace {
+	if t == nil {
+		return nil
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.loads[fetch]
+}
+
+func (t *fetchTraces) setListItemFetches(fetch *ParallelListItemFetch, fetches []*SingleFetch) {
+	if t == nil {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.listItemFetches == nil {
+		t.listItemFetches = make(map[*ParallelListItemFetch][]*SingleFetch)
+	}
+	t.listItemFetches[fetch] = fetches
+}
+
+func (t *fetchTraces) listItemFetchesOf(fetch *ParallelListItemFetch) []*SingleFetch {
+	if t == nil {
+		return nil
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.listItemFetches[fetch]
+}
 
 type RequestTraceOptions struct {
 	// Enable switches tracing on or off
@@ -141,14 +206,14 @@ func getNodeType(kind NodeKind) TraceNodeType {
 	}
 }
 
-func parseField(f *Field) *TraceField {
+func parseField(f *Field, traces *fetchTraces) *TraceField {
 	if f == nil {
 		return nil
 	}
 
 	field := &TraceField{
 		Name:  string(f.Name),
-		Value: parseNode(f.Value),
+		Value: parseNode(f.Value, traces),
 	}
 
 	if f.Info == nil {
@@ -162,7 +227,7 @@ func parseField(f *Field) *TraceField {
 	return field
 }
 
-func parseFetch(fetch Fetch) *TraceFetch {
+func parseFetch(fetch Fetch, traces *fetchTraces) *TraceFetch {
 	traceFetch := &TraceFetch{
 		Id: uuid.NewString(),
 	}
@@ -170,9 +235,9 @@ func parseFetch(fetch Fetch) *TraceFetch {
 	switch f := fetch.(type) {
 	case *SingleFetch:
 		traceFetch.Type = TraceFetchTypeSingle
-		if f.Trace != nil {
-			traceFetch.DataSourceLoadTrace = f.Trace
-			traceFetch.Path = f.Trace.Path
+		if trace := traces.load(f); trace != nil {
+			traceFetch.DataSourceLoadTrace = trace
+			traceFetch.Path = trace.Path
 		}
 		if f.Info != nil {
 			traceFetch.DataSourceID = f.Info.DataSourceID
@@ -180,43 +245,41 @@ func parseFetch(fetch Fetch) *TraceFetch {
 
 	case *ParallelFetch:
 		traceFetch.Type = TraceFetchTypeParallel
-		if f.Trace != nil {
-			traceFetch.Path = f.Trace.Path
+		if trace := traces.load(f); trace != nil {
+			traceFetch.Path = trace.Path
 		}
 		for _, subFetch := range f.Fetches {
-			traceFetch.Fetches = append(traceFetch.Fetches, parseFetch(subFetch))
+			traceFetch.Fetches = append(traceFetch.Fetches, parseFetch(subFetch, traces))
 		}
 
 	case *SerialFetch:
 		traceFetch.Type = TraceFetchTypeSerial
-		if f.Trace != nil {
-			traceFetch.Path = f.Trace.Path
+		if trace := traces.load(f); trace != nil {
+			traceFetch.Path = trace.Path
 		}
 		for _, subFetch := range f.Fetches {
-			traceFetch.Fetches = append(traceFetch.Fetches, parseFetch(subFetch))
+			traceFetch.Fetches = append(traceFetch.Fetches, parseFetch(subFetch, traces))
 		}
 
 	case *ParallelListItemFetch:
 		traceFetch.Type = TraceFetchTypeParallelListItem
-		if f.Trace != nil {
-			traceFetch.Path = f.Trace.Path
+		if trace := traces.load(f); trace != nil {
+			traceFetch.Path = trace.Path
 		}
-		traceFetch.Fetches = append(traceFetch.Fetches, parseFetch(f.Fetch))
-		if f.Traces != nil {
-			for _, trace := range f.Traces {
-				if trace.Trace != nil {
-					traceFetch.DataSourceLoadTraces = append(traceFetch.DataSourceLoadTraces, trace.Trace)
-				}
-				if trace.Info != nil {
-					traceFetch.DataSourceID = trace.Info.DataSourceID
-				}
+		traceFetch.Fetches = append(traceFetch.Fetches, parseFetch(f.Fetch, traces))
+		for _, itemFetch := range traces.listItemFetchesOf(f) {
+			if trace := traces.load(itemFetch); trace != nil {
+				traceFetch.DataSourceLoadTraces = append(traceFetch.DataSourceLoadTraces, trace)
+			}
+			if itemFetch.Info != nil {
+				traceFetch.DataSourceID = itemFetch.Info.DataSourceID
 			}
 		}
 	case *EntityFetch:
 		traceFetch.Type = TraceFetchTypeEntity
-		if f.Trace != nil {
-			traceFetch.DataSourceLoadTrace = f.Trace
-			traceFetch.Path = f.Trace.Path
+		if trace := traces.load(f); trace != nil {
+			traceFetch.DataSourceLoadTrace = trace
+			traceFetch.Path = trace.Path
 		}
 		if f.Info != nil {
 			traceFetch.DataSourceID = f.Info.DataSourceID
@@ -224,9 +287,9 @@ func parseFetch(fetch Fetch) *TraceFetch {
 
 	case *BatchEntityFetch:
 		traceFetch.Type = TraceFetchTypeBatchEntity
-		if f.Trace != nil {
-			traceFetch.DataSourceLoadTrace = f.Trace
-			traceFetch.Path = f.Trace.Path
+		if trace := traces.load(f); trace != nil {
+			traceFetch.DataSourceLoadTrace = trace
+			traceFetch.Path = trace.Path
 		}
 		if f.Info != nil {
 			traceFetch.DataSourceID = f.Info.DataSourceID
@@ -239,7 +302,7 @@ func parseFetch(fetch Fetch) *TraceFetch {
 	return traceFetch
 }
 
-func parseNode(n Node) *TraceNode {
+func parseNode(n Node, traces *fetchTraces) *TraceNode {
 	node := &TraceNode{
 		NodeType: getNodeType(n.NodeKind()),
 		Nullable: n.NodeKind() == NodeKindNull || n.NodePath() == nil,
@@ -249,16 +312,16 @@ func parseNode(n Node) *TraceNode {
 	switch v := n.(type) {
 	case *Object:
 		for _, field := range v.Fields {
-			node.Fields = append(node.Fields, parseField(field))
+			node.Fields = append(node.Fields, parseField(field, traces))
 		}
-		node.Fetch = parseFetch(v.Fetch)
+		node.Fetch = parseFetch(v.Fetch, traces)
 
 	case *Array:
 		if v.Item != nil {
-			node.Items = append(node.Items, parseNode(v.Item))
+			node.Items = append(node.Items, parseNode(v.Item, traces))
 		} else if len(v.Items) > 0 {
 			for _, item := range v.Items {
-				node.Items = append(node.Items, parseNode(item))
+				node.Items = append(node.Items, parseNode(item, traces))
 			}
 		}
 
@@ -270,8 +333,15 @@ func parseNode(n Node) *TraceNode {
 	return node
 }
 
+// GetTrace assembles the trace of a resolved response. It cannot report the per-fetch load traces,
+// which belong to a single request rather than to the shared plan - resolving a response reports
+// those itself, through Resolvable.
 func GetTrace(ctx context.Context, root *Object) *TraceNode {
-	node := parseNode(root)
+	return getTrace(ctx, root, nil)
+}
+
+func getTrace(ctx context.Context, root *Object, traces *fetchTraces) *TraceNode {
+	node := parseNode(root, traces)
 	node.Info = GetTraceInfo(ctx)
 	return node
 }

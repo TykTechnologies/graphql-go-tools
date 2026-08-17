@@ -3,6 +3,7 @@ package graphql
 import (
 	"bytes"
 	"io"
+	"sync"
 	"testing"
 
 	"github.com/sebdah/goldie"
@@ -2026,3 +2027,103 @@ type VehiclesEdge {
   """A cursor for use in pagination"""
   cursor: String!
 }`
+
+func TestSchema_Hash(t *testing.T) {
+	const schemaDefinition = "type Query { hello: String }"
+
+	// The hash is the identity of the schema for Request.validForSchema, so every constructor has
+	// to produce one. There is a single &Schema{} literal behind all of them; this keeps it that way.
+	t.Run("should be available right after construction", func(t *testing.T) {
+		constructors := map[string]func() (*Schema, error){
+			"from string": func() (*Schema, error) {
+				return NewSchemaFromString(schemaDefinition)
+			},
+			"from reader": func() (*Schema, error) {
+				return NewSchemaFromReader(bytes.NewBufferString(schemaDefinition))
+			},
+		}
+
+		for name, newSchema := range constructors {
+			t.Run(name, func(t *testing.T) {
+				schema, err := newSchema()
+				require.NoError(t, err)
+
+				hash, err := schema.Hash()
+				require.NoError(t, err)
+				assert.NotZero(t, hash, "the hash has to be computed while the schema is built, not on first use")
+
+				again, err := schema.Hash()
+				require.NoError(t, err)
+				assert.Equal(t, hash, again, "Hash() has to be a pure read")
+			})
+		}
+	})
+
+	t.Run("should follow the document after normalization", func(t *testing.T) {
+		// The extension is merged into the type by normalization, so the document - and with it the
+		// hash - really does change.
+		schema, err := NewSchemaFromString("type Query { hello: String }\nextend type Query { world: String }")
+		require.NoError(t, err)
+		beforeNormalization, err := schema.Hash()
+		require.NoError(t, err)
+
+		normalizationResult, err := schema.Normalize()
+		require.NoError(t, err)
+		require.True(t, normalizationResult.Successful)
+
+		afterNormalization, err := schema.Hash()
+		require.NoError(t, err)
+
+		// What the hash has to describe now is the document the schema currently holds.
+		normalized, err := createSchema(schema.rawSchema, false)
+		require.NoError(t, err)
+		expected, err := normalized.Hash()
+		require.NoError(t, err)
+
+		assert.Equal(t, expected, afterNormalization, "Hash() has to describe the document the schema holds")
+		assert.NotEqual(t, beforeNormalization, afterNormalization, "normalization changed the document, so it has to change the hash")
+	})
+
+	// A schema is shared between every request of an API, so a lazy write in Hash() is a data race
+	// between concurrent requests. The expected value comes from a second, identical schema, so that
+	// the schema under test is still cold when the goroutines start: reading its hash up front would
+	// hide exactly the defect this guards. Only reports under -race.
+	t.Run("should be safe to read concurrently", func(t *testing.T) {
+		reference, err := NewSchemaFromString(schemaDefinition)
+		require.NoError(t, err)
+		_, err = reference.Normalize()
+		require.NoError(t, err)
+		expected, err := reference.Hash()
+		require.NoError(t, err)
+		require.NotZero(t, expected)
+
+		schema, err := NewSchemaFromString(schemaDefinition)
+		require.NoError(t, err)
+		_, err = schema.Normalize()
+		require.NoError(t, err)
+
+		var waitGroup sync.WaitGroup
+		for i := 0; i < 50; i++ {
+			waitGroup.Add(3)
+			go func() {
+				defer waitGroup.Done()
+				hash, err := schema.Hash()
+				assert.NoError(t, err)
+				assert.Equal(t, expected, hash)
+			}()
+			// Both callers on the request path used to trigger the lazy write.
+			go func() {
+				defer waitGroup.Done()
+				request := Request{Query: "{ hello }"}
+				_, err := request.ValidateForSchema(schema)
+				assert.NoError(t, err)
+			}()
+			go func() {
+				defer waitGroup.Done()
+				request := Request{Query: "{ hello }"}
+				assert.False(t, request.IsValidated(schema))
+			}()
+		}
+		waitGroup.Wait()
+	})
+}
