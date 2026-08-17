@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strconv"
 	"sync"
 	"testing"
@@ -294,4 +295,239 @@ func TestWebsocketSubscriptionClientWithServerDisconnect(t *testing.T) {
 		defer client.handlersMu.Unlock()
 		return len(client.handlers) == 0
 	}, time.Second, time.Millisecond, "client handlers not 0")
+}
+
+type connectionInitTokenKey struct{}
+
+// acceptGraphQLWSServer starts a websocket server that negotiates the graphql-ws protocol, records
+// the connection_init message of every connection it accepts, acknowledges it and then keeps the
+// connection open so a second subscription can be multiplexed onto it.
+func acceptGraphQLWSServer(t *testing.T, record func(initMessage string)) *httptest.Server {
+	t.Helper()
+
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+			Subprotocols: []string{ProtocolGraphQLWS},
+		})
+		if err != nil {
+			return
+		}
+		defer conn.Close(websocket.StatusInternalError, "closing")
+
+		_, initMessage, err := conn.Read(r.Context())
+		if err != nil {
+			return
+		}
+		record(string(initMessage))
+
+		if err := conn.Write(r.Context(), websocket.MessageText, []byte(`{"type":"connection_ack"}`)); err != nil {
+			return
+		}
+
+		for {
+			if _, _, err := conn.Read(r.Context()); err != nil {
+				return
+			}
+		}
+	}))
+}
+
+// TestSubscriptionClientConnectionInitIsolation guards against multiplexing two requests onto the
+// same upstream websocket when only their connection_init payloads differ. That payload is produced
+// by OnWsConnectionInitCallback, which is handed the request context precisely so it can forward the
+// calling user's credentials - reusing a connection that was authenticated with somebody else's
+// payload puts one user's subscription on another user's upstream session.
+func TestSubscriptionClientConnectionInitIsolation(t *testing.T) {
+	var (
+		mu            sync.Mutex
+		receivedInits []string
+	)
+
+	server := acceptGraphQLWSServer(t, func(initMessage string) {
+		mu.Lock()
+		receivedInits = append(receivedInits, initMessage)
+		mu.Unlock()
+	})
+	defer server.Close()
+
+	var callback OnWsConnectionInitCallback = func(ctx context.Context, url string, header http.Header) (json.RawMessage, error) {
+		token, _ := ctx.Value(connectionInitTokenKey{}).(string)
+		return json.RawMessage(fmt.Sprintf(`{"token":%q}`, token)), nil
+	}
+
+	client := NewGraphQLSubscriptionClient(http.DefaultClient, http.DefaultClient, context.Background(),
+		WithOnWsConnectionInitCallback(&callback),
+	)
+
+	options := GraphQLSubscriptionOptions{
+		URL:  "ws" + server.URL[4:],
+		Body: GraphQLBody{Query: `subscription {messageAdded(roomName: "room"){text}}`},
+	}
+
+	userTokens := []string{"user-1-token", "user-2-token"}
+	for _, token := range userTokens {
+		ctx := context.WithValue(context.Background(), connectionInitTokenKey{}, token)
+		require.NoError(t, client.Subscribe(resolve.NewContext(ctx), options, &testSubscriptionUpdater{}))
+	}
+
+	assert.Eventuallyf(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(receivedInits) == len(userTokens)
+	}, time.Second, time.Millisecond*10, "expected one upstream connection per connection_init payload")
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	for _, token := range userTokens {
+		assert.Contains(t, receivedInits, fmt.Sprintf(`{"type":"connection_init","payload":{"token":"%s"}}`, token))
+	}
+}
+
+// TestSubscriptionClientDoesNotPinNegotiatedSubProtocol guards against one connection's negotiated
+// sub-protocol being written back onto the shared client - it would become the client wide default
+// and narrow the protocols offered to every upstream dialled afterwards.
+func TestSubscriptionClientDoesNotPinNegotiatedSubProtocol(t *testing.T) {
+	server := acceptGraphQLWSServer(t, func(string) {})
+	defer server.Close()
+
+	// No WithWSSubProtocol: the client offers both protocols and lets each connection negotiate.
+	client := NewGraphQLSubscriptionClient(http.DefaultClient, http.DefaultClient, context.Background())
+
+	require.NoError(t, client.Subscribe(resolve.NewContext(context.Background()), GraphQLSubscriptionOptions{
+		URL:  "ws" + server.URL[4:],
+		Body: GraphQLBody{Query: `subscription {messageAdded(roomName: "room"){text}}`},
+	}, &testSubscriptionUpdater{}))
+
+	assert.Empty(t, client.wsSubProtocol,
+		"the protocol negotiated for a single connection must not be pinned onto the shared client")
+}
+
+// TestConnectionKey covers the key that decides whether an upstream websocket connection is reused.
+// It has to tell apart every part of the effective connection descriptor - including the client
+// headers that will be forwarded to the subgraph - while staying stable for descriptors that are
+// equal but were built in a different order.
+func TestConnectionKey(t *testing.T) {
+	const connectionInit = `{"type":"connection_init","payload":{"token":"A"}}`
+
+	newCtx := func(clientHeaders http.Header) *resolve.Context {
+		ctx := resolve.NewContext(context.Background())
+		ctx.Request.Header = clientHeaders
+		return ctx
+	}
+
+	baseOptions := func() GraphQLSubscriptionOptions {
+		return GraphQLSubscriptionOptions{
+			URL:    "ws://example.com/graphql",
+			Header: http.Header{"Authorization": {"Bearer A"}},
+		}
+	}
+
+	key := func(t *testing.T, ctx *resolve.Context, options GraphQLSubscriptionOptions, initMessage string) string {
+		t.Helper()
+
+		result, err := connectionKey(ctx, options, []byte(initMessage))
+		require.NoError(t, err)
+		return result
+	}
+
+	base := key(t, newCtx(nil), baseOptions(), connectionInit)
+
+	t.Run("is stable for the same descriptor", func(t *testing.T) {
+		assert.Equal(t, base, key(t, newCtx(nil), baseOptions(), connectionInit))
+	})
+
+	t.Run("does not depend on the order the headers were set in", func(t *testing.T) {
+		first := http.Header{}
+		first.Set("Authorization", "Bearer A")
+		first.Set("X-Tenant", "tenant-1")
+
+		second := http.Header{}
+		second.Set("X-Tenant", "tenant-1")
+		second.Set("Authorization", "Bearer A")
+
+		firstOptions, secondOptions := baseOptions(), baseOptions()
+		firstOptions.Header, secondOptions.Header = first, second
+
+		assert.Equal(t,
+			key(t, newCtx(nil), firstOptions, connectionInit),
+			key(t, newCtx(nil), secondOptions, connectionInit),
+		)
+	})
+
+	t.Run("differs by url", func(t *testing.T) {
+		options := baseOptions()
+		options.URL = "ws://example.com/other-graphql"
+
+		assert.NotEqual(t, base, key(t, newCtx(nil), options, connectionInit))
+	})
+
+	t.Run("differs by header value", func(t *testing.T) {
+		options := baseOptions()
+		options.Header = http.Header{"Authorization": {"Bearer B"}}
+
+		assert.NotEqual(t, base, key(t, newCtx(nil), options, connectionInit))
+	})
+
+	t.Run("differs by an additional header", func(t *testing.T) {
+		options := baseOptions()
+		options.Header = http.Header{"Authorization": {"Bearer A"}, "X-Tenant": {"tenant-1"}}
+
+		assert.NotEqual(t, base, key(t, newCtx(nil), options, connectionInit))
+	})
+
+	t.Run("differs by connection init payload", func(t *testing.T) {
+		assert.NotEqual(t, base, key(t, newCtx(nil), baseOptions(), `{"type":"connection_init","payload":{"token":"B"}}`))
+	})
+
+	t.Run("handles options without headers", func(t *testing.T) {
+		options := baseOptions()
+		options.Header = nil
+
+		withoutHeaders := key(t, newCtx(nil), options, connectionInit)
+		assert.NotEqual(t, base, withoutHeaders)
+		assert.Equal(t, withoutHeaders, key(t, newCtx(nil), options, connectionInit))
+	})
+
+	t.Run("forwarded client headers", func(t *testing.T) {
+		forwardedByName := baseOptions()
+		forwardedByName.ForwardedClientHeaderNames = []string{"X-Tenant"}
+
+		forwardedByRegexp := baseOptions()
+		forwardedByRegexp.ForwardedClientHeaderRegularExpressions = []*regexp.Regexp{regexp.MustCompile("^X-.*")}
+
+		clientHeader := func(value string) http.Header {
+			header := http.Header{}
+			header.Set("X-Tenant", value)
+			return header
+		}
+
+		t.Run("match when the forwarded value is the same", func(t *testing.T) {
+			assert.Equal(t,
+				key(t, newCtx(clientHeader("tenant-1")), forwardedByName, connectionInit),
+				key(t, newCtx(clientHeader("tenant-1")), forwardedByName, connectionInit),
+			)
+		})
+
+		t.Run("differ when the forwarded value differs", func(t *testing.T) {
+			assert.NotEqual(t,
+				key(t, newCtx(clientHeader("tenant-1")), forwardedByName, connectionInit),
+				key(t, newCtx(clientHeader("tenant-2")), forwardedByName, connectionInit),
+			)
+		})
+
+		t.Run("differ when a header matched by a regular expression differs", func(t *testing.T) {
+			assert.NotEqual(t,
+				key(t, newCtx(clientHeader("tenant-1")), forwardedByRegexp, connectionInit),
+				key(t, newCtx(clientHeader("tenant-2")), forwardedByRegexp, connectionInit),
+			)
+		})
+
+		t.Run("ignore client headers that are not forwarded", func(t *testing.T) {
+			assert.Equal(t,
+				key(t, newCtx(clientHeader("tenant-1")), baseOptions(), connectionInit),
+				key(t, newCtx(clientHeader("tenant-2")), baseOptions(), connectionInit),
+			)
+		})
+	})
 }

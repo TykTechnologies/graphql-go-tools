@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"reflect"
 	"sync"
 	"time"
 
@@ -144,6 +145,8 @@ func (r *Resolver) ResolveGraphQLResponse(ctx *Context, response *GraphQLRespons
 
 type trigger struct {
 	id            uint64
+	input         string
+	source        SubscriptionDataSource
 	cancel        context.CancelFunc
 	subscriptions map[*Context]*sub
 	inFlight      *sync.WaitGroup
@@ -261,10 +264,17 @@ func (r *Resolver) handleAddSubscription(triggerID uint64, add *addSubscription)
 		writer:  add.writer,
 		id:      add.id,
 	}
-	trig, ok := r.triggers[triggerID]
-	if ok {
-		trig.subscriptions[add.ctx] = s
-		return
+	input := string(add.input)
+	for {
+		trig, ok := r.triggers[triggerID]
+		if !ok {
+			break
+		}
+		if trig.input == input && sameSubscriptionSource(trig.source, add.resolve.Trigger.Source) {
+			trig.subscriptions[add.ctx] = s
+			return
+		}
+		triggerID++
 	}
 	if r.options.Debug {
 		fmt.Printf("resolver:create:trigger:%d\n", triggerID)
@@ -276,8 +286,10 @@ func (r *Resolver) handleAddSubscription(triggerID uint64, add *addSubscription)
 		ctx:       ctx,
 	}
 	clone := add.ctx.clone(ctx)
-	trig = &trigger{
+	trig := &trigger{
 		id:            triggerID,
+		input:         input,
+		source:        add.resolve.Trigger.Source,
 		subscriptions: make(map[*Context]*sub),
 		cancel:        cancel,
 	}
@@ -287,6 +299,17 @@ func (r *Resolver) handleAddSubscription(triggerID uint64, add *addSubscription)
 	if err != nil {
 		cancel()
 	}
+}
+
+func sameSubscriptionSource(left, right SubscriptionDataSource) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	leftType := reflect.TypeOf(left)
+	if leftType != reflect.TypeOf(right) || !leftType.Comparable() {
+		return false
+	}
+	return left == right
 }
 
 func (r *Resolver) handleRemoveSubscription(id SubscriptionIdentifier) {
