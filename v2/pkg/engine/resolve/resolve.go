@@ -494,6 +494,11 @@ func (r *Resolver) AsyncResolveGraphQLSubscription(ctx *Context, subscription *G
 		return writeFlushComplete(writer, msg)
 	}
 	uniqueID := xxh.Sum64()
+	requestContext := ctx.Context()
+	if requestContext == nil {
+		requestContext = context.Background()
+	}
+	ownedContext := ctx.clone(requestContext)
 	select {
 	case <-r.ctx.Done():
 		return ErrResolverClosed
@@ -501,7 +506,7 @@ func (r *Resolver) AsyncResolveGraphQLSubscription(ctx *Context, subscription *G
 		triggerID: uniqueID,
 		kind:      subscriptionEventKindAddSubscription,
 		addSubscription: &addSubscription{
-			ctx:     ctx,
+			ctx:     ownedContext,
 			input:   input,
 			resolve: subscription,
 			writer:  writer,

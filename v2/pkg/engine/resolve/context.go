@@ -111,6 +111,8 @@ func (c *Context) clone(ctx context.Context) *Context {
 	cpy.Variables = append([]byte(nil), c.Variables...)
 	cpy.Request.Header = c.Request.Header.Clone()
 	cpy.RenameTypeNames = append([]RenameTypeName(nil), c.RenameTypeNames...)
+	cpy.InitialPayload = append([]byte(nil), c.InitialPayload...)
+	cpy.Extensions = append([]byte(nil), c.Extensions...)
 	cpy.UpstreamHeaders = c.UpstreamHeaders.Clone()
 	return &cpy
 }
@@ -120,6 +122,7 @@ func (c *Context) Free() {
 	c.Variables = nil
 	c.Request.Header = nil
 	c.RenameTypeNames = nil
+	c.InitialPayload = nil
 	c.RequestTracingOptions.DisableAll()
 	c.Extensions = nil
 	c.Stats.Reset()
