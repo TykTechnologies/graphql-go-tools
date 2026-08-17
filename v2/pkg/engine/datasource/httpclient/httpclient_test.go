@@ -5,10 +5,14 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
+	"strconv"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/andybalholm/brotli"
@@ -419,4 +423,286 @@ func TestHttpClientDo(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Contains(t, out.String(), `"Authorization":["****"]`)
 	})
+}
+
+// benchFinalizeInputSink keeps the compiler from eliding the benchmarked call.
+var benchFinalizeInputSink []byte
+
+// benchFinalizeInput mirrors what the loader hands to FinalizeInputHeaders: a
+// fully rendered fetch input - query body and all - carrying a header object of
+// the size a real datasource config produces.
+func benchFinalizeInput() []byte {
+	return []byte(`{"method":"POST","url":"http://localhost:4001/graphql",` +
+		`"body":{"query":"query($representations: [_Any!]!){_entities(representations: $representations){... on Product {name price reviews {body author {username}}}}}",` +
+		`"variables":{"representations":[{"__typename":"Product","upc":"top-1"},{"__typename":"Product","upc":"top-2"}]}},` +
+		`"header":{"Authorization":["Bearer abcdefghijklmnop"],"X-Request-Id":["7f3c9a12"],` +
+		`"X-Forwarded-For":["10.0.0.1"],"Content-Type":["application/json"],"X-Tyk-Api-Name":["reviews"]}}`)
+}
+
+// BenchmarkFinalizeInputHeaders measures the per-fetch cost of finalizing the
+// headers. The gateway always installs a header modifier, so "modifier only" is
+// the case that matters in production; "nothing to do" measures the early
+// return every other embedder gets.
+func BenchmarkFinalizeInputHeaders(b *testing.B) {
+	input := benchFinalizeInput()
+	upstreamHeaders := http.Header{
+		"X-Upstream-Tenant": []string{"acme"},
+		"Authorization":     []string{"Bearer upstream"},
+	}
+	// modifier mirrors the gateway's: default in what is missing, then rewrite
+	// every value (tyk/internal/graphengine/graphql_go_tools_v2.go).
+	modifier := func(header http.Header) {
+		for key := range upstreamHeaders {
+			if header.Get(key) == "" {
+				header.Set(key, upstreamHeaders.Get(key))
+			}
+		}
+		for key := range header {
+			header.Set(key, header.Get(key))
+		}
+	}
+
+	for _, benchmark := range []struct {
+		name            string
+		modifier        func(http.Header)
+		upstreamHeaders http.Header
+	}{
+		{name: "nothing to do"},
+		{name: "modifier only", modifier: modifier},
+		{name: "upstream headers only", upstreamHeaders: upstreamHeaders},
+		{name: "modifier and upstream headers", modifier: modifier, upstreamHeaders: upstreamHeaders},
+	} {
+		b.Run(benchmark.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				out, err := FinalizeInputHeaders(input, benchmark.modifier, benchmark.upstreamHeaders)
+				if err != nil {
+					b.Fatal(err)
+				}
+				benchFinalizeInputSink = out
+			}
+		})
+	}
+}
+
+// TestInputHeader covers the read half of FinalizeInputHeaders directly. It
+// walks the JSON with jsonparser rather than unmarshalling it, so every shape
+// encoding/json used to handle has to be handled explicitly here.
+func TestInputHeader(t *testing.T) {
+	t.Run("missing header key yields an empty header", func(t *testing.T) {
+		header, err := inputHeader([]byte(`{"method":"GET"}`))
+		require.NoError(t, err)
+		assert.Empty(t, header)
+	})
+
+	t.Run("null header yields an empty header", func(t *testing.T) {
+		header, err := inputHeader([]byte(`{"header":null}`))
+		require.NoError(t, err)
+		assert.Empty(t, header)
+	})
+
+	t.Run("non-object header is an error", func(t *testing.T) {
+		_, err := inputHeader([]byte(`{"header":[1,2,3]}`))
+		assert.Error(t, err)
+	})
+
+	t.Run("array and scalar values are both accepted", func(t *testing.T) {
+		header, err := inputHeader([]byte(`{"header":{"X-List":["a","b"],"X-Scalar":"c"}}`))
+		require.NoError(t, err)
+		assert.Equal(t, []string{"a", "b"}, header.Values("X-List"))
+		assert.Equal(t, []string{"c"}, header.Values("X-Scalar"))
+	})
+
+	t.Run("keys are canonicalized and merged", func(t *testing.T) {
+		header, err := inputHeader([]byte(`{"header":{"authorization":"first","AUTHORIZATION":["second"]}}`))
+		require.NoError(t, err)
+		assert.Len(t, header, 1, "differently cased keys must collapse into one entry")
+		assert.ElementsMatch(t, []string{"first", "second"}, header.Values("Authorization"))
+	})
+
+	t.Run("escaped values are unescaped", func(t *testing.T) {
+		header, err := inputHeader([]byte(`{"header":{"X-Escaped":["a\"b\\c\nd&e"]}}`))
+		require.NoError(t, err)
+		assert.Equal(t, []string{"a\"b\\c\nd&e"}, header.Values("X-Escaped"))
+	})
+
+	t.Run("null value keeps the key with no values", func(t *testing.T) {
+		header, err := inputHeader([]byte(`{"header":{"X-Empty":null}}`))
+		require.NoError(t, err)
+		values, exists := header["X-Empty"]
+		assert.True(t, exists, "the key must survive the round trip")
+		assert.Nil(t, values)
+	})
+
+	t.Run("non-string values are an error", func(t *testing.T) {
+		_, err := inputHeader([]byte(`{"header":{"X-Number":42}}`))
+		assert.Error(t, err)
+
+		_, err = inputHeader([]byte(`{"header":{"X-Number":[42]}}`))
+		assert.Error(t, err, "a non-string list entry must be reported, not silently dropped")
+
+		_, err = inputHeader([]byte(`{"header":{"X-Object":{"nested":"value"}}}`))
+		assert.Error(t, err)
+	})
+}
+
+// TestAppendJSONString pins appendJSONString against the encoder it replaces:
+// encoding/json with HTML escaping disabled. The escaping rules are subtle
+// enough (short forms, \u00xx for the remaining control bytes, U+2028/U+2029,
+// invalid UTF-8) that a table of expectations would only restate the
+// implementation - comparing against the standard library is the real check.
+func TestAppendJSONString(t *testing.T) {
+	for _, value := range []string{
+		"",
+		"plain",
+		`with "quotes"`,
+		`with \backslash`,
+		"tab\tnewline\ncarriage\rreturn",
+		"control\x00\x01\x1f",
+		"delete\x7f",
+		"html & <tags> 'quoted'",
+		"unicode: äöü 日本語 🎉",
+		"line\u2028separator\u2029paragraph",
+		"invalid utf8: \xff\xfe",
+		"Bearer eyJhbGciOiJIUzI1NiJ9.e30.abc-_123",
+	} {
+		t.Run(strconv.Quote(value), func(t *testing.T) {
+			var expected bytes.Buffer
+			encoder := json.NewEncoder(&expected)
+			encoder.SetEscapeHTML(false)
+			require.NoError(t, encoder.Encode(value))
+
+			assert.Equal(t,
+				strings.TrimSuffix(expected.String(), "\n"),
+				string(appendJSONString(nil, value)))
+		})
+	}
+}
+
+// TestAppendHeaderJSON pins the object appendJSONString's values end up in -
+// most importantly its key order, which subscription connection keys are
+// derived from and which therefore has to be stable across requests.
+func TestAppendHeaderJSON(t *testing.T) {
+	t.Run("empty header", func(t *testing.T) {
+		assert.Equal(t, `{}`, string(appendHeaderJSON(nil, http.Header{})))
+	})
+
+	t.Run("keys are sorted", func(t *testing.T) {
+		header := http.Header{
+			"X-Zulu":        []string{"z"},
+			"Authorization": []string{"a"},
+			"X-Alpha":       []string{"m"},
+		}
+		expected := `{"Authorization":["a"],"X-Alpha":["m"],"X-Zulu":["z"]}`
+		assert.Equal(t, expected, string(appendHeaderJSON(nil, header)))
+		// Map iteration order varies per run; repeat to make an accidental
+		// dependency on it show up.
+		for i := 0; i < 20; i++ {
+			assert.Equal(t, expected, string(appendHeaderJSON(nil, header)))
+		}
+	})
+
+	t.Run("multiple values and a nil value", func(t *testing.T) {
+		header := http.Header{"X-Multi": []string{"a", "b"}, "X-Nil": nil}
+		assert.Equal(t, `{"X-Multi":["a","b"],"X-Nil":null}`, string(appendHeaderJSON(nil, header)))
+	})
+
+	t.Run("appends to the existing buffer", func(t *testing.T) {
+		out := appendHeaderJSON([]byte(`prefix:`), http.Header{"A": []string{"b"}})
+		assert.Equal(t, `prefix:{"A":["b"]}`, string(out))
+	})
+}
+
+// TestFinalizeInputHeadersKeepsAwkwardHeaderNames guards the header object
+// being rebuilt as a whole rather than key by key: a "." in a header name is
+// legal (RFC 9110 tchar) but is path syntax to sjson, so a per-key set would
+// nest it instead of writing it out.
+func TestFinalizeInputHeadersKeepsAwkwardHeaderNames(t *testing.T) {
+	in := []byte(`{"header":{"X.Dotted":["one"],"X-Star*":["two"]}}`)
+	out, err := FinalizeInputHeaders(in, func(header http.Header) {
+		header.Set("X-Added", "three")
+	}, nil)
+	require.NoError(t, err)
+
+	header, err := inputHeader(out)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"one"}, header.Values("X.Dotted"))
+	assert.Equal(t, []string{"two"}, header.Values("X-Star*"))
+	assert.Equal(t, []string{"three"}, header.Values("X-Added"))
+}
+
+// TestFinalizeInputHeadersValueReachesUpstreamVerbatim pins the one visible
+// difference from the encoding/json round trip this used to do: json.Marshal
+// escapes "&", "<" and ">" as \u0026 and friends, while Do() reads header
+// values back out with jsonparser, which does not unescape them - so those
+// values used to reach the upstream mangled.
+func TestFinalizeInputHeadersValueReachesUpstreamVerbatim(t *testing.T) {
+	const value = `a&b<c>d`
+
+	received := make(chan string, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		received <- r.Header.Get("X-Ampersand")
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	input := SetInputMethod(nil, []byte("GET"))
+	input = SetInputURL(input, []byte(server.URL))
+	input, err := FinalizeInputHeaders(input, func(header http.Header) {
+		header.Set("X-Ampersand", value)
+	}, nil)
+	require.NoError(t, err)
+
+	require.NoError(t, Do(http.DefaultClient, context.Background(), input, &bytes.Buffer{}))
+	assert.Equal(t, value, <-received)
+}
+
+// TestFinalizeInputHeadersResultOutlivesThePooledBuffer guards the scratch
+// buffer the header JSON is serialized into: it goes back to the pool as soon
+// as sjson has written the new input, so an already-returned result must not
+// still be pointing at it.
+func TestFinalizeInputHeadersResultOutlivesThePooledBuffer(t *testing.T) {
+	in := []byte(`{"header":{"Authorization":["original"]}}`)
+
+	first, err := FinalizeInputHeaders(in, func(header http.Header) {
+		header.Set("Authorization", "first")
+	}, nil)
+	require.NoError(t, err)
+	firstCopy := string(first)
+
+	for i := 0; i < 10; i++ {
+		_, err := FinalizeInputHeaders(in, func(header http.Header) {
+			header.Set("Authorization", "second-with-a-much-longer-value-to-force-the-buffer-to-grow")
+			header.Set("X-Padding", strings.Repeat("p", 512))
+		}, nil)
+		require.NoError(t, err)
+	}
+
+	assert.Equal(t, firstCopy, string(first),
+		"a finalized input must not alias the pooled serialization buffer")
+}
+
+// TestFinalizeInputHeadersConcurrent exercises the shared serialization buffer
+// pool from several goroutines at once - the whole point of this call site is
+// that it runs per request, concurrently.
+func TestFinalizeInputHeadersConcurrent(t *testing.T) {
+	in := []byte(`{"header":{"X-Static":["value"]},"body":{"query":"{ hello }"}}`)
+
+	var wg sync.WaitGroup
+	for i := 0; i < 16; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			value := fmt.Sprintf("caller-%d", i)
+			expected := fmt.Sprintf(`{"header":{"X-Caller":["caller-%d"],"X-Static":["value"]},"body":{"query":"{ hello }"}}`, i)
+			for j := 0; j < 50; j++ {
+				out, err := FinalizeInputHeaders(in, func(header http.Header) {
+					header.Set("X-Caller", value)
+				}, nil)
+				assert.NoError(t, err)
+				assert.Equal(t, expected, string(out))
+			}
+		}(i)
+	}
+	wg.Wait()
 }
