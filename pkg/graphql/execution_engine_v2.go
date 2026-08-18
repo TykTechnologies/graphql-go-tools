@@ -22,7 +22,6 @@ import (
 	"github.com/TykTechnologies/graphql-go-tools/pkg/engine/plan"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/engine/resolve"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/operationreport"
-	"github.com/TykTechnologies/graphql-go-tools/pkg/pool"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/postprocess"
 )
 
@@ -153,6 +152,11 @@ type ExecutionEngineV2 struct {
 	customExecutionEngineExecutor *CustomExecutionEngineV2Executor
 }
 
+type executionPlanCacheKey struct {
+	document      string
+	operationName string
+}
+
 type WebsocketBeforeStartHook interface {
 	OnBeforeStart(reqCtx context.Context, operation *Request) error
 }
@@ -167,7 +171,9 @@ func WithBeforeFetchHook(hook resolve.BeforeFetchHook) ExecutionOptionsV2 {
 
 func WithUpstreamHeaders(header http.Header) ExecutionOptionsV2 {
 	return func(postProcessor *postprocess.Processor, resolveContext *resolve.Context) {
-		postProcessor.AddPostProcessor(postprocess.NewProcessInjectHeader(header))
+		if resolveContext != nil {
+			resolveContext.UpstreamHeaders = header.Clone()
+		}
 	}
 }
 
@@ -206,10 +212,10 @@ func WithAdditionalHttpHeaders(headers http.Header, excludeByKeys ...string) Exe
 
 func WithHeaderModifier(modifier postprocess.HeaderModifier) ExecutionOptionsV2 {
 	return func(postProcessor *postprocess.Processor, resolveContext *resolve.Context) {
-		if modifier == nil {
+		if modifier == nil || resolveContext == nil {
 			return
 		}
-		postProcessor.AddPostProcessor(postprocess.NewProcessModifyHeader(modifier))
+		resolveContext.HeaderModifier = modifier
 	}
 }
 
@@ -318,17 +324,17 @@ func (e *ExecutionEngineV2) Execute(ctx context.Context, operation *Request, wri
 }
 
 func (e *ExecutionEngineV2) getCachedPlan(postProcessor *postprocess.Processor, request *Request, definition *ast.Document, operationName string, report *operationreport.Report) plan.Plan {
-
-	hash := pool.Hash64.Get()
-	hash.Reset()
-	defer pool.Hash64.Put(hash)
-	err := astprinter.Print(&request.document, definition, hash)
+	var printedDocument bytes.Buffer
+	err := astprinter.Print(&request.document, definition, &printedDocument)
 	if err != nil {
 		report.AddInternalError(err)
 		return nil
 	}
 
-	cacheKey := hash.Sum64()
+	cacheKey := executionPlanCacheKey{
+		document:      printedDocument.String(),
+		operationName: operationName,
+	}
 
 	if cached, ok := e.executionPlanCache.Get(cacheKey); ok {
 		if p, ok := cached.(plan.Plan); ok {
@@ -339,6 +345,12 @@ func (e *ExecutionEngineV2) getCachedPlan(postProcessor *postprocess.Processor, 
 
 	e.plannerMu.Lock()
 	defer e.plannerMu.Unlock()
+	if cached, ok := e.executionPlanCache.Get(cacheKey); ok {
+		if p, ok := cached.(plan.Plan); ok {
+			request.isDocumentRecyclable = true
+			return p
+		}
+	}
 	planResult := e.planner.Plan(&request.document, definition, operationName, report)
 	if report.HasErrors() {
 		return nil

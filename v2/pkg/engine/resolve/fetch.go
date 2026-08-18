@@ -34,8 +34,11 @@ type SingleFetch struct {
 	DependsOnFetchIDs    []int
 	InputTemplate        InputTemplate
 	DataSourceIdentifier []byte
-	Trace                *DataSourceLoadTrace
-	Info                 *FetchInfo
+	// Deprecated: a fetch is part of the plan, which is shared between all concurrent requests
+	// that resolve the same operation, so the trace of a single request must not be stored here.
+	// Resolving records it per request instead; this field is no longer written to.
+	Trace *DataSourceLoadTrace
+	Info  *FetchInfo
 }
 
 type PostProcessingConfiguration struct {
@@ -68,7 +71,10 @@ func (_ *SingleFetch) FetchKind() FetchKind {
 // should be used only for object fields which could be fetched parallel
 type ParallelFetch struct {
 	Fetches []Fetch
-	Trace   *DataSourceLoadTrace
+	// Deprecated: a fetch is part of the plan, which is shared between all concurrent requests
+	// that resolve the same operation, so the trace of a single request must not be stored here.
+	// Resolving records it per request instead; this field is no longer written to.
+	Trace *DataSourceLoadTrace
 }
 
 func (_ *ParallelFetch) FetchKind() FetchKind {
@@ -79,7 +85,10 @@ func (_ *ParallelFetch) FetchKind() FetchKind {
 // should be used only for object fields which should be fetched serial
 type SerialFetch struct {
 	Fetches []Fetch
-	Trace   *DataSourceLoadTrace
+	// Deprecated: a fetch is part of the plan, which is shared between all concurrent requests
+	// that resolve the same operation, so the trace of a single request must not be stored here.
+	// Resolving records it per request instead; this field is no longer written to.
+	Trace *DataSourceLoadTrace
 }
 
 func (_ *SerialFetch) FetchKind() FetchKind {
@@ -93,8 +102,11 @@ type BatchEntityFetch struct {
 	DataSource           DataSource
 	PostProcessing       PostProcessingConfiguration
 	DataSourceIdentifier []byte
-	Trace                *DataSourceLoadTrace
-	Info                 *FetchInfo
+	// Deprecated: a fetch is part of the plan, which is shared between all concurrent requests
+	// that resolve the same operation, so the trace of a single request must not be stored here.
+	// Resolving records it per request instead; this field is no longer written to.
+	Trace *DataSourceLoadTrace
+	Info  *FetchInfo
 }
 
 type BatchInput struct {
@@ -121,8 +133,11 @@ type EntityFetch struct {
 	DataSource           DataSource
 	PostProcessing       PostProcessingConfiguration
 	DataSourceIdentifier []byte
-	Trace                *DataSourceLoadTrace
-	Info                 *FetchInfo
+	// Deprecated: a fetch is part of the plan, which is shared between all concurrent requests
+	// that resolve the same operation, so the trace of a single request must not be stored here.
+	// Resolving records it per request instead; this field is no longer written to.
+	Trace *DataSourceLoadTrace
+	Info  *FetchInfo
 }
 
 type EntityInput struct {
@@ -140,9 +155,14 @@ func (_ *EntityFetch) FetchKind() FetchKind {
 // Usually, you want to batch fetches within a list, which is the default behavior of SingleFetch
 // However, if the data source does not support batching, you can use this fetch to make parallel fetches within a list
 type ParallelListItemFetch struct {
-	Fetch  *SingleFetch
+	Fetch *SingleFetch
+	// Deprecated: the per-item copies belong to a single request, not to the shared plan.
+	// Resolving records them per request instead; this field is no longer written to.
 	Traces []*SingleFetch
-	Trace  *DataSourceLoadTrace
+	// Deprecated: a fetch is part of the plan, which is shared between all concurrent requests
+	// that resolve the same operation, so the trace of a single request must not be stored here.
+	// Resolving records it per request instead; this field is no longer written to.
+	Trace *DataSourceLoadTrace
 }
 
 func (_ *ParallelListItemFetch) FetchKind() FetchKind {

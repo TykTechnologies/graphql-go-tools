@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/astjson"
@@ -978,7 +981,11 @@ func TestLoader_RedactHeaders(t *testing.T) {
 	switch f := fetch.(type) {
 	case *SingleFetch:
 		{
-			_ = json.Unmarshal(f.Trace.Input, &input)
+			// The trace belongs to this request, not to the plan the fetch is part of.
+			trace := resolvable.fetchTraces.load(f)
+			require.NotNil(t, trace)
+
+			_ = json.Unmarshal(trace.Input, &input)
 			authHeader := input.Header["Authorization"]
 			assert.Equal(t, []string{"****"}, authHeader)
 		}
@@ -987,4 +994,56 @@ func TestLoader_RedactHeaders(t *testing.T) {
 			t.Errorf("Incorrect fetch type")
 		}
 	}
+}
+
+// TestLoader_ResponseInfoDefault pins what the loader makes of a response that carries no Info.
+// ResolveGraphQLResponse used to fill one in on the plan before calling the loader, so the loader
+// always found one; nothing does that for a subscription update, whose response is loaded directly.
+func TestLoader_ResponseInfoDefault(t *testing.T) {
+	loadFailingFetch := func(t *testing.T, info *GraphQLResponseInfo) *Context {
+		t.Helper()
+
+		ctrl := gomock.NewController(t)
+		failingDataSource := NewMockDataSource(ctrl)
+		failingDataSource.EXPECT().
+			Load(gomock.Any(), gomock.Any(), gomock.AssignableToTypeOf(&bytes.Buffer{})).
+			DoAndReturn(func(ctx context.Context, input []byte, w io.Writer) error {
+				return errors.New("upstream is down")
+			})
+
+		response := &GraphQLResponse{
+			Info: info,
+			Data: &Object{
+				Nullable: true,
+				Fetch: &SingleFetch{
+					FetchConfiguration: FetchConfiguration{
+						DataSource: failingDataSource,
+						PostProcessing: PostProcessingConfiguration{
+							SelectResponseErrorsPath: []string{"errors"},
+						},
+					},
+					Info: &FetchInfo{DataSourceID: "Users"},
+				},
+			},
+		}
+
+		ctx := &Context{ctx: context.Background()}
+		resolvable := NewResolvable()
+		loader := &Loader{}
+
+		require.NoError(t, resolvable.Init(ctx, nil, ast.OperationTypeQuery))
+		require.NoError(t, loader.LoadGraphQLResponseData(ctx, response, resolvable))
+		require.Error(t, ctx.SubgraphErrors())
+		return ctx
+	}
+
+	t.Run("should read a response without info as a query", func(t *testing.T) {
+		ctx := loadFailingFetch(t, nil)
+		assert.Contains(t, ctx.SubgraphErrors().Error(), "at path 'query'")
+	})
+
+	t.Run("should read the operation type the response carries", func(t *testing.T) {
+		ctx := loadFailingFetch(t, &GraphQLResponseInfo{OperationType: ast.OperationTypeMutation})
+		assert.Contains(t, ctx.SubgraphErrors().Error(), "at path 'mutation'")
+	})
 }

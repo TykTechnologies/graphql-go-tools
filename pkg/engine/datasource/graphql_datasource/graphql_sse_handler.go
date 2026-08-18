@@ -43,13 +43,17 @@ func (h *gqlSSEConnectionHandler) StartBlocking(sub Subscription) {
 
 	dataCh := make(chan []byte)
 	errCh := make(chan []byte)
+	done := make(chan struct{})
 	defer func() {
 		close(dataCh)
 		close(errCh)
 		close(sub.next)
 	}()
 
-	go h.subscribe(reqCtx, sub, dataCh, errCh)
+	go func() {
+		defer close(done)
+		h.subscribe(reqCtx, sub, dataCh, errCh)
+	}()
 
 	for {
 		select {
@@ -57,6 +61,8 @@ func (h *gqlSSEConnectionHandler) StartBlocking(sub Subscription) {
 			sub.next <- data
 		case err := <-errCh:
 			sub.next <- err
+			return
+		case <-done:
 			return
 		case <-reqCtx.Done():
 			return

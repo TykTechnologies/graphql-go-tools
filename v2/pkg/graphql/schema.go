@@ -119,6 +119,7 @@ func (s *Schema) Normalize() (result NormalizationResult, err error) {
 
 	s.rawSchema = normalizedSchema.rawSchema
 	s.document = normalizedSchema.document
+	s.hash = normalizedSchema.hash
 	s.isNormalized = true
 	return NormalizationResult{Successful: true, Errors: nil}, nil
 }

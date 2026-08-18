@@ -30,6 +30,23 @@ type GraphQLResponseInfo struct {
 	OperationType ast.OperationType
 }
 
+// defaultGraphQLResponseInfo is the info of a response that carries none. It is shared and
+// must stay immutable.
+var defaultGraphQLResponseInfo = &GraphQLResponseInfo{
+	OperationType: ast.OperationTypeQuery,
+}
+
+// info returns the info of the response, or the shared default when it has none. It never
+// writes to the response: a response is a cached plan, shared between all concurrent
+// requests that resolve the same operation, so filling in a missing field here would be a
+// data race.
+func (r *GraphQLResponse) info() *GraphQLResponseInfo {
+	if r.Info != nil {
+		return r.Info
+	}
+	return defaultGraphQLResponseInfo
+}
+
 type RenameTypeName struct {
 	From, To []byte
 }

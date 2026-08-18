@@ -525,3 +525,102 @@ func TestGraphQLSubscriptionClientSubscribe_SSE_Upstream_Dies(t *testing.T) {
 	}, time.Second, time.Millisecond*10, "server did not close")
 	serverCancel()
 }
+
+// TestSSEConnectionHandlerStartBlockingReturnsWhenUpstreamStops guards against the SSE handler
+// outliving its upstream. The subscribe goroutine returns without reporting anything on errCh
+// whenever the upstream is done with us - it sent "event: complete", it ended the stream, or the
+// subscription request itself failed. StartBlocking has to notice that and return as well,
+// otherwise the goroutine leaks and, because updater.Done() is called from its deferred func, the
+// client's subscription is never completed and stays open until the client disconnects.
+func TestSSEConnectionHandlerStartBlockingReturnsWhenUpstreamStops(t *testing.T) {
+	startBlocking := func(t *testing.T, serverURL string) *testSubscriptionUpdater {
+		t.Helper()
+
+		reqCtx, cancel := context.WithCancel(context.Background())
+		t.Cleanup(cancel)
+
+		updater := &testSubscriptionUpdater{}
+		handler := newSSEConnectionHandler(resolve.NewContext(reqCtx), http.DefaultClient, GraphQLSubscriptionOptions{
+			URL: serverURL,
+			Body: GraphQLBody{
+				Query: `subscription {messageAdded(roomName: "room"){text}}`,
+			},
+			UseSSE: true,
+		}, logger())
+
+		go handler.StartBlocking(Subscription{
+			ctx:     reqCtx,
+			updater: updater,
+		})
+
+		return updater
+	}
+
+	t.Run("on upstream complete event", func(t *testing.T) {
+		// Keeps the upstream connection open after the complete event, so the complete event
+		// itself is the only thing that can end the handler.
+		serverBlock := make(chan struct{})
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			flusher, ok := w.(http.Flusher)
+			require.True(t, ok)
+
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Connection", "keep-alive")
+
+			_, _ = fmt.Fprintf(w, "event: next\ndata: %s\n\n", `{"data":{"messageAdded":{"text":"first"}}}`)
+			flusher.Flush()
+
+			_, _ = fmt.Fprint(w, "event: complete\n\n")
+			flusher.Flush()
+
+			<-serverBlock
+		}))
+		// LIFO: release the server handler before server.Close() waits for it.
+		defer server.Close()
+		defer close(serverBlock)
+
+		updater := startBlocking(t, server.URL)
+
+		updater.AwaitUpdates(t, time.Second, 1)
+		updater.AwaitDone(t, time.Second)
+		assert.Equal(t, `{"data":{"messageAdded":{"text":"first"}}}`, updater.updates[0])
+	})
+
+	t.Run("on upstream end of stream", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			flusher, ok := w.(http.Flusher)
+			require.True(t, ok)
+
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Connection", "keep-alive")
+
+			_, _ = fmt.Fprintf(w, "data: %s\n\n", `{"data":{"messageAdded":{"text":"first"}}}`)
+			flusher.Flush()
+
+			// Returning ends the response body, which the handler reads as io.EOF.
+		}))
+		defer server.Close()
+
+		updater := startBlocking(t, server.URL)
+
+		updater.AwaitUpdates(t, time.Second, 1)
+		updater.AwaitDone(t, time.Second)
+		assert.Equal(t, `{"data":{"messageAdded":{"text":"first"}}}`, updater.updates[0])
+	})
+
+	t.Run("on failed subscription request", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+		defer server.Close()
+
+		updater := startBlocking(t, server.URL)
+
+		updater.AwaitUpdates(t, time.Second, 1)
+		updater.AwaitDone(t, time.Second)
+		assert.Equal(t, internalError, updater.updates[0])
+	})
+}

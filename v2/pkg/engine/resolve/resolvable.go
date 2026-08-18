@@ -38,6 +38,10 @@ type Resolvable struct {
 
 	authorizationBuf          *bytes.Buffer
 	authorizationBufObjectRef int
+
+	// fetchTraces holds this request's fetch traces. They used to be written onto the fetches of
+	// the plan, which every concurrent request resolving the same operation shares.
+	fetchTraces fetchTraces
 }
 
 func NewResolvable() *Resolvable {
@@ -70,6 +74,7 @@ func (r *Resolvable) Reset() {
 	for k := range r.authorizationDeny {
 		delete(r.authorizationDeny, k)
 	}
+	r.fetchTraces.reset()
 }
 
 func (r *Resolvable) Init(ctx *Context, initialData []byte, operationType ast.OperationType) (err error) {
@@ -203,7 +208,7 @@ func (r *Resolvable) printExtensions(ctx context.Context, root *Object) {
 }
 
 func (r *Resolvable) printTrace(ctx context.Context, root *Object) {
-	trace := GetTrace(ctx, root)
+	trace := getTrace(ctx, root, &r.fetchTraces)
 
 	traceData, err := json.Marshal(trace)
 	if err != nil {

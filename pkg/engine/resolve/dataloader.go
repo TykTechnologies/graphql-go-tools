@@ -172,6 +172,9 @@ func (d *dataLoader) Load(ctx *Context, fetch *SingleFetch, responsePair *BufPai
 		if err := fetch.InputTemplate.Render(ctx, nil, buf.Data); err != nil {
 			return err
 		}
+		if err := finalizePreparedInput(ctx, buf.Data); err != nil {
+			return err
+		}
 
 		pair := d.getResultBufPair()
 		err = d.fetcher.Fetch(ctx, fetch, buf.Data, pair)
@@ -250,6 +253,9 @@ func (d *dataLoader) resolveBatchFetch(ctx *Context, batchFetch *BatchFetch, fet
 		if err := batchFetch.Fetch.InputTemplate.Render(ctx, fetchParams[i], bufPair.Data); err != nil {
 			return nil, err
 		}
+		if err := finalizePreparedInput(ctx, bufPair.Data); err != nil {
+			return nil, err
+		}
 
 		inputBufs = append(inputBufs, bufPair.Data)
 	}
@@ -295,6 +301,9 @@ func (d *dataLoader) resolveSingleFetch(ctx *Context, fetch *SingleFetch, fetchP
 		bufPair := d.resourceProvider.getBufPair()
 		*bufSlice = append(*bufSlice, bufPair)
 		if err := fetch.InputTemplate.Render(ctx, val, bufPair.Data); err != nil {
+			return nil, err
+		}
+		if err := finalizePreparedInput(ctx, bufPair.Data); err != nil {
 			return nil, err
 		}
 

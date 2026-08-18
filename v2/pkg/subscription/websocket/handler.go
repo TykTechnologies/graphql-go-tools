@@ -30,6 +30,7 @@ var DefaultProtocol = ProtocolGraphQLTransportWS
 
 // HandleOptions can be used to pass options to the websocket handler.
 type HandleOptions struct {
+	Context                          context.Context
 	Logger                           abstractlogger.Logger
 	Protocol                         Protocol
 	WebSocketInitFunc                InitFunc
@@ -40,6 +41,13 @@ type HandleOptions struct {
 	CustomReadErrorTimeOut           time.Duration
 	CustomSubscriptionEngine         subscription.Engine
 	CustomSubscriptionExecutionRetry int
+}
+
+// WithContext sets the parent context used by the subscription handler.
+func WithContext(ctx context.Context) HandleOptionFunc {
+	return func(opts *HandleOptions) {
+		opts.Context = ctx
+	}
 }
 
 // HandleOptionFunc can be used to define option functions.
@@ -142,6 +150,7 @@ func WithProtocolFromRequestHeaders(req *http.Request) HandleOptionFunc {
 // behavior. By default, it uses the 'graphql-transport-ws' protocol.
 func Handle(done chan bool, errChan chan error, conn net.Conn, executorPool subscription.ExecutorPool, options ...HandleOptionFunc) {
 	definedOptions := HandleOptions{
+		Context:  context.Background(),
 		Logger:   abstractlogger.Noop{},
 		Protocol: DefaultProtocol,
 	}
@@ -206,7 +215,10 @@ func HandleWithOptions(done chan bool, errChan chan error, conn net.Conn, execut
 	}
 
 	close(done)
-	subscriptionHandler.Handle(context.Background()) // Blocking
+	if options.Context == nil {
+		options.Context = context.Background()
+	}
+	subscriptionHandler.Handle(options.Context) // Blocking
 }
 
 func createProtocolHandler(handleOptions HandleOptions, client subscription.TransportClient) (protocolHandler subscription.Protocol, err error) {

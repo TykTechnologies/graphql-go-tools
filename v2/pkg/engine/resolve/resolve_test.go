@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/ast"
 	"github.com/TykTechnologies/graphql-go-tools/v2/pkg/testing/flags"
 )
 
@@ -5388,5 +5389,171 @@ func Benchmark_NestedBatchingWithoutChecks(b *testing.B) {
 			ctx.Free()
 			ctxPool.Put(ctx)
 		}
+	})
+}
+
+func TestResolver_ResolveGraphQLResponseDoesNotMutateTheResponse(t *testing.T) {
+	newResponse := func() *GraphQLResponse {
+		return &GraphQLResponse{
+			Data: &Object{
+				Nullable: true,
+			},
+		}
+	}
+
+	t.Run("should leave a missing info untouched", func(t *testing.T) {
+		resolver := newResolver(context.Background())
+		response := newResponse()
+
+		buffer := &bytes.Buffer{}
+		require.NoError(t, resolver.ResolveGraphQLResponse(&Context{ctx: context.Background()}, response, nil, buffer))
+
+		assert.Equal(t, `{"data":{}}`, buffer.String())
+		assert.Nil(t, response.Info, "a response is a cached plan, resolving it must not fill in fields")
+	})
+
+	t.Run("should keep the info the response carries", func(t *testing.T) {
+		resolver := newResolver(context.Background())
+		response := newResponse()
+		response.Info = &GraphQLResponseInfo{OperationType: ast.OperationTypeMutation}
+
+		buffer := &bytes.Buffer{}
+		require.NoError(t, resolver.ResolveGraphQLResponse(&Context{ctx: context.Background()}, response, nil, buffer))
+
+		assert.Equal(t, ast.OperationTypeMutation, response.Info.OperationType)
+	})
+
+	// A response is the cached execution plan, shared by every concurrent request that resolves the
+	// same operation. Filling in a missing field at resolve time is therefore a data race. The
+	// response is deliberately fresh here, since resolving it once up front would hide exactly that.
+	// Only reports under -race.
+	t.Run("should be safe to resolve one response concurrently", func(t *testing.T) {
+		resolver := newResolver(context.Background())
+		response := newResponse()
+
+		var waitGroup sync.WaitGroup
+		for i := 0; i < 50; i++ {
+			waitGroup.Add(1)
+			go func() {
+				defer waitGroup.Done()
+				buffer := &bytes.Buffer{}
+				assert.NoError(t, resolver.ResolveGraphQLResponse(&Context{ctx: context.Background()}, response, nil, buffer))
+				assert.Equal(t, `{"data":{}}`, buffer.String())
+			}()
+		}
+		waitGroup.Wait()
+
+		assert.Nil(t, response.Info)
+	})
+}
+
+func TestGraphQLResponse_info(t *testing.T) {
+	t.Run("should fall back to the shared default", func(t *testing.T) {
+		info := (&GraphQLResponse{}).info()
+
+		require.NotNil(t, info)
+		assert.Equal(t, ast.OperationTypeQuery, info.OperationType)
+		assert.Same(t, defaultGraphQLResponseInfo, info)
+	})
+
+	t.Run("should return the info the response carries", func(t *testing.T) {
+		carried := &GraphQLResponseInfo{OperationType: ast.OperationTypeSubscription}
+
+		assert.Same(t, carried, (&GraphQLResponse{Info: carried}).info())
+	})
+
+	// The default is shared between all responses that carry no info, so it has to stay immutable:
+	// writing through it would change the operation type of every one of them.
+	t.Run("should hand the same default to every response", func(t *testing.T) {
+		assert.Same(t, (&GraphQLResponse{}).info(), (&GraphQLResponse{}).info())
+		assert.Equal(t, ast.OperationTypeQuery, defaultGraphQLResponseInfo.OperationType)
+	})
+}
+
+// TestResolver_ResolveGraphQLResponseDoesNotMutateThePlanWhileTracing guards the same invariant as
+// the test above for request tracing: the loader used to hang each fetch's DataSourceLoadTrace off
+// the plan's fetch structs, which are shared by every concurrent request resolving that operation.
+func TestResolver_ResolveGraphQLResponseDoesNotMutateThePlanWhileTracing(t *testing.T) {
+	newPlan := func() (*GraphQLResponse, *ParallelFetch, *SingleFetch) {
+		singleFetch := &SingleFetch{
+			InputTemplate: InputTemplate{
+				Segments: []TemplateSegment{
+					{
+						Data:        []byte(`{"method":"POST","url":"http://localhost:4000"}`),
+						SegmentType: StaticSegmentType,
+					},
+				},
+			},
+			FetchConfiguration: FetchConfiguration{
+				DataSource: FakeDataSource(`{"hello":"world"}`),
+			},
+			Info: &FetchInfo{DataSourceID: "Greetings"},
+		}
+		parallelFetch := &ParallelFetch{Fetches: []Fetch{singleFetch}}
+
+		return &GraphQLResponse{
+			Data: &Object{
+				Fetch: parallelFetch,
+				Fields: []*Field{
+					{
+						Name: []byte("hello"),
+						Value: &String{
+							Path: []string{"hello"},
+						},
+					},
+				},
+			},
+		}, parallelFetch, singleFetch
+	}
+
+	tracingContext := func() *Context {
+		return &Context{
+			ctx: SetTraceStart(context.Background(), true),
+			RequestTracingOptions: RequestTraceOptions{
+				Enable:                                 true,
+				EnablePredictableDebugTimings:          true,
+				IncludeTraceOutputInResponseExtensions: true,
+			},
+		}
+	}
+
+	t.Run("should leave the plan untouched", func(t *testing.T) {
+		resolver := newResolver(context.Background())
+		response, parallelFetch, singleFetch := newPlan()
+
+		buffer := &bytes.Buffer{}
+		require.NoError(t, resolver.ResolveGraphQLResponse(tracingContext(), response, nil, buffer))
+
+		assert.Nil(t, parallelFetch.Trace, "a fetch is part of the cached plan, tracing must not write to it")
+		assert.Nil(t, singleFetch.Trace, "a fetch is part of the cached plan, tracing must not write to it")
+	})
+
+	t.Run("should still report the trace of every fetch", func(t *testing.T) {
+		resolver := newResolver(context.Background())
+		response, _, _ := newPlan()
+
+		buffer := &bytes.Buffer{}
+		require.NoError(t, resolver.ResolveGraphQLResponse(tracingContext(), response, nil, buffer))
+
+		assert.Contains(t, buffer.String(), `"data":{"hello":"world"}`)
+		assert.Contains(t, buffer.String(), `"datasource_load_trace"`)
+		assert.Contains(t, buffer.String(), `"data_source_id":"Greetings"`)
+	})
+
+	// Only reports under -race.
+	t.Run("should be safe to resolve one plan concurrently", func(t *testing.T) {
+		resolver := newResolver(context.Background())
+		response, _, _ := newPlan()
+
+		var waitGroup sync.WaitGroup
+		for i := 0; i < 50; i++ {
+			waitGroup.Add(1)
+			go func() {
+				defer waitGroup.Done()
+				buffer := &bytes.Buffer{}
+				assert.NoError(t, resolver.ResolveGraphQLResponse(tracingContext(), response, nil, buffer))
+			}()
+		}
+		waitGroup.Wait()
 	})
 }

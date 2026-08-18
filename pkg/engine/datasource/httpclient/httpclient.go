@@ -5,6 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
+	"sort"
+	"sync"
+	"unicode/utf8"
 
 	"github.com/buger/jsonparser"
 	bytetemplate "github.com/jensneuse/byte-template"
@@ -156,6 +160,217 @@ func SetInputHeader(input, headers []byte) []byte {
 	}
 	out, _ := sjson.SetRawBytes(input, HEADER, wrapQuotesIfString(headers))
 	return out
+}
+
+func ApplyHeaderModifier(input []byte, modifier func(http.Header)) []byte {
+	modified, err := FinalizeInputHeaders(input, modifier, nil)
+	if err != nil {
+		return input
+	}
+	return modified
+}
+
+func MergeInputHeader(input []byte, upstreamHeaders http.Header) []byte {
+	modified, err := FinalizeInputHeaders(input, nil, upstreamHeaders)
+	if err != nil {
+		return input
+	}
+	return modified
+}
+
+func FinalizeInputHeaders(input []byte, modifier func(http.Header), upstreamHeaders http.Header) ([]byte, error) {
+	if modifier == nil && len(upstreamHeaders) == 0 {
+		return input, nil
+	}
+
+	header, err := inputHeader(input)
+	if err != nil {
+		return nil, err
+	}
+	if modifier != nil {
+		modifier(header)
+	}
+	for key, values := range upstreamHeaders {
+		header[http.CanonicalHeaderKey(key)] = append([]string(nil), values...)
+	}
+
+	buf := headerBufferPool.Get().(*[]byte)
+	defer headerBufferPool.Put(buf)
+	*buf = appendHeaderJSON((*buf)[:0], header)
+
+	modified, err := sjson.SetRawBytes(input, HEADER, *buf)
+	if err != nil {
+		return nil, fmt.Errorf("set datasource input header: %w", err)
+	}
+	return modified, nil
+}
+
+// inputHeader reads the "header" object out of a datasource input. It runs once
+// per fetch, so it walks the object with jsonparser rather than unmarshalling
+// it: encoding/json would allocate an intermediate map plus a json.RawMessage
+// and a []string per entry, all of which are thrown away again here.
+func inputHeader(input []byte) (http.Header, error) {
+	headerBytes, dataType, _, err := jsonparser.Get(input, HEADER)
+	if err != nil || dataType == jsonparser.Null {
+		return make(http.Header), nil
+	}
+	if dataType != jsonparser.Object {
+		return nil, fmt.Errorf("datasource input header must be an object, got %s", dataType)
+	}
+
+	header := make(http.Header)
+	err = jsonparser.ObjectEach(headerBytes, func(key, value []byte, valueType jsonparser.ValueType, _ int) error {
+		// ObjectEach hands back unescaped keys but raw values, so only the
+		// values need unescaping.
+		canonicalKey := http.CanonicalHeaderKey(string(key))
+		switch valueType {
+		case jsonparser.String:
+			// A scalar value is a realistic shape for hand-built or third-party
+			// datasource configs; treat it as a single-valued header.
+			unescaped, err := jsonparser.Unescape(value, nil)
+			if err != nil {
+				return fmt.Errorf("unescape datasource input header %q: %w", key, err)
+			}
+			header[canonicalKey] = append(header[canonicalKey], string(unescaped))
+		case jsonparser.Null:
+			// encoding/json decoded a null value into an empty list of values.
+			// Keep the key present with none so the round trip is unchanged.
+			if _, exists := header[canonicalKey]; !exists {
+				header[canonicalKey] = nil
+			}
+		case jsonparser.Array:
+			var valueErr error
+			if _, err := jsonparser.ArrayEach(value, func(item []byte, itemType jsonparser.ValueType, _ int, err error) {
+				if valueErr != nil {
+					return
+				}
+				if err != nil {
+					valueErr = err
+					return
+				}
+				if itemType != jsonparser.String {
+					valueErr = fmt.Errorf("datasource input header %q must hold strings, got %s", key, itemType)
+					return
+				}
+				unescaped, err := jsonparser.Unescape(item, nil)
+				if err != nil {
+					valueErr = err
+					return
+				}
+				header[canonicalKey] = append(header[canonicalKey], string(unescaped))
+			}); err != nil {
+				return fmt.Errorf("read datasource input header %q: %w", key, err)
+			}
+			if valueErr != nil {
+				return fmt.Errorf("read datasource input header %q: %w", key, valueErr)
+			}
+		default:
+			return fmt.Errorf("datasource input header %q must be a string or a list of strings, got %s", key, valueType)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return header, nil
+}
+
+// headerBufferPool holds the scratch buffers appendHeaderJSON serializes into.
+// The bytes are handed to sjson, which copies them into the returned input, so
+// a buffer can go straight back into the pool.
+var headerBufferPool = sync.Pool{
+	New: func() interface{} {
+		buf := make([]byte, 0, 512)
+		return &buf
+	},
+}
+
+// appendHeaderJSON writes header as a JSON object. It replaces
+// json.Marshal(http.Header), which spends a reflection walk and a dozen
+// allocations on a shape that is known statically here.
+func appendHeaderJSON(dst []byte, header http.Header) []byte {
+	keys := make([]string, 0, len(header))
+	for key := range header {
+		keys = append(keys, key)
+	}
+	// encoding/json emits map keys in sorted order, and the serialized input is
+	// not just passed along: it is what a subscription's connection and trigger
+	// keys are derived from. An unstable key order would stop equivalent
+	// subscriptions from sharing an upstream connection.
+	sort.Strings(keys)
+
+	dst = append(dst, '{')
+	for i, key := range keys {
+		if i > 0 {
+			dst = append(dst, ',')
+		}
+		dst = appendJSONString(dst, key)
+		dst = append(dst, ':')
+		values := header[key]
+		if values == nil {
+			dst = append(dst, 'n', 'u', 'l', 'l')
+			continue
+		}
+		dst = append(dst, '[')
+		for j, value := range values {
+			if j > 0 {
+				dst = append(dst, ',')
+			}
+			dst = appendJSONString(dst, value)
+		}
+		dst = append(dst, ']')
+	}
+	return append(dst, '}')
+}
+
+const hexDigits = "0123456789abcdef"
+
+// appendJSONString appends s as a JSON string literal, matching encoding/json
+// with HTML escaping disabled. HTML escaping is deliberately left off: Do()
+// reads header values back out with jsonparser, which does not unescape them,
+// so a "&" would reach the upstream verbatim.
+func appendJSONString(dst []byte, s string) []byte {
+	dst = append(dst, '"')
+	start := 0
+	for i := 0; i < len(s); {
+		if b := s[i]; b < utf8.RuneSelf {
+			if b >= 0x20 && b != '"' && b != '\\' {
+				i++
+				continue
+			}
+			dst = append(dst, s[start:i]...)
+			switch b {
+			case '"', '\\':
+				dst = append(dst, '\\', b)
+			case '\n':
+				dst = append(dst, '\\', 'n')
+			case '\r':
+				dst = append(dst, '\\', 'r')
+			case '\t':
+				dst = append(dst, '\\', 't')
+			default:
+				dst = append(dst, '\\', 'u', '0', '0', hexDigits[b>>4], hexDigits[b&0xf])
+			}
+			i++
+			start = i
+			continue
+		}
+		char, size := utf8.DecodeRuneInString(s[i:])
+		switch {
+		case char == utf8.RuneError && size == 1:
+			dst = append(dst, s[start:i]...)
+			dst = append(dst, "\\ufffd"...)
+		case char == '\u2028' || char == '\u2029':
+			dst = append(dst, s[start:i]...)
+			dst = append(dst, '\\', 'u', '2', '0', '2', hexDigits[char&0xf])
+		default:
+			i += size
+			continue
+		}
+		i += size
+		start = i
+	}
+	return append(append(dst, s[start:]...), '"')
 }
 
 func SetInputQueryParams(input, queryParams []byte) []byte {

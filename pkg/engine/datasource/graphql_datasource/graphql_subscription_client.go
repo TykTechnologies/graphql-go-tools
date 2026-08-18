@@ -1,6 +1,7 @@
 package graphql_datasource
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"math"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
-	"github.com/cespare/xxhash/v2"
 	nhooyrwebsocket "github.com/coder/websocket"
 	"github.com/jensneuse/abstractlogger"
 
@@ -20,14 +20,13 @@ const ackWaitTimeout = 30 * time.Second
 
 // SubscriptionClient allows running multiple subscriptions via the same WebSocket either SSE connection
 // It takes care of de-duplicating connections to the same origin under certain circumstances
-// If Hash(URL,Body,Headers) result in the same result, an existing connection is re-used
+// If URL and final headers are identical, an existing connection is re-used.
 type SubscriptionClient struct {
 	streamingClient            *http.Client
 	httpClient                 *http.Client
 	engineCtx                  context.Context
 	log                        abstractlogger.Logger
-	hashPool                   sync.Pool
-	handlers                   map[uint64]ConnectionHandler
+	handlers                   map[string]ConnectionHandler
 	handlersMu                 sync.Mutex
 	wsSubProtocol              string
 	onWsConnectionInitCallback *OnWsConnectionInitCallback
@@ -89,17 +88,12 @@ func NewGraphQLSubscriptionClient(httpClient, streamingClient *http.Client, engi
 		option(op)
 	}
 	return &SubscriptionClient{
-		httpClient:      httpClient,
-		streamingClient: streamingClient,
-		engineCtx:       engineCtx,
-		handlers:        make(map[uint64]ConnectionHandler),
-		log:             op.log,
-		readTimeout:     op.readTimeout,
-		hashPool: sync.Pool{
-			New: func() interface{} {
-				return xxhash.New()
-			},
-		},
+		httpClient:                 httpClient,
+		streamingClient:            streamingClient,
+		engineCtx:                  engineCtx,
+		handlers:                   make(map[string]ConnectionHandler),
+		log:                        op.log,
+		readTimeout:                op.readTimeout,
 		wsSubProtocol:              op.wsSubProtocol,
 		onWsConnectionInitCallback: op.onWsConnectionInitCallback,
 	}
@@ -158,8 +152,11 @@ func (c *SubscriptionClient) subscribeWS(reqCtx context.Context, options GraphQL
 		next:    next,
 	}
 
-	// each WS connection to an origin is uniquely identified by the Hash(URL,Headers,Body)
-	handlerID, err := c.generateHandlerIDHash(options)
+	connectionInitMessage, err := c.getConnectionInitMessage(reqCtx, options.URL, options.Header)
+	if err != nil {
+		return err
+	}
+	handlerID, err := connectionKey(options, connectionInitMessage)
 	if err != nil {
 		return err
 	}
@@ -175,14 +172,14 @@ func (c *SubscriptionClient) subscribeWS(reqCtx context.Context, options GraphQL
 		return nil
 	}
 
-	handler, err = c.newWSConnectionHandler(reqCtx, options)
+	handler, err = c.newWSConnectionHandler(reqCtx, options, connectionInitMessage)
 	if err != nil {
 		return err
 	}
 
 	c.handlers[handlerID] = handler
 
-	go func(handlerID uint64) {
+	go func(handlerID string) {
 		handler.StartBlocking(sub)
 		c.handlersMu.Lock()
 		delete(c.handlers, handlerID)
@@ -192,28 +189,19 @@ func (c *SubscriptionClient) subscribeWS(reqCtx context.Context, options GraphQL
 	return nil
 }
 
-// generateHandlerIDHash generates a Hash based on: URL and Headers to uniquely identify Upgrade Requests
-func (c *SubscriptionClient) generateHandlerIDHash(options GraphQLSubscriptionOptions) (uint64, error) {
-	var (
-		err error
-	)
-	xxh := c.hashPool.Get().(*xxhash.Digest)
-	defer c.hashPool.Put(xxh)
-	xxh.Reset()
-
-	_, err = xxh.WriteString(options.URL)
-	if err != nil {
-		return 0, err
+func connectionKey(options GraphQLSubscriptionOptions, connectionInitMessage []byte) (string, error) {
+	var key bytes.Buffer
+	key.WriteString(options.URL)
+	key.WriteByte(0)
+	if err := options.Header.Write(&key); err != nil {
+		return "", err
 	}
-	err = options.Header.Write(xxh)
-	if err != nil {
-		return 0, err
-	}
-
-	return xxh.Sum64(), nil
+	key.WriteByte(0)
+	key.Write(connectionInitMessage)
+	return key.String(), nil
 }
 
-func (c *SubscriptionClient) newWSConnectionHandler(reqCtx context.Context, options GraphQLSubscriptionOptions) (ConnectionHandler, error) {
+func (c *SubscriptionClient) newWSConnectionHandler(reqCtx context.Context, options GraphQLSubscriptionOptions, connectionInitMessage []byte) (ConnectionHandler, error) {
 	subProtocols := []string{ProtocolGraphQLWS, ProtocolGraphQLTWS}
 	if c.wsSubProtocol != "" {
 		subProtocols = []string{c.wsSubProtocol}
@@ -235,32 +223,27 @@ func (c *SubscriptionClient) newWSConnectionHandler(reqCtx context.Context, opti
 		return nil, fmt.Errorf("upgrade unsuccessful")
 	}
 
-	connectionInitMessage, err := c.getConnectionInitMessage(reqCtx, options.URL, options.Header)
-	if err != nil {
-		return nil, err
-	}
-
 	// init + ack
 	err = conn.Write(reqCtx, nhooyrwebsocket.MessageText, connectionInitMessage)
 	if err != nil {
 		return nil, err
 	}
 
-	if c.wsSubProtocol == "" {
-		c.wsSubProtocol = conn.Subprotocol()
-	}
-
 	if err := waitForAck(reqCtx, conn); err != nil {
 		return nil, err
 	}
 
-	switch c.wsSubProtocol {
+	protocol := c.wsSubProtocol
+	if protocol == "" {
+		protocol = conn.Subprotocol()
+	}
+	switch protocol {
 	case ProtocolGraphQLWS:
 		return newGQLWSConnectionHandler(c.engineCtx, conn, c.readTimeout, c.log), nil
 	case ProtocolGraphQLTWS:
 		return newGQLTWSConnectionHandler(c.engineCtx, conn, c.readTimeout, c.log), nil
 	default:
-		return nil, fmt.Errorf("unknown protocol %s", conn.Subprotocol())
+		return nil, fmt.Errorf("unknown protocol %s", protocol)
 	}
 }
 
