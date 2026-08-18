@@ -25,7 +25,7 @@ import (
 )
 
 func TestWithContext(t *testing.T) {
-	ctx := context.WithValue(context.Background(), struct{}{}, "request")
+	ctx := context.WithValue(context.Background(), ctxCaptureKey{}, "request")
 	options := HandleOptions{}
 
 	WithContext(ctx)(&options)
