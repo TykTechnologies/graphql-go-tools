@@ -1430,7 +1430,7 @@ func TestFastHttpJsonDataSourcePlanning(t *testing.T) {
 						DataSource: &Source{},
 						Variables: resolve.NewVariables(
 							&resolve.ContextVariable{
-								Path:     []string{"in"},
+								Path:     []string{"order"},
 								Renderer: resolve.NewPlainVariableRendererWithValidation(`{"type":["string"]}`),
 							},
 						),
