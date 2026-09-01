@@ -165,20 +165,9 @@ Next:
 				if !exists {
 					continue
 				}
-				typeRef := p.v.Operation.VariableDefinitions[variableDefRef].Type
-				typeName := p.v.Operation.TypeNameString(typeRef)
-				typeKind := p.v.Operation.Types[typeRef].TypeKind
-
-				underlyingTypeName := typeName
-				if typeKind == ast.TypeKindNonNull {
-					underlyingTypeName = p.v.Operation.TypeNameString(p.v.Operation.Types[typeRef].OfType)
-				}
-
-				node, exists := p.v.Definition.NodeByNameStr(underlyingTypeName)
-				isEnum := exists && node.Kind == ast.NodeKindEnumTypeDefinition
 
 				// if type is a nullable or non-nullable string, add quotes to the raw message
-				if isEnum || typeName == typeString || (typeKind == ast.TypeKindNonNull && p.v.Operation.TypeNameString(p.v.Operation.Types[typeRef].OfType) == typeString) {
+				if p.isArgStringOrEnum(variableDefRef) {
 					query[i].rawMessage = []byte(`"` + query[i].Value + `"`)
 				} else {
 					query[i].rawMessage = []byte(query[i].Value)
@@ -193,6 +182,22 @@ Next:
 		out = append(out, query[i])
 	}
 	return out
+}
+
+func (p *Planner) isArgStringOrEnum(ref int) bool {
+	argDef := p.v.Operation.VariableDefinitions[ref]
+	typeName := p.v.Operation.TypeNameString(argDef.Type)
+	typeDef := p.v.Operation.Types[argDef.Type]
+
+	underlyingTypeName := typeName
+	if typeDef.TypeKind == ast.TypeKindNonNull {
+		underlyingTypeName = p.v.Operation.TypeNameString(p.v.Operation.Types[argDef.Type].OfType)
+	}
+
+	node, exists := p.v.Definition.NodeByNameStr(underlyingTypeName)
+	isEnum := exists && node.Kind == ast.NodeKindEnumTypeDefinition
+
+	return isEnum || underlyingTypeName == typeString
 }
 
 func (p *Planner) marshalQueryParams(params []QueryConfiguration) ([]byte, error) {
