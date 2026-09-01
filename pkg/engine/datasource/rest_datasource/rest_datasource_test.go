@@ -1446,9 +1446,9 @@ func TestFastHttpJsonDataSourcePlanning(t *testing.T) {
 								Nullable: true,
 								Fields: []*resolve.Field{
 									{
-										Name: []byte("order"),
+										Name: []byte("name"),
 										Value: &resolve.String{
-											Path:     []string{"order"},
+											Path:     []string{"name"},
 											Nullable: true,
 										},
 									},
