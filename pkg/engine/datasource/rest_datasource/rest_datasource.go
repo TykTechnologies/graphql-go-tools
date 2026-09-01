@@ -5,11 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/buger/jsonparser"
 	"io"
 	"net/http"
 	"regexp"
 	"strings"
+
+	"github.com/buger/jsonparser"
 
 	"github.com/TykTechnologies/graphql-go-tools/pkg/ast"
 	"github.com/TykTechnologies/graphql-go-tools/pkg/engine/datasource/httpclient"
@@ -167,8 +168,17 @@ Next:
 				typeRef := p.v.Operation.VariableDefinitions[variableDefRef].Type
 				typeName := p.v.Operation.TypeNameString(typeRef)
 				typeKind := p.v.Operation.Types[typeRef].TypeKind
+
+				underlyingTypeName := typeName
+				if typeKind == ast.TypeKindNonNull {
+					underlyingTypeName = p.v.Operation.TypeNameString(p.v.Operation.Types[typeRef].OfType)
+				}
+
+				node, exists := p.v.Definition.NodeByNameStr(underlyingTypeName)
+				isEnum := exists && node.Kind == ast.NodeKindEnumTypeDefinition
+
 				// if type is a nullable or non-nullable string, add quotes to the raw message
-				if typeName == typeString || (typeKind == ast.TypeKindNonNull && p.v.Operation.TypeNameString(p.v.Operation.Types[typeRef].OfType) == typeString) {
+				if isEnum || typeName == typeString || (typeKind == ast.TypeKindNonNull && p.v.Operation.TypeNameString(p.v.Operation.Types[typeRef].OfType) == typeString) {
 					query[i].rawMessage = []byte(`"` + query[i].Value + `"`)
 				} else {
 					query[i].rawMessage = []byte(query[i].Value)
