@@ -27,6 +27,7 @@ const (
 			withArrayArguments(names: [String]): Friend
 			withIntArgument(limit: Int): Friend
 			withStringArgument(name: String!): Friend
+			withEnumArgument(order: Order!): Friend
 		}
 
 		type Subscription {
@@ -53,6 +54,11 @@ const (
 		type Pet {
 			id: String
 			name: String
+		}
+
+		enum Order {
+    		asc
+    		desc
 		}
 	`
 
@@ -141,6 +147,14 @@ query ArgumentQuery($in: Int!) {
 	stringArgumentOperationNonNullableString = `
 query ArgumentQuery($in: String!) {
   			withStringArgument(name: $in) {
+    			name
+  			}
+		}
+`
+
+	stringArgumentOperationNonNullableEnum = `
+query ArgumentQuery($order: Order!) {
+  			withEnumArgument(order: $order) {
     			name
   			}
 		}
@@ -1405,6 +1419,81 @@ func TestFastHttpJsonDataSourcePlanning(t *testing.T) {
 			DisableResolveFieldPositions: true,
 		},
 	))
+
+	t.Run("get request with non null enum as query param", datasourcetesting.RunTest(schema, stringArgumentOperationNonNullableEnum, "ArgumentQuery",
+		&plan.SynchronousResponsePlan{
+			Response: &resolve.GraphQLResponse{
+				Data: &resolve.Object{
+					Fetch: &resolve.SingleFetch{
+						BufferId:   0,
+						Input:      `{"query_params":[{"name":"order","value":"$$0$$"}],"method":"GET","url":"https://example.com/friend"}`,
+						DataSource: &Source{},
+						Variables: resolve.NewVariables(
+							&resolve.ContextVariable{
+								Path:     []string{"in"},
+								Renderer: resolve.NewPlainVariableRendererWithValidation(`{"type":["string"]}`),
+							},
+						),
+						DataSourceIdentifier: []byte("rest_datasource.Source"),
+						DisableDataLoader:    true,
+					},
+					Fields: []*resolve.Field{
+						{
+							BufferID:  0,
+							HasBuffer: true,
+							Name:      []byte("withEnumArgument"),
+							Value: &resolve.Object{
+								Nullable: true,
+								Fields: []*resolve.Field{
+									{
+										Name: []byte("order"),
+										Value: &resolve.String{
+											Path:     []string{"order"},
+											Nullable: true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		plan.Configuration{
+			DataSources: []plan.DataSourceConfiguration{
+				{
+					RootNodes: []plan.TypeField{
+						{
+							TypeName:   "Query",
+							FieldNames: []string{"withEnumArgument"},
+						},
+					},
+					Custom: ConfigJSON(Configuration{
+						Fetch: FetchConfiguration{
+							URL:    "https://example.com/friend",
+							Method: "GET",
+							Query: []QueryConfiguration{
+								{
+									Name:  "order",
+									Value: "{{ .arguments.order }}",
+								},
+							},
+						},
+					}),
+					Factory: &Factory{},
+				},
+			},
+			Fields: []plan.FieldConfiguration{
+				{
+					TypeName:              "Query",
+					FieldName:             "withEnumArgument",
+					DisableDefaultMapping: true,
+				},
+			},
+			DisableResolveFieldPositions: true,
+		},
+	))
+
 }
 
 func TestHttpJsonDataSource_Load(t *testing.T) {
